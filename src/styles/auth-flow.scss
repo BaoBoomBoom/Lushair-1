@@ -1,0 +1,182 @@
+@import './typography.scss';
+
+$auth-font-display: $font-display;
+$auth-font-body: $font-body;
+$auth-color-primary: $color-primary;
+$auth-color-primary-light: $color-primary-light;
+$auth-color-text: $color-text;
+$auth-color-muted: $color-muted;
+$auth-color-soft: $color-soft;
+$auth-color-inverse: #ffffff;
+$auth-color-border: $color-border;
+$auth-color-surface-2: $color-surface-2;
+
+.auth-flow-page {
+    font-family: $auth-font-body;
+    color: $auth-color-text;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+}
+
+.auth-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 0;
+
+    .auth-back__icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .auth-back__text {
+        font-family: $auth-font-display;
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1.2;
+        color: $auth-color-primary;
+    }
+}
+
+.auth-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 32px;
+}
+
+.auth-title {
+    font-family: $auth-font-display;
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: $auth-color-text;
+}
+
+.auth-title--inverse {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: $auth-color-inverse;
+}
+
+.auth-subtitle {
+    font-family: $auth-font-body;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.55;
+    color: $auth-color-soft;
+}
+
+.auth-subtitle--inverse {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.auth-label {
+    font-family: $auth-font-display;
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1.3;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: $auth-color-muted;
+}
+
+.auth-input {
+    font-family: $auth-font-body;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: $auth-color-text;
+}
+
+.auth-btn-primary {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    background-color: $auth-color-primary;
+    font-family: $auth-font-display;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $auth-color-inverse;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+
+    &::after {
+        border: none;
+    }
+
+    &:disabled,
+    &.is-disabled {
+        opacity: 0.45;
+    }
+
+    &:active:not(:disabled) {
+        background-color: $auth-color-primary-light;
+    }
+}
+
+.auth-btn-secondary {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border: 1.5px solid rgba(107, 33, 200, 0.18);
+    border-radius: 12px;
+    background: transparent;
+    font-family: $auth-font-display;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $auth-color-primary;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+
+    &::after {
+        border: none;
+    }
+
+    &:active {
+        background: rgba(107, 33, 200, 0.12);
+    }
+}
+
+.auth-link {
+    text-align: center;
+    font-family: $auth-font-body;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.5;
+    color: $auth-color-primary;
+}
+
+.auth-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-shrink: 0;
+}

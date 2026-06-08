@@ -1,0 +1,488 @@
+/* Your Hair page — mock layout + functional overlays */
+
+@import './app-shell.scss';
+
+.your-hair-container {
+    padding: 0 2px 40px;
+}
+
+.analysis-tab,
+.history-panel {
+    padding: 0 2px;
+}
+
+.view-by-label {
+    margin: 8px 2px 8px;
+}
+
+.chart-card {
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.hair-chart-scroll {
+    width: 100%;
+    white-space: nowrap;
+}
+
+.chart-wrapper {
+    display: block;
+    box-sizing: border-box;
+}
+
+.hair-line-svg {
+    width: 100%;
+    height: 180px;
+    display: block;
+    min-width: 100%;
+}
+
+.chart-date-labels {
+    margin-top: 8px;
+    width: 100%;
+
+    .chart-date-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chart-date-text {
+        flex: 1;
+        text-align: center;
+        font-size: 10.5px;
+        color: $shell-muted;
+    }
+}
+
+.radar-chart-core {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto 18px;
+    padding: 6px 0 10px;
+}
+
+.shell-radar-wrap .shell-legend {
+    margin-top: 56px;
+    padding-top: 6px;
+}
+
+.radar-labels {
+    position: absolute;
+    inset: -4px;
+    pointer-events: none;
+}
+
+.radar-label {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text {
+        font-size: 10.5px;
+        color: $shell-soft;
+        font-weight: 500;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sb-small {
+    font-size: 11px;
+    color: $shell-muted;
+    font-weight: 500;
+}
+
+.shell-pill--hidden {
+    visibility: hidden;
+}
+
+.demo-data-notice {
+    padding: 10px 14px;
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-radius: 12px;
+    margin-bottom: 12px;
+
+    .demo-notice-text {
+        color: #856404;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        display: block;
+    }
+}
+
+.ba-card {
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.ba-muted {
+    color: $shell-muted;
+}
+
+.ba-primary {
+    color: $shell-primary;
+}
+
+.ba-foot-right {
+    text-align: right;
+}
+
+.ba-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.what-changed-card {
+    padding: 8px 18px;
+    margin-bottom: 12px;
+}
+
+.what-changed-label {
+    margin: 8px 0 4px;
+}
+
+.shell-row-label {
+    font-size: 13px;
+    color: $shell-soft;
+}
+
+.hist-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+/* History timeline — Selfie vs Trichoscan */
+.shell-tl-hero-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.shell-tl-hero-stage {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.shell-tl-lvl-hero {
+    font-family: $shell-font-display;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: $shell-text;
+    line-height: 1;
+}
+
+.shell-tl-lvl-of {
+    font-size: 14px;
+    color: $shell-muted;
+    font-weight: 500;
+}
+
+.shell-tl-type-row {
+    margin-bottom: 10px;
+}
+
+.shell-tl-type {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $shell-soft;
+    font-weight: 600;
+}
+
+.shell-tl-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+.shell-tl-foot-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $shell-muted;
+    font-weight: 600;
+}
+
+.shell-tl-foot-status {
+    font-size: 11px;
+    font-weight: 600;
+
+    &.is-improved {
+        color: $shell-green;
+    }
+
+    &.is-worsened {
+        color: $shell-red;
+    }
+}
+
+.shell-tl-score--tricho {
+    margin-bottom: 2px;
+}
+
+.shell-tl-subtitle {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $shell-muted;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.shell-tl-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.shell-tl-metric-chip {
+    background: $shell-bg2;
+    border: 1px solid $shell-border;
+    border-radius: 10px;
+    padding: 8px 6px;
+    text-align: center;
+}
+
+.shell-tl-metric-label {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $shell-muted;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.shell-tl-metric-valrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.shell-tl-metric-value {
+    font-family: $shell-font-display;
+    font-size: 16px;
+    font-weight: 600;
+    color: $shell-text;
+    line-height: 1;
+}
+
+.shell-metric-delta {
+    font-size: 10px;
+    font-weight: 700;
+
+    &--up {
+        color: $shell-green;
+    }
+
+    &--down {
+        color: $shell-red;
+    }
+
+    &--flat {
+        color: $shell-muted;
+    }
+}
+
+.delete-fab {
+    position: absolute;
+    top: 12px;
+    right: 36px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: $shell-red-bg;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.date-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.date-picker {
+    background: $shell-bg;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 360px;
+    max-height: 80vh;
+    overflow: hidden;
+    border: 1px solid $shell-border;
+    box-shadow: $shell-shadow-lg;
+}
+
+.date-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid $shell-border;
+
+    .picker-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: $shell-text;
+    }
+
+    .picker-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: $shell-bg2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: $shell-muted;
+    }
+}
+
+.date-picker-content {
+    padding: 16px;
+}
+
+.month-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .nav-button {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: $shell-bg2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: $shell-muted;
+    }
+
+    .month-text {
+        font-size: 15px;
+        font-weight: 600;
+        color: $shell-text;
+    }
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+
+    .weekday {
+        text-align: center;
+        font-size: 10.5px;
+        color: $shell-muted;
+        font-weight: 600;
+    }
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    box-sizing: border-box;
+
+    .day-number {
+        font-size: 14px;
+        color: $shell-text;
+        font-weight: 500;
+    }
+
+    .day-count {
+        font-size: 10px;
+        color: $shell-primary;
+        font-weight: 600;
+    }
+
+    &.other-month .day-number {
+        color: #ccc;
+    }
+
+    &.has-data {
+        background: $shell-primary-muted;
+        border: 1px solid $shell-border2;
+    }
+
+    &.selected {
+        background: $shell-primary;
+
+        .day-number,
+        .day-count {
+            color: #fff;
+        }
+    }
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+
+    .loading-text,
+    .error-text,
+    .empty-text {
+        font-size: 14px;
+        color: $shell-muted;
+        margin-bottom: 12px;
+    }
+
+    .retry-button {
+        padding: 10px 18px;
+        background: $shell-primary;
+        border-radius: 8px;
+
+        .retry-text {
+            font-size: 13px;
+            color: #fff;
+            font-weight: 600;
+        }
+    }
+}

@@ -1,0 +1,1 @@
+System.register(["./index-legacy-BaJAhXfw.js"],function(t,e){"use strict";var n,u,r,s,o,c,i;return{setters:[t=>{n=t.d,u=t.u,r=t.a,s=t.b,o=t.i,c=t.o,i=t.A}],execute:function(){t("default",n({__name:"login",setup(t){const{t:e}=u();return(t,e)=>{const n=o;return c(),r(n,null,{default:s(()=>[i(" todo ")]),_:1})}}}))}}});

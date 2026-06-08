@@ -1,0 +1,533 @@
+{
+    "pages": [
+        {
+            "path": "pages/landing/index",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/index/index",
+            "style": {
+                "navigationBarTitleText": "%tabbar.home%",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/trichoscan/quick-result",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/trichoscan/advanced-result",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/trichoscan/advanced-result-v2",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/trichoscan/skin-analysis-result",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/landing/intro",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/splash",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/index/home",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/index/hair-loss-prediction",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/scan/index",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/routine/index",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/hair/index",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                },
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/consult/new",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/index",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/auth/register",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/login",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/register-email-first",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/login-email-first",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/register-phone-first",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/login-phone-first",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/auth/send-code",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/analysis/index",
+            "style": {
+                "navigationBarTitleText": "%pages.analysis%",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/selfie/results",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/consult/index",
+            "style": {
+                "navigationBarTitleText": "%pages.consult%",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/consult/home",
+            "style": {
+                "navigationBarTitleText": "%pages.consult%",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/profile/index",
+            "style": {
+                "navigationBarTitleText": "%pages.profile%",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/account/details",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/personal-info",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/update-email",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/update-phone",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/change-password",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/common/webview",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/language",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/hair-points",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/my-shelf",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/manage-my-data",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/help-support",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/notifications",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/account/genpulse-ledger",
+            "style": {
+                "app-plus": {
+                    "titleNView": false
+                },
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/trichoscan/index",
+            "style": {
+                "navigationBarTitleText": "%pages.trichoscan%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/settings",
+            "style": {
+                "navigationBarTitleText": "%pages.settings%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/gender-settings",
+            "style": {
+                "navigationBarTitleText": "Gender",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/birthday-settings",
+            "style": {
+                "navigationBarTitleText": "Birthday",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/language-settings",
+            "style": {
+                "navigationBarTitleText": "%pages.languageSettings%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/tracker-view",
+            "style": {
+                "navigationBarTitleText": "活动追踪数据",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/Selfie/scan-instructions",
+            "style": {
+                "navigationBarTitleText": "%pages.scanInstructions%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/selfie/selfie-result",
+            "style": {
+                "navigationBarTitleText": "%pages.selfieResult%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/selfie/phone-cam-analysis",
+            "style": {
+                "navigationBarTitleText": "%pages.phoneCamAnalysis%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/routine/clock-in",
+            "style": {
+                "navigationBarTitleText": "%pages.clockIn%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/questionnaire/index",
+            "style": {
+                "navigationBarTitleText": "%pages.questionnaire%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/questionnaire/question",
+            "style": {
+                "navigationBarTitleText": "%pages.question%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/questionnaire/result",
+            "style": {
+                "navigationBarTitleText": "%pages.result%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/share/passport",
+            "style": {
+                "navigationBarTitleText": "My Lushair Passport",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/auth/wallet-login",
+            "style": {
+                "navigationBarTitleText": "Wallet Login",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/analysis/records",
+            "style": {
+                "navigationBarTitleText": "%analysis.records%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/profile/achievements",
+            "style": {
+                "navigationBarTitleText": "%pages.achievements%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/consult/main",
+            "style": {
+                "navigationBarTitleText": "%pages.consult%",
+                "navigationStyle": "custom"
+            }
+        }
+    ],
+    "globalStyle": {
+        "navigationBarTextStyle": "black",
+        "navigationBarTitleText": "Lushair",
+        "navigationBarBackgroundColor": "#FFFFFF",
+        "backgroundColor": "#EBEBEB"
+    },
+    "tabBar": {
+        "color": "#8A82A0",
+        "selectedColor": "#6B21C8",
+        "borderStyle": "white",
+        "backgroundColor": "#FFFFFF",
+        "height": "56px",
+        "fontSize": "10px",
+        "iconWidth": "24px",
+        "iconHeight": "24px",
+        "spacing": "5px",
+        "list": [
+            {
+                "pagePath": "pages/index/home",
+                "iconPath": "/static/tabbar/home.svg",
+                "selectedIconPath": "/static/tabbar/home-active.svg",
+                "text": "%tabbar.home%"
+            },
+            {
+                "pagePath": "pages/scan/index",
+                "iconPath": "/static/tabbar/scan.svg",
+                "selectedIconPath": "/static/tabbar/scan-active.svg",
+                "text": "%tabbar.scan%"
+            },
+            {
+                "pagePath": "pages/consult/new",
+                "iconPath": "/static/tabbar/chat.svg",
+                "selectedIconPath": "/static/tabbar/chat-active.svg",
+                "text": "%tabbar.aiChat%"
+            },
+            {
+                "pagePath": "pages/routine/index",
+                "iconPath": "/static/tabbar/routine.svg",
+                "selectedIconPath": "/static/tabbar/routine-active.svg",
+                "text": "%tabbar.routine%"
+            },
+            {
+                "pagePath": "pages/hair/index",
+                "iconPath": "/static/tabbar/hair.svg",
+                "selectedIconPath": "/static/tabbar/hair-active.svg",
+                "text": "%tabbar.hair%"
+            }
+        ]
+    },
+    "easycom": {
+        "autoscan": true,
+        "custom": {
+            "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+        }
+    }
+}

@@ -1,0 +1,1092 @@
+/* Result pages — selfie & trichoscan (full shell redesign) */
+
+@import './app-shell.scss';
+
+.rp-page {
+    min-height: 100vh;
+    background: $shell-page-bg;
+    font-family: $shell-font-body;
+    font-size: 14px;
+    color: $shell-soft;
+    max-width: 430px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding-bottom: 28px;
+}
+
+/* ── Top bar ── */
+.rp-topbar {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: $shell-bg;
+    border-bottom: 1px solid $shell-border;
+    box-sizing: border-box;
+}
+
+.rp-back,
+.rp-share,
+.rp-topbar-spacer {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.rp-back text {
+    font-size: 28px;
+    line-height: 1;
+    color: $shell-primary;
+    font-weight: 300;
+}
+
+.rp-share {
+    border-radius: 10px;
+    background: $shell-bg2;
+    border: 1px solid $shell-border;
+}
+
+.rp-topbar-title {
+    font-family: $shell-font-display;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $shell-text;
+}
+
+/* ── Body scroll area ── */
+.rp-body {
+    padding: 12px 16px 24px;
+    box-sizing: border-box;
+}
+
+.rp-hero-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+/* ── Hero card (photo + meta) ── */
+.rp-hero-card {
+    padding: 14px !important;
+    margin-bottom: 12px;
+}
+
+.rp-hero-grid {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+}
+
+.rp-photo {
+    width: 96px;
+    height: 118px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid $shell-border;
+    background: $shell-bg2;
+}
+
+.rp-photo image {
+    width: 100%;
+    height: 100%;
+}
+
+.rp-hero-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.rp-date {
+    font-size: 11px;
+    color: $shell-muted;
+    line-height: 1.4;
+}
+
+.rp-stage-pill {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.rp-stage-num {
+    font-family: $shell-font-display;
+    font-size: 28px;
+    font-weight: 600;
+    color: $shell-text;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.rp-stage-of {
+    font-size: 14px;
+    color: $shell-muted;
+    font-weight: 500;
+}
+
+/* ── Stage detail ── */
+.rp-stage-detail {
+    margin-bottom: 12px;
+}
+
+.rp-stage-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: $shell-muted;
+    margin-top: 6px;
+    margin-bottom: 12px;
+}
+
+.rp-desc {
+    font-size: 13px;
+    line-height: 1.55;
+    color: $shell-soft;
+}
+
+/* ── AI summary ── */
+.rp-ai-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rp-ai-title {
+    font-family: $shell-font-display;
+    font-size: 15px;
+    font-weight: 600;
+    color: $shell-text;
+}
+
+.rp-ai-text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: $shell-soft;
+    white-space: pre-wrap;
+    margin-bottom: 12px;
+}
+
+.rp-tip {
+    background: $shell-bg2;
+    border-left: 3px solid $shell-primary;
+    border-radius: 0 10px 10px 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $shell-soft;
+    margin-bottom: 14px;
+}
+
+.rp-suggest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.rp-suggest-item {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: $shell-soft;
+}
+
+.rp-suggest-dot {
+    color: $shell-primary;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.rp-ai-foot {
+    font-size: 12px;
+    color: $shell-primary;
+    text-align: center;
+    padding: 10px;
+    background: $shell-bg2;
+    border-radius: 10px;
+    border: 1px solid $shell-border2;
+}
+
+/* ── Metrics / radar ── */
+.rp-radar-wrap {
+    background: $shell-bg2;
+    border: 1px solid $shell-border;
+    border-radius: 14px;
+    padding: 8px;
+    margin-top: 8px;
+}
+
+.rp-radar-core {
+    position: relative;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.rp-radar-svg {
+    width: 100%;
+    height: 260px;
+    display: block;
+}
+
+.rp-radar-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.rp-radar-label {
+    position: absolute;
+    font-size: 10px;
+    color: $shell-muted;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ── Metric rows (selfie score breakdown) ── */
+.rp-metrics-card {
+    margin-bottom: 12px;
+}
+
+.rp-metric-group {
+    &:not(:last-child) {
+        border-bottom: 1px solid $shell-border;
+        padding-bottom: 14px;
+        margin-bottom: 14px;
+    }
+}
+
+.rp-metric-group-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rp-metric-group-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.rp-metric-group-title {
+    font-family: $shell-font-display;
+    font-size: 13px;
+    font-weight: 600;
+    color: $shell-text;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rp-metric-row {
+    margin-bottom: 14px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+
+.rp-metric-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.rp-metric-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: $shell-text;
+}
+
+.rp-metric-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: $shell-primary;
+}
+
+.rp-metric-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.rp-metric-seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 4px;
+    background: $shell-ring-track;
+
+    &.on-1 { background: #d8c4f8; }
+    &.on-2 { background: #a855f7; }
+    &.on-3 { background: $shell-primary; }
+}
+
+.rp-metric-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: $shell-muted;
+}
+
+.rp-metric-note {
+    font-size: 12px;
+    line-height: 1.5;
+    color: $shell-soft;
+    margin-top: 8px;
+}
+
+/* ── Trichoscan score hero ── */
+.rp-score-block {
+    text-align: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px !important;
+}
+
+.rp-score-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+    margin: 4px 0 16px;
+}
+
+.rp-score-num {
+    font-family: $shell-font-display;
+    font-size: 52px;
+    font-weight: 700;
+    color: $shell-primary;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+
+.rp-score-of {
+    font-size: 16px;
+    color: $shell-muted;
+    font-weight: 500;
+}
+
+.rp-improve {
+    font-size: 12px;
+    font-weight: 600;
+    color: $shell-green;
+    margin-bottom: 8px;
+}
+
+/* ── Trichoscan trend chart ── */
+.rp-trend {
+    background: $shell-bg2;
+    border: 1px solid $shell-border;
+    border-radius: 12px;
+    padding: 12px 8px 8px;
+    overflow: hidden;
+}
+
+.rp-trend-scroll {
+    width: 100%;
+    white-space: nowrap;
+}
+
+.rp-trend-inner {
+    position: relative;
+    height: 120px;
+}
+
+.rp-trend .chart-area {
+    position: relative;
+    height: 90px;
+}
+
+.rp-trend .line-connector.scalp {
+    position: absolute;
+    height: 2px;
+    background: $shell-primary;
+    transform-origin: left center;
+    opacity: 0.5;
+}
+
+.rp-trend .line-connector.scalp.latest {
+    opacity: 1;
+}
+
+.rp-trend .chart-point.scalp {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    margin-top: -5px;
+}
+
+.rp-trend .chart-point.scalp .point-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: $shell-primary;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(107, 33, 200, 0.35);
+}
+
+.rp-trend .chart-dates {
+    position: relative;
+    height: 24px;
+    margin-top: 4px;
+}
+
+.rp-trend .chart-date {
+    position: absolute;
+    transform: translateX(-50%);
+}
+
+.rp-trend .date-label {
+    font-size: 9px;
+    color: $shell-muted;
+    white-space: nowrap;
+}
+
+/* ── Trichoscan breakdown cards ── */
+.rp-breakdown {
+    margin-bottom: 12px;
+}
+
+.rp-breakdown-head {
+    margin-bottom: 12px;
+}
+
+.rp-card-title {
+    display: block;
+    font-family: $shell-font-display;
+    font-size: 15px;
+    font-weight: 600;
+    color: $shell-text;
+    margin-bottom: 12px;
+}
+
+.rp-curve-wrap {
+    background: $shell-bg2;
+    border: 1px solid $shell-border;
+    border-radius: 12px;
+    padding: 10px 8px;
+    margin-bottom: 12px;
+}
+
+.rp-curve-container {
+    position: relative;
+    width: 100%;
+}
+
+.rp-bell-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.rp-percentile {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    background: $shell-bg;
+    border: 1px solid $shell-border2;
+    border-radius: 8px;
+    padding: 3px 8px;
+    white-space: nowrap;
+}
+
+.rp-percentile text {
+    font-size: 10px;
+    font-weight: 600;
+    color: $shell-primary;
+}
+
+.rp-curve-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 10px;
+    color: $shell-muted;
+}
+
+.rp-metric-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.rp-metric-chip {
+    flex: 1;
+    min-width: calc(33% - 8px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    border: 1px solid $shell-border;
+    border-radius: 10px;
+    background: $shell-bg;
+    box-sizing: border-box;
+
+    &.active {
+        border-color: $shell-primary;
+        background: $shell-bg2;
+    }
+}
+
+.rp-chip-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.rp-chip-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: $shell-muted;
+    text-align: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rp-detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.rp-detail-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.rp-detail-title text {
+    font-size: 14px;
+    font-weight: 600;
+    color: $shell-text;
+}
+
+.rp-detail-title-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.rp-detail-stat {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.rp-detail-status {
+    font-size: 10px;
+    color: $shell-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: block;
+}
+
+.rp-detail-value {
+    font-family: $shell-font-display;
+    font-size: 20px;
+    font-weight: 600;
+    color: $shell-primary;
+    line-height: 1.1;
+}
+
+.rp-detail-unit {
+    font-size: 12px;
+    color: $shell-muted;
+}
+
+.rp-detail-desc {
+    font-size: 13px;
+    line-height: 1.55;
+    color: $shell-soft;
+    margin-bottom: 12px;
+}
+
+/* Scan images row */
+.rp-img-scroll {
+    width: 100%;
+    white-space: nowrap;
+}
+
+.rp-img-list {
+    display: inline-flex;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.rp-img-item {
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    border: 1px solid $shell-border;
+}
+
+.rp-img-item image {
+    width: 100%;
+    height: 100%;
+}
+
+.rp-img-view {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    padding: 3px 7px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rp-img-view text {
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.08em;
+}
+
+/* ── Products horizontal ── */
+.rp-products-scroll {
+    width: 100%;
+    white-space: nowrap;
+    margin-top: 8px;
+}
+
+.rp-products-list {
+    display: inline-flex;
+    gap: 10px;
+}
+
+.rp-product-card {
+    width: 148px;
+    flex-shrink: 0;
+    border: 1px solid $shell-border;
+    border-radius: 14px;
+    overflow: hidden;
+    background: $shell-bg;
+}
+
+.rp-product-img {
+    width: 148px;
+    height: 100px;
+    display: block;
+}
+
+.rp-product-name {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: $shell-text;
+    line-height: 1.35;
+    white-space: normal;
+}
+
+/* ── CTA / invite ── */
+.rp-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.rp-cta-title {
+    font-family: $shell-font-display;
+    font-size: 15px;
+    font-weight: 600;
+    color: $shell-text;
+}
+
+.rp-cta-sub {
+    font-size: 13px;
+    color: $shell-muted;
+    line-height: 1.45;
+    margin-top: 4px;
+}
+
+/* ── Actions ── */
+.rp-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.rp-btn {
+    flex: 1;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-family: $shell-font-display;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    padding: 0;
+    margin: 0;
+    line-height: 1;
+
+    &::after {
+        border: none;
+    }
+}
+
+.rp-btn--primary {
+    background: $shell-primary;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(107, 33, 200, 0.28);
+}
+
+.rp-btn--ghost {
+    background: $shell-bg;
+    color: $shell-primary;
+    border: 1px solid $shell-border2 !important;
+}
+
+.rp-btn--wide {
+    width: 100%;
+}
+
+/* ── Hexagon radar (tricho) ── */
+.rp-hex-wrap {
+    position: relative;
+    width: 230px;
+    max-width: 100%;
+    margin: 8px auto 0;
+    height: 231px;
+}
+
+.rp-hex-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.rp-hex-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.rp-hex-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.rp-hex-label {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 600;
+    color: $shell-muted;
+    white-space: nowrap;
+}
+
+.rp-hex-score {
+    margin-left: 4px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 300;
+    color: $shell-primary;
+}
+
+.rp-chip-score {
+    margin-left: 4px;
+    font-weight: 700;
+    color: $shell-primary;
+}
+
+/* ── Off-screen share card (long image export) ── */
+.rp-share-card {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 375px;
+    background: #ebebeb;
+    padding: 16px;
+    box-sizing: border-box;
+    z-index: -1;
+}
+
+.rp-share-section {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 16px;
+    margin-bottom: 12px;
+}
+
+.rp-share-title {
+    display: block;
+    font-family: $shell-font-display;
+    font-size: 15px;
+    font-weight: 600;
+    color: $shell-text;
+    margin-bottom: 12px;
+}
+
+.rp-share-hex {
+    position: relative;
+    width: 230px;
+    height: 231px;
+    margin: 0 auto;
+}
+
+.rp-share-hex-bg,
+.rp-share-hex-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.rp-share-hex-label {
+    font-size: 9px;
+}
+
+.rp-share-curve {
+    position: relative;
+}
+
+.rp-share-percentile {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1px solid $shell-border;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: $shell-text;
+    white-space: nowrap;
+}
+
+.rp-share-curve-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: $shell-muted;
+    margin-top: 6px;
+    padding: 0 4px;
+}
+
+.rp-share-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px 8px;
+}
+
+.rp-share-tile {
+    text-align: center;
+}
+
+.rp-share-tile-icon {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 6px;
+    background: rgba(107, 33, 200, 0.08);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    image {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.rp-share-tile-label {
+    display: block;
+    font-size: 9px;
+    color: $shell-muted;
+    line-height: 1.3;
+}
+
+.rp-share-tile-score {
+    display: block;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 18px;
+    font-weight: 300;
+    color: $shell-primary;
+    margin-top: 2px;
+}
+
+.rp-share-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.rp-share-footer-cta {
+    font-size: 13px;
+    font-weight: 600;
+    color: $shell-text;
+    line-height: 1.5;
+}
+
+.rp-share-qr {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+}
+
+/* ── Loading ── */
+.rp-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(235, 235, 235, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rp-loading-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.rp-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid $shell-border;
+    border-top-color: $shell-primary;
+    border-radius: 50%;
+    animation: rp-spin 0.8s linear infinite;
+}
+
+@keyframes rp-spin {
+    to { transform: rotate(360deg); }
+}
+
+.rp-loading-text {
+    font-size: 13px;
+    color: $shell-muted;
+}
+
+/* ── Image preview modal ── */
+.rp-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(26, 18, 40, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rp-preview-inner {
+    width: 100%;
+    max-width: 430px;
+    height: 80vh;
+    position: relative;
+}
+
+.rp-preview-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 24px;
+}
+
+.rp-preview-swiper {
+    width: 100%;
+    height: 100%;
+}
+
+.rp-preview-img-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rp-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.rp-preview-dots {
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+}
+
+.rp-preview-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+
+    &.active {
+        background: #fff;
+    }
+}
+
+/* ── Empty / loading inline ── */
+.rp-empty {
+    text-align: center;
+    padding: 24px 12px;
+    color: $shell-muted;
+    font-size: 13px;
+}
+
+.rp-empty-title {
+    display: block;
+    font-weight: 600;
+    color: $shell-text;
+    margin-bottom: 6px;
+}

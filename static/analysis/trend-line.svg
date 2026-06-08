@@ -1,0 +1,29 @@
+<svg width="100%" height="100%" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景网格 -->
+  <line x1="0" y1="30" x2="300" y2="30" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="0" y1="60" x2="300" y2="60" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="0" y1="90" x2="300" y2="90" stroke="#f0f0f0" stroke-width="1"/>
+  
+  <line x1="50" y1="0" x2="50" y2="120" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="100" y1="0" x2="100" y2="120" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="150" y1="0" x2="150" y2="120" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="200" y1="0" x2="200" y2="120" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="250" y1="0" x2="250" y2="120" stroke="#f0f0f0" stroke-width="1"/>
+  
+  <!-- 紫色趋势线 -->
+  <path d="M0,60 C30,45 60,30 90,40 C120,50 150,40 180,35 C210,30 240,40 270,45 C300,50 330,55 350,50" 
+        stroke="#8b5cf6" stroke-width="2" fill="none"/>
+  
+  <!-- X轴标签 -->
+  <text x="0" y="115" font-size="10" fill="#999">9/17</text>
+  <text x="50" y="115" font-size="10" fill="#999">9/19</text>
+  <text x="100" y="115" font-size="10" fill="#999">9/20</text>
+  <text x="150" y="115" font-size="10" fill="#999">9/22</text>
+  <text x="200" y="115" font-size="10" fill="#999">9/23</text>
+  <text x="250" y="115" font-size="10" fill="#999">9/27</text>
+  
+  <!-- Y轴刻度 -->
+  <text x="5" y="35" font-size="10" fill="#999">80</text>
+  <text x="5" y="65" font-size="10" fill="#999">60</text>
+  <text x="5" y="95" font-size="10" fill="#999">20</text>
+</svg> 

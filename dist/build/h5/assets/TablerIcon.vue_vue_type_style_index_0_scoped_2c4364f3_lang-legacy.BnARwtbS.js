@@ -1,0 +1,1 @@
+System.register([],function(e,t){"use strict";return{execute:function(){var e=document.createElement("style");e.textContent=".tabler-icon[data-v-2c4364f3]{flex-shrink:0;display:block}\n",document.head.appendChild(e)}}});

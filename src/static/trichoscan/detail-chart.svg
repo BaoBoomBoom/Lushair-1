@@ -1,0 +1,18 @@
+<svg width="100%" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- 线图背景 -->
+  <rect x="0" y="0" width="200" height="60" fill="#fff"/>
+  
+  <!-- 网格线 -->
+  <line x1="0" y1="15" x2="200" y2="15" stroke="#eee" stroke-width="1"/>
+  <line x1="0" y1="30" x2="200" y2="30" stroke="#eee" stroke-width="1"/>
+  <line x1="0" y1="45" x2="200" y2="45" stroke="#eee" stroke-width="1"/>
+  
+  <!-- 紫色趋势线 -->
+  <path d="M0,45 C10,43 20,40 30,38 C40,36 50,34 60,30 C70,26 80,22 90,20 C100,18 110,17 120,16 C130,15 140,15 150,14 C160,13 170,12 180,10 C190,8 195,5 200,5" 
+        fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- 数据点 -->
+  <circle cx="60" cy="30" r="3" fill="#8b5cf6"/>
+  <circle cx="120" cy="16" r="3" fill="#8b5cf6"/>
+  <circle cx="180" cy="10" r="3" fill="#8b5cf6"/>
+</svg> 
