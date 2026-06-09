@@ -1,1 +1,0 @@
-System.register(["./index-legacy-BaJAhXfw.js"],function(t,e){"use strict";var n;return{setters:[t=>{n=t.ai}],execute:function(){t("u",function(){const t=e;return{statusBarHeight:t,headerPaddingStyle:(e=0)=>({paddingTop:e+t+"px"}),contentMarginStyle:(e=0)=>({marginTop:e+t+"px"}),topPositionStyle:(e=0)=>({top:e+t+"px"})}});const e=n().statusBarHeight||44}}});

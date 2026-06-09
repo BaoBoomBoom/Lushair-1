@@ -1,1 +1,0 @@
-import{ai as t}from"./index-u6vdwO3W.js";const n=t().statusBarHeight||44;function o(){const t=n;return{statusBarHeight:t,headerPaddingStyle:(n=0)=>({paddingTop:n+t+"px"}),contentMarginStyle:(n=0)=>({marginTop:n+t+"px"}),topPositionStyle:(n=0)=>({top:n+t+"px"})}}export{o as u};
