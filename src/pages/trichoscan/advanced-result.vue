@@ -1804,8 +1804,10 @@ const getHexagonMetrics = () => {
     };
   }
 
-  // 根据具体数值计算比例（标准值=1，控制极限在合理范围）
+  // 根据具体数值计算比例（标准值=1，控制极限在合理范围，防止超出圆形图表）
+  // Calculate the ratio based on concrete values (standard = 1, clamp limits to a reasonable range to prevent exceeding the circular chart)
   // ratio = 1 表示标准位置，>1 表示向外（更好），<1 表示向内（更差）
+  // ratio = 1 represents standard position, >1 represents outward (better), <1 represents inward (worse)
   const calculateMetricValue = (
     score: number,
     standardMiddle: number,
@@ -1814,40 +1816,60 @@ const getHexagonMetrics = () => {
     isHigherBetter: boolean = true
   ) => {
     // 无效值返回默认位置
+    // Invalid values return default position
     if (!score || score <= 0) return 1;
 
     let ratio: number;
 
     if (isHigherBetter) {
       // 数值越大越好（如毛囊密度、头发密度）
-      // excellentValue 对应 ratio = 1.4（向外）
+      // The higher the value, the better (e.g. follicle density, hair density)
+      // excellentValue 对应 ratio = 1.2（限制最大位置，防止超出背景图的圆形区域）
+      // excellentValue corresponds to ratio = 1.2 (limits the maximum position to prevent exceeding the background circular area)
       // standardMiddle 对应 ratio = 1.0（标准）
+      // standardMiddle corresponds to ratio = 1.0 (standard)
       // poorValue 对应 ratio = 0.6（向内）
+      // poorValue corresponds to ratio = 0.6 (inward)
       if (score >= excellentValue) {
-        ratio = 1.4;
+        ratio = 1.2;
       } else if (score <= poorValue) {
         ratio = 0.6;
+      } else if (score < standardMiddle) {
+        // [poorValue, standardMiddle] 之间进行线性插值
+        // Linear interpolation between [poorValue, standardMiddle]
+        ratio = 0.6 + (score - poorValue) / (standardMiddle - poorValue) * 0.4;
       } else {
-        // 线性插值
-        ratio = 0.6 + (score - poorValue) / (excellentValue - poorValue) * 0.8;
+        // [standardMiddle, excellentValue] 之间进行线性插值
+        // Linear interpolation between [standardMiddle, excellentValue]
+        ratio = 1.0 + (score - standardMiddle) / (excellentValue - standardMiddle) * 0.2;
       }
     } else {
       // 数值越小越好（如油性、头屑、敏感）
-      // excellentValue（小值）对应 ratio = 1.4（向外）
+      // The lower the value, the better (e.g. oiliness, dandruff, sensitivity)
+      // excellentValue（小值）对应 ratio = 1.2
+      // excellentValue (small value) corresponds to ratio = 1.2
       // standardMiddle 对应 ratio = 1.0（标准）
-      // poorValue（大值）对应 ratio = 0.6（向内）
+      // standardMiddle corresponds to ratio = 1.0 (standard)
+      // poorValue（大值）对应 ratio = 0.6
+      // poorValue (large value) corresponds to ratio = 0.6
       if (score <= excellentValue) {
-        ratio = 1.4;
+        ratio = 1.2;
       } else if (score >= poorValue) {
         ratio = 0.6;
+      } else if (score < standardMiddle) {
+        // [excellentValue, standardMiddle] 之间进行线性插值
+        // Linear interpolation between [excellentValue, standardMiddle]
+        ratio = 1.2 - (score - excellentValue) / (standardMiddle - excellentValue) * 0.2;
       } else {
-        // 线性插值（注意方向相反）
-        ratio = 1.4 - (score - excellentValue) / (poorValue - excellentValue) * 0.8;
+        // [standardMiddle, poorValue] 之间进行线性插值
+        // Linear interpolation between [standardMiddle, poorValue]
+        ratio = 1.0 - (score - standardMiddle) / (poorValue - standardMiddle) * 0.4;
       }
     }
 
-    // 额外限制，确保在安全范围内（扩大紫色区域）
-    return Math.max(0.4, Math.min(1.6, ratio));
+    // 限制最大比例为 1.2，确保紫色区域永远不超出 115 像素（圆形背景的边界）
+    // Limit the maximum ratio to 1.2 to ensure the purple area never exceeds 115 pixels (the boundary of the circular background)
+    return Math.max(0.4, Math.min(1.2, ratio));
   };
 
   // 各指标配置
