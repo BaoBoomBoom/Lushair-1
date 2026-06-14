@@ -20,9 +20,9 @@ defineProps<{
             <!-- Status bar placeholder to prevent content from being covered by the status bar -->
             <view :style="{ height: statusBarHeight + 'px', width: '100%' }" class="status-bar-placeholder"></view>
             
-            <view v-if="showPromo" class="shell-promo">
+            <!-- <view v-if="showPromo" class="shell-promo">
                 New Customer Offer · Use Code LUSHAIR for 5% Off
-            </view>
+            </view> -->
             <AppShellHeader />
             <view class="shell-body">
                 <slot />

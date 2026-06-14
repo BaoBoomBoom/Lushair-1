@@ -21,6 +21,8 @@ interface AccountRow {
     titleKey: string;
     type: AccountRowType;
     staticValue?: string;
+    staticValueKey?: string;
+    action?: string;
     onClick?: () => void;
 }
 
@@ -49,55 +51,59 @@ const accountRows = computed<AccountRow[]>(() => [
         icon: 'user',
         titleKey: 'profile.accountDetails',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/details' }),
+        action: 'details',
     },
     {
         icon: 'world',
         titleKey: 'profile.language',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/language' }),
+        action: 'language',
     },
     {
         icon: 'bell',
         titleKey: 'profile.notifications',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/notifications' }),
+        action: 'notifications',
     },
     {
         icon: 'link',
         titleKey: 'profile.genpulseLedger',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/genpulse-ledger' }),
+        action: 'genpulse-ledger',
     },
     {
         icon: 'database',
         titleKey: 'profile.manageData',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/manage-my-data' }),
+        action: 'manage-my-data',
     },
     {
         icon: 'help',
         titleKey: 'profile.helpSupport',
         type: 'nav',
-        onClick: () => uni.navigateTo({ url: '/pages/account/help-support' }),
+        action: 'help-support',
     },
     {
         icon: 'help',
         titleKey: 'profile.support',
         type: 'static',
-        staticValue: t('profile.supportEmail'),
+        staticValueKey: 'profile.supportEmail',
     },
     {
         icon: 'user-circle',
         titleKey: 'profile.logout',
         type: 'logout',
-        onClick: confirmLogout,
+        action: 'logout',
     },
 ]);
 
 const handleRowTap = (item: AccountRow) => {
     if (item.type === 'static') return;
-    item.onClick?.();
+    if (item.action === 'logout') {
+        confirmLogout();
+    } else if (item.action) {
+        uni.navigateTo({ url: `/pages/account/${item.action}` });
+    }
 };
 
 onMounted(() => {
@@ -134,9 +140,9 @@ onMounted(() => {
                         </view>
                         <view class="account-row-right">
                             <text
-                                v-if="item.staticValue"
+                                v-if="item.staticValue || item.staticValueKey"
                                 class="shell-row-val"
-                            >{{ item.staticValue }}</text>
+                            >{{ item.staticValueKey ? t(item.staticValueKey) : item.staticValue }}</text>
                             <TablerIcon
                                 v-else-if="item.type === 'nav' || item.type === 'logout'"
                                 name="chevron-right"
