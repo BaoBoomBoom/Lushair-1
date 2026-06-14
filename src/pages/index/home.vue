@@ -8,6 +8,47 @@ import { runScanAction, type ScanActionType } from '@/composables/useScanActions
 import { useUserStore } from '@/stores/userStore';
 import { post } from '@/utils/request';
 
+// 引入及初始化页面滚动控制逻辑
+// Import and initialize page scrolling control logic
+import { useStatusBar } from '@/composables/useStatusBar';
+const { statusBarHeight } = useStatusBar();
+const disableScroll = ref(false);
+
+const checkScroll = () => {
+    // 延迟以等待渲染完成
+    // Delay to wait for rendering to complete
+    setTimeout(() => {
+        const query = uni.createSelectorQuery();
+        query.select('.home-shell').boundingClientRect();
+        query.select('.shell-promo').boundingClientRect();
+        query.select('.app-shell-header').boundingClientRect();
+        query.exec((res) => {
+            const homeShell = res[0];
+            const promo = res[1];
+            const header = res[2];
+            
+            const homeHeight = homeShell ? homeShell.height : 0;
+            const promoHeight = promo ? promo.height : 0;
+            const headerHeight = header ? header.height : 0;
+            
+            // 总页面内容高度 = 状态栏高度 + 广告条高度 + 头部高度 + 首页内容高度
+            // Total page content height = status bar height + promo height + header height + home content height
+            const totalPageHeight = statusBarHeight + promoHeight + headerHeight + homeHeight;
+            const sysInfo = uni.getSystemInfoSync();
+            const windowHeight = sysInfo.windowHeight;
+            
+            // 当屏幕可用高度大于等于页面高度（含底部tab栏高度除外，因为windowHeight已扣除tabbar高度），则整体页面不要可上下滑动
+            // When window height (which excludes native tabbar) >= total content height, disable scroll
+            disableScroll.value = windowHeight >= totalPageHeight;
+            console.log('[Home Page Scroll Control]', {
+                windowHeight,
+                totalPageHeight,
+                disableScroll: disableScroll.value
+            });
+        });
+    }, 150);
+};
+
 const { t } = useI18n();
 
 declare var window: Window & { 
@@ -319,6 +360,7 @@ const fetchHealthData = async (userId: string) => {
                 };
                 
                 // 延迟更新数据，以便看到动画效果
+                // Delay updating data to show animation effect
                 setTimeout(() => {
                     healthData.value = {
                         scalpHealth: String(Math.round(record.scalp) || 0),
@@ -330,25 +372,33 @@ const fetchHealthData = async (userId: string) => {
                     };
                     
                     // 更新用户信息中的健康度数据
+                    // Update health data in user info
                     userStore.updateUserInfo({
                         scalpHealth: healthData.value.scalpHealth,
                         follicleHealth: healthData.value.follicleHealth,
                         hairHealth: healthData.value.hairHealth,
                         totalScore: healthData.value.totalScore
                     });
+
+                    // 重新检测是否需要禁止滚动
+                    // Recheck if scroll needs to be disabled
+                    checkScroll();
                 }, 300);
             } else {
                 lastScanDisplay.value = formatLastScanRelative();
                 setNoDataState();
+                checkScroll();
             }
         } else {
             lastScanDisplay.value = formatLastScanRelative();
             setNoDataState();
+            checkScroll();
         }
     } catch (error) {
         console.error('获取健康度数据失败:', error);
         lastScanDisplay.value = formatLastScanRelative();
         setNoDataState();
+        checkScroll();
     }
 };
 
@@ -587,25 +637,34 @@ onMounted(() => {
     userStore.initUserInfo();
     
     // 如果有userId，获取健康度数据
+    // If there is a userId, get health data
     if (userStore.userInfo.userId) {
         fetchHealthData(userStore.userInfo.userId);
     }
     
     // 加载任务状态
+    // Load task status
     loadTaskStatus();
+
+    // 检测页面滚动限制
+    // Check page scroll limit
+    checkScroll();
 });
 
 // 下拉刷新
+// Pull down refresh
 onPullDownRefresh(async () => {
     console.log('触发下拉刷新');
     try {
         // 重新获取用户信息
+        // Refetch user info
         if (userStore.userInfo.userId) {
             await userStore.fetchUserInfo(userStore.userInfo.userId);
             await fetchHealthData(userStore.userInfo.userId);
             await fetchDailyTaskStatus(userStore.userInfo.userId);
         } else {
              // 尝试初始化用户信息
+             // Try to initialize user info
              await userStore.initUserInfo();
              if (userStore.userInfo.userId) {
                 await fetchHealthData(userStore.userInfo.userId);
@@ -614,24 +673,30 @@ onPullDownRefresh(async () => {
         }
         
         // 重新加载任务状态
+        // Reload task status
         loadTaskStatus();
     } catch (error) {
         console.error('刷新失败:', error);
     } finally {
         uni.stopPullDownRefresh();
+        checkScroll();
     }
 });
 
 // 每次页面显示时调用
+// Called every time page shows
 onShow(() => {
     // 如果有userId，获取每日任务状态
+    // If there is a userId, get daily task status
     if (userStore.userInfo.userId) {
         fetchDailyTaskStatus(userStore.userInfo.userId);
     }
+    checkScroll();
 });
 </script>
 
 <template>
+    <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
     <MainTabLayout show-promo>
         <view class="home-shell">
             <text class="shell-welcome">

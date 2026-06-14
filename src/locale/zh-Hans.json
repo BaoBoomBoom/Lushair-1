@@ -24,7 +24,7 @@
         "shortcut2": "我该如何提高最近的评分？",
         "shortcut3": "为什么我的头皮评分很重要？",
         "shortcut4": "适合我发质的最佳洗发水类型是什么？",
-        "welcome": "您好,我是您的AI护发助手Lushair。<br />您可以问我是否对头发有任何疑问！",
+        "welcome": "您好,我是您的AI护发助手Lushair。\n您可以问我是否对头发有任何疑问！",
         "autoStartMessage": "请详细分析我的检测结果，并给出一些建议。",
         "scanContextTitle": "已加载最新检测结果",
         "scanContextLoading": "正在读取最新毛囊镜和自拍结果...",

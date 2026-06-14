@@ -44,12 +44,12 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
 
 /** Lushair One — single-spectral scan (iOS detectionType 200). */
 export function runLushairOneScan(): boolean {
-    return postNativeBridge('quick', { data: 'quick' });
+    return postNativeBridge('advanced', { data: 'advanced' });
 }
 
 /** Lushair Pro — tri-spectral scan (iOS detectionType 302). */
 export function runLushairProScan(): boolean {
-    return postNativeBridge('advanced', { data: 'advanced' });
+    return postNativeBridge('lushairPro', { data: 'lushairPro' });
 }
 
 export function runScanAction(type: ScanActionType): boolean {

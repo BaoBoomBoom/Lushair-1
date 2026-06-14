@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import { getAchievementTracker } from '@/utils/achievementTracker';
@@ -22,6 +22,53 @@ import {
     useLatestScanReports,
 } from '@/composables/useLatestScanReports';
 const { statusBarHeight, headerPaddingStyle } = useStatusBar();
+
+// 页面滚动控制逻辑
+// Page scrolling control logic
+const disableScroll = ref(false);
+
+const checkScroll = () => {
+    if (hasStartedChat.value) {
+        // 对话开始后，页面整体不可滚动，仅内部 feed 滚动
+        // Once chat starts, the overall page shouldn't scroll, only the internal feed scroll-view should scroll
+        disableScroll.value = true;
+        return;
+    }
+    
+    // 欢迎界面：动态计算内容高度是否超出屏幕高度
+    // Welcome screen: dynamically calculate if content height exceeds screen height
+    setTimeout(() => {
+        const query = uni.createSelectorQuery();
+        query.select('.chat-scan-row').boundingClientRect();
+        query.select('.scan-context-strip').boundingClientRect();
+        query.select('.shell-chat-intro').boundingClientRect();
+        query.select('.shell-chat-input').boundingClientRect();
+        query.select('.shell-promo').boundingClientRect();
+        query.select('.app-shell-header').boundingClientRect();
+        
+        query.exec((res) => {
+            const scanRowHeight = res[0] ? res[0].height : 0;
+            const contextStripHeight = res[1] ? res[1].height : 0;
+            const introHeight = res[2] ? res[2].height : 0;
+            const inputHeight = res[3] ? res[3].height : 0;
+            const promoHeight = res[4] ? res[4].height : 0;
+            const headerHeight = res[5] ? res[5].height : 0;
+            
+            // 总页面内容高度 = 状态栏高度 + 广告条高度 + 头部高度 + 欢迎界面各部分高度之和
+            // Total page content height = status bar height + promo height + header height + welcome screen elements height sum
+            const totalPageHeight = statusBarHeight + promoHeight + headerHeight + scanRowHeight + contextStripHeight + introHeight + inputHeight;
+            const sysInfo = uni.getSystemInfoSync();
+            const windowHeight = sysInfo.windowHeight;
+            
+            disableScroll.value = windowHeight >= totalPageHeight;
+            console.log('[Consult Page Scroll Control]', {
+                windowHeight,
+                totalPageHeight,
+                disableScroll: disableScroll.value
+            });
+        });
+    }, 150);
+};
 
 // 新 API 模式标志
 const useNewChatApi = ref(true);
@@ -546,10 +593,20 @@ const refreshScanContext = async () => {
     }
 };
 
+// 监听聊天状态，在开始聊天后自动锁定页面滚动
+// Watch chat state, automatically lock page scrolling when chat starts
+watch(hasStartedChat, () => {
+    checkScroll();
+});
+
 onMounted(() => {
     savedChatId.value = uni.getStorageSync('ai_chat_chatId') || '';
     savedReportId.value = uni.getStorageSync('ai_chat_reportId') || '';
     savedContextKey.value = uni.getStorageSync('ai_chat_contextKey') || readStoredScanReportIds().contextKey;
+    
+    // 初始化滚动限制
+    // Initialize scrolling limit
+    checkScroll();
 });
 
 onShow(async () => {
@@ -569,10 +626,15 @@ onShow(async () => {
         // Reset flag when autoStart is not set, allowing next trigger to work
         hasAutoStarted = false;
     }
+    
+    // 每次显示页面时重新检测滚动限制
+    // Recheck scroll limit when page shows
+    checkScroll();
 });
 </script>
 
 <template>
+    <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
     <MainTabLayout show-promo>
         <view class="shell-chat consult-page">
             <view class="chat-scan-row">
