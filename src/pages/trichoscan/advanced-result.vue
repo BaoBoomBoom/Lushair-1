@@ -1041,14 +1041,14 @@ const radarAxisLabels = computed(() => [
 ]);
 
 const shareGridMetrics = [
-  { nameKey: 'advancedResult.oiliness', dataField: 'scalp_oil_area_score_map', icon: '/static/icons/egg.svg' },
-  { nameKey: 'advancedResult.dandruff', dataField: 'keratinocytes_score_map', icon: '/static/icons/icon_dandruff.svg' },
-  { nameKey: 'advancedResult.sensitivity', dataField: 'redness_area_score_map', icon: '/static/icons/icon_sensitivity.svg' },
-  { nameKey: 'advancedResult.hairDensity', dataField: 'hair_density_score_map', icon: '/static/icons/icon_density.svg' },
-  { nameKey: 'advancedResult.hairRadius', dataField: 'hair_max_rad_score_map', icon: '/static/icons/icon_hair_radius.svg' },
-  { nameKey: 'advancedResult.greyHairs', dataField: 'white_ratio_score_map', icon: '/static/icons/icon_grey.svg' },
-  { nameKey: 'advancedResult.terminalVellusRatio', dataField: 'terminal_vellus_ratio', icon: '/static/icons/icon_terminal.svg' },
-  { nameKey: 'advancedResult.follicleDensity', dataField: 'follicle_score_map', icon: '/static/icons/icon_follicle_density.svg' }
+  { nameKey: 'advancedResult.oiliness', dataField: 'scalp_oil_area_score_map', icon: 'egg' },
+  { nameKey: 'advancedResult.dandruff', dataField: 'keratinocytes_score_map', icon: 'dandruff' },
+  { nameKey: 'advancedResult.sensitivity', dataField: 'redness_area_score_map', icon: 'sensitivity' },
+  { nameKey: 'advancedResult.hairDensity', dataField: 'hair_density_score_map', icon: 'density' },
+  { nameKey: 'advancedResult.hairRadius', dataField: 'hair_max_rad_score_map', icon: 'hair_radius' },
+  { nameKey: 'advancedResult.greyHairs', dataField: 'white_ratio_score_map', icon: 'grey' },
+  { nameKey: 'advancedResult.terminalVellusRatio', dataField: 'terminal_vellus_ratio', icon: 'terminal' },
+  { nameKey: 'advancedResult.follicleDensity', dataField: 'follicle_score_map', icon: 'follicle_density' }
 ];
 
 // 与AI助手聊天
@@ -1169,7 +1169,7 @@ const captureAndShareImage = () => {
 
     html2canvas(element, {
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false, // 禁用 taint 以防止 Canvas 污染导致 iOS 导出报错 / Disable taint to prevent Canvas contamination causing export errors on iOS
       scale: 2,
       backgroundColor: '#ebebeb',
       width: element.offsetWidth,
@@ -2908,7 +2908,23 @@ watch(analysisData, (newVal: any) => {
       <view class="rp-share-section">
         <text class="rp-share-title">{{ t('advancedResult.yourMetrics') }}</text>
         <view class="rp-share-hex">
-          <image src="/static/images/bg_chart.svg" mode="aspectFit" class="rp-share-hex-bg" />
+          <!-- 内联 SVG 避免 iOS 本地加载跨域污染画布 / Inline SVG to prevent iOS local loading cross-origin canvas contamination -->
+          <svg width="230" height="231" viewBox="0 0 230 231" fill="none" xmlns="http://www.w3.org/2000/svg" class="rp-share-hex-bg">
+            <circle cx="115" cy="115.585" r="115" fill="white"/>
+            <circle cx="115" cy="115.585" r="114.5" stroke="black" stroke-opacity="0.2"/>
+            <circle cx="115" cy="115.586" r="88.4615" fill="white"/>
+            <circle cx="115" cy="115.586" r="87.9615" stroke="black" stroke-opacity="0.2"/>
+            <circle cx="114.999" cy="115.584" r="61.9231" fill="white"/>
+            <circle cx="114.999" cy="115.584" r="61.4231" stroke="black" stroke-opacity="0.2"/>
+            <circle cx="115" cy="115.585" r="35.3846" fill="white"/>
+            <circle cx="115" cy="115.585" r="34.8846" stroke="black" stroke-opacity="0.2"/>
+            <circle cx="63.8471" cy="26.2387" r="3.53846" fill="white" stroke="#2E1B54"/>
+            <circle cx="217.769" cy="115.584" r="3.53846" fill="white" stroke="#2E1B54"/>
+            <circle cx="12.5385" cy="115.584" r="3.53846" fill="white" stroke="#2E1B54"/>
+            <circle cx="63.8471" cy="204.045" r="3.53846" fill="white" stroke="#2E1B54"/>
+            <circle cx="166.461" cy="204.045" r="3.53846" fill="white" stroke="#2E1B54"/>
+            <circle cx="166.461" cy="26.2387" r="3.53846" fill="white" stroke="#2E1B54"/>
+          </svg>
           <svg class="rp-share-hex-svg" :viewBox="`0 0 ${HEX_W} ${HEX_H}`" xmlns="http://www.w3.org/2000/svg">
             <path :d="hexagonPath" fill="rgba(103, 57, 198, 0.2)" stroke="#6739c6" stroke-width="1.5" />
           </svg>
@@ -2947,7 +2963,37 @@ watch(analysisData, (newVal: any) => {
         <view class="rp-share-grid">
           <view class="rp-share-tile" v-for="(metric, idx) in shareGridMetrics" :key="'share-metric-' + idx">
             <view class="rp-share-tile-icon">
-              <image :src="metric.icon" mode="aspectFit" />
+              <!-- 使用内联 SVG 代替 image 标签，防止 iOS 跨域问题 / Use inline SVG instead of image tag to avoid iOS cross-origin issues -->
+              <svg v-if="metric.icon === 'egg'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3C8.5 3 5 9.33 5 14C5 17.87 8.13 21 12 21C15.87 21 19 17.87 19 14C19 9.33 15.5 3 12 3ZM13 18C10 18 8 16.01 8 13C8 12.45 8 12 8 12H10V13C10 15.92 12.42 16 13 16C13.55 16 14 16 14 16V18C14 18 13.55 18 13 18Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'dandruff'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.2002 17.2002C8.85705 17.2002 10.2002 15.857 10.2002 14.2002C10.2002 12.5433 8.85705 11.2002 7.2002 11.2002C5.54334 11.2002 4.2002 12.5433 4.2002 14.2002C4.2002 15.857 5.54334 17.2002 7.2002 17.2002Z" fill="#7622FF"/>
+                <path d="M11.2002 9.2002C12.857 9.2002 14.2002 7.85705 14.2002 6.2002C14.2002 4.54334 12.857 3.2002 11.2002 3.2002C9.54334 3.2002 8.2002 4.54334 8.2002 6.2002C8.2002 7.85705 9.54334 9.2002 11.2002 9.2002Z" fill="#7622FF"/>
+                <path d="M16.8002 20.8002C18.4571 20.8002 19.8002 19.4571 19.8002 17.8002C19.8002 16.1433 18.4571 14.8002 16.8002 14.8002C15.1433 14.8002 13.8002 16.1433 13.8002 17.8002C13.8002 19.4571 15.1433 20.8002 16.8002 20.8002Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'sensitivity'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.76 16.2402C6.67 15.1602 6 13.6602 6 12.0002C6 10.3402 6.67 8.84018 7.76 7.76018L9.18 9.18018C8.45 9.90018 8 10.9002 8 12.0002C8 13.1002 8.45 14.1002 9.17 14.8302L7.76 16.2402ZM16.24 16.2402C17.33 15.1602 18 13.6602 18 12.0002C18 10.3402 17.33 8.84018 16.24 7.76018L14.82 9.18018C15.55 9.90018 16 10.9002 16 12.0002C16 13.1002 15.55 14.1002 14.83 14.8302L16.24 16.2402ZM12 10.0002C10.9 10.0002 10 10.9002 10 12.0002C10 13.1002 10.9 14.0002 12 14.0002C13.1 14.0002 14 13.1002 14 12.0002C14 10.9002 13.1 10.0002 12 10.0002ZM20 12.0002C20 14.2102 19.1 16.2102 17.65 17.6502L19.07 19.0702C20.88 17.2602 22 14.7602 22 12.0002C22 9.24018 20.88 6.74018 19.07 4.93018L17.65 6.35018C19.1 7.79018 20 9.79018 20 12.0002ZM6.35 6.35018L4.93 4.93018C3.12 6.74018 2 9.24018 2 12.0002C2 14.7602 3.12 17.2602 4.93 19.0702L6.35 17.6502C4.9 16.2102 4 14.2102 4 12.0002C4 9.79018 4.9 7.79018 6.35 6.35018Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'density'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 8C19.1 8 20 7.1 20 6C20 4.9 19.1 4 18 4C16.9 4 16 4.9 16 6C16 7.1 16.9 8 18 8ZM18 16C19.1 16 20 15.1 20 14C20 12.9 19.1 12 18 12C16.9 12 16 12.9 16 14C16 15.1 16.9 16 18 16ZM6 8C4.9 8 4 8.9 4 10C4 11.1 4.9 12 6 12C7.1 12 8 11.1 8 10C8 8.9 7.1 8 6 8ZM14 8C12.9 8 12 8.9 12 10C12 11.1 12.9 12 14 12C15.1 12 16 11.1 16 10C16 8.9 15.1 8 14 8ZM10 16C11.1 16 12 15.1 12 14C12 12.9 11.1 12 10 12C8.9 12 8 12.9 8 14C8 15.1 8.9 16 10 16ZM10 4C8.9 4 8 4.9 8 6C8 7.1 8.9 8 10 8C11.1 8 12 7.1 12 6C12 4.9 11.1 4 10 4ZM14 16C12.9 16 12 16.9 12 18C12 19.1 12.9 20 14 20C15.1 20 16 19.1 16 18C16 16.9 15.1 16 14 16ZM6 20C7.1 20 8 19.1 8 18C8 16.9 7.1 16 6 16C4.9 16 4 16.9 4 18C4 19.1 4.9 20 6 20Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'hair_radius'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10.9998 4.0698V2.0498C8.9898 2.2498 7.1598 3.0498 5.6798 4.2598L7.0998 5.6898C8.20981 4.8298 9.5398 4.2498 10.9998 4.0698ZM18.3198 4.2598C16.8398 3.0498 15.0098 2.2498 12.9998 2.0498V4.0698C14.4598 4.2498 15.7898 4.8298 16.8998 5.6898L18.3198 4.2598ZM19.9298 10.9998H21.9498C21.7498 8.9898 20.9498 7.1598 19.7398 5.6798L18.3098 7.0998C19.1698 8.20981 19.7498 9.5398 19.9298 10.9998ZM5.6898 7.0998L4.2598 5.6798C3.0498 7.1598 2.2498 8.9898 2.0498 10.9998H4.0698C4.2498 9.5398 4.8298 8.20981 5.6898 7.0998ZM4.0698 12.9998H2.0498C2.2498 15.0098 3.0498 16.8398 4.2598 18.3198L5.6898 16.8898C4.8298 15.7898 4.2498 14.4598 4.0698 12.9998ZM14.9998 11.9998C14.9998 10.3398 13.6598 8.9998 11.9998 8.9998C10.3398 8.9998 8.9998 10.3398 8.9998 11.9998C8.9998 13.6598 10.3398 14.9998 11.9998 14.9998C13.6598 14.9998 14.9998 13.6598 14.9998 11.9998ZM18.3098 16.8998L19.7398 18.3298C20.9498 16.8498 21.7498 15.0098 21.9498 13.0098H19.9298C19.7498 14.4598 19.1698 15.7898 18.3098 16.8998ZM12.9998 19.9298V21.9498C15.0098 21.7498 16.8398 20.9498 18.3198 19.7398L16.8898 18.3098C15.7898 19.1698 14.4598 19.7498 12.9998 19.9298ZM5.6798 19.7398C7.1598 20.9498 8.9998 21.7498 10.9998 21.9498V19.9298C9.5398 19.7498 8.20981 19.1698 7.0998 18.3098L5.6798 19.7398Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'grey'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M6.04243 12C8.1898 12.7143 9.37419 12.8134 12.3158 12C11.859 13.8474 11.6459 16.1128 11.6459 19.0265C11.6459 20.4493 10.7748 21.3639 9.65924 21.7682C9.23348 21.9223 8.77645 22 8.32334 22C7.87023 22 7.41243 21.923 6.98666 21.7689C5.87185 21.366 5 20.4507 5 19.0265C5 16.353 5.34956 14.0195 6.04243 12Z" fill="#7622FF"/>
+                <path d="M6.70508 13.2461C7.42779 13.4421 8.11476 13.5632 8.86816 13.5732C9.53709 13.5821 10.2316 13.5034 11.0254 13.3428C10.765 14.9603 10.6455 16.827 10.6455 19.0264C10.6455 19.8893 10.1843 20.4618 9.46582 20.7695L9.31836 20.8281C9.0052 20.9414 8.66369 21 8.32324 21C7.98137 21 7.6393 20.9411 7.32715 20.8281H7.32617C6.52623 20.5389 6 19.9486 6 19.0264C6.00001 16.8468 6.24121 14.9285 6.70508 13.2461ZM17.2803 3.49316C15.2981 4.96283 13.7416 6.43516 12.6553 8.36816C12.1797 9.21458 11.7981 10.1411 11.5 11.1816C10.3679 11.4699 9.58155 11.5824 8.89453 11.5732C8.39231 11.5666 7.91582 11.4942 7.36426 11.3525C7.88865 10.1224 8.55876 9.03777 9.37598 8.08691C11.2156 5.94641 13.8313 4.43074 17.2803 3.49316Z" stroke="#7622FF" stroke-width="2"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'terminal'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 11C8.76 11 11 8.76 11 6C11 3.24 8.76 1 6 1C3.24 1 1 3.24 1 6C1 8.76 3.24 11 6 11ZM6 3C7.65 3 9 4.35 9 6C9 7.65 7.65 9 6 9C4.35 9 3 7.65 3 6C3 4.35 4.35 3 6 3Z" fill="#7622FF"/>
+                <path d="M21 14H16C14.9 14 14 14.9 14 16V21C14 22.1 14.9 23 16 23H21C22.1 23 23 22.1 23 21V16C23 14.9 22.1 14 21 14ZM21 21H16V16H21V21Z" fill="#7622FF"/>
+                <path d="M17.71 7.7C18.11 7.89 18.54 8 19 8C20.65 8 22 6.65 22 5C22 3.35 20.65 2 19 2C17.35 2 16 3.35 16 5C16 5.46 16.11 5.89 16.3 6.29L6.29 16.3C5.89 16.11 5.46 16 5 16C3.35 16 2 17.35 2 19C2 20.65 3.35 22 5 22C6.65 22 8 20.65 8 19C8 18.54 7.89 18.11 7.7 17.71L17.71 7.7Z" fill="#7622FF"/>
+              </svg>
+              <svg v-else-if="metric.icon === 'follicle_density'" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 15H3V21H9V19H5V15ZM5 5H9V3H3V9H5V5ZM21 3H15V5H19V9H21V3ZM19 19H15V21H21V15H19V19Z" fill="#7622FF"/>
+                <path d="M10.8639 15.9073C11.3101 15.7456 11.6585 15.3797 11.6585 14.8106C11.6585 12.8858 11.891 11.6684 12.411 10.7431C12.9276 9.82397 13.7419 9.17343 14.9044 8.3886C14.9759 8.34025 15.0144 8.25713 14.9953 8.1726C14.9691 8.05583 14.8431 7.98063 14.7141 8.00438C12.8373 8.35382 11.4098 9.05412 10.4473 10.174C9.48797 11.2902 9.00017 12.8132 9.00017 14.8106C9.00017 15.3803 9.34891 15.7464 9.79484 15.9075C9.96514 15.9692 10.1483 16 10.3295 16C10.5108 16 10.6936 15.9689 10.8639 15.9073Z" fill="#7622FF"/>
+              </svg>
             </view>
             <text class="rp-share-tile-label">{{ t(metric.nameKey) }}</text>
             <text class="rp-share-tile-score">{{ getMetricFieldScore(metric.dataField) || '—' }}</text>
@@ -2959,7 +3005,20 @@ watch(analysisData, (newVal: any) => {
         <view class="rp-share-footer-text">
           <text class="rp-share-footer-cta">{{ t('advancedResult.shareCardCta') }}</text>
         </view>
-        <image class="rp-share-qr" src="/static/images/qr_code.svg" mode="aspectFit" />
+        <!-- 使用内联 SVG 代替 image 标签，防止 iOS 跨域问题 / Use inline SVG instead of image tag to avoid iOS cross-origin issues -->
+        <svg width="72" height="72" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="rp-share-qr">
+          <path d="M4.83337 14.6667H15.5V4H4.83337V14.6667ZM7.50004 6.66667H12.8334V12H7.50004V6.66667Z" fill="black"/>
+          <path d="M4.83337 28H15.5V17.3333H4.83337V28ZM7.50004 20H12.8334V25.3333H7.50004V20Z" fill="black"/>
+          <path d="M18.1667 4V14.6667H28.8334V4H18.1667ZM26.1667 12H20.8334V6.66667H26.1667V12Z" fill="black"/>
+          <path d="M28.8334 25.3333H26.1667V28H28.8334V25.3333Z" fill="black"/>
+          <path d="M20.8334 17.3333H18.1667V20H20.8334V17.3333Z" fill="black"/>
+          <path d="M23.5 20H20.8334V22.6667H23.5V20Z" fill="black"/>
+          <path d="M20.8334 22.6667H18.1667V25.3333H20.8334V22.6667Z" fill="black"/>
+          <path d="M23.5 25.3333H20.8334V28H23.5V25.3333Z" fill="black"/>
+          <path d="M26.1667 22.6667H23.5V25.3333H26.1667V22.6667Z" fill="black"/>
+          <path d="M26.1667 17.3333H23.5V20H26.1667V17.3333Z" fill="black"/>
+          <path d="M28.8334 20H26.1667V22.6667H28.8334V20Z" fill="black"/>
+        </svg>
       </view>
     </view>
 
