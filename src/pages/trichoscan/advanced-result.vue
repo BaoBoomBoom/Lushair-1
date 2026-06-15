@@ -23,7 +23,7 @@ const HEX_W = 230;
 const HEX_H = 231;
 const HEX_CX = 115;
 const HEX_CY = 115.585;
-const HEX_RADIUS = 88;
+const HEX_RADIUS = 72;
 const DOWNLOAD_LINK = 'https://www.lushair.ai/getlushair/p/advanced-scalp-analysis-tool-lushair-scalp-scanner';
 const { statusBarHeight, headerPaddingStyle } = useStatusBar();
 
@@ -1032,12 +1032,22 @@ const getMetricFieldScore = (dataField: string): string => {
 };
 
 const radarAxisLabels = computed(() => [
-  { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:6px;left:14px' },
-  { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:6px;right:14px' },
-  { label: t('advancedResult.hairRadius'), score: getMetricFieldScore('hair_max_rad_score_map'), style: 'top:50%;left:0;transform:translateY(-50%)' },
-  { label: t('advancedResult.keratin'), score: getMetricFieldScore('keratinocytes_score_map'), style: 'bottom:6px;right:36px' },
-  { label: t('advancedResult.oiliness'), score: getMetricFieldScore('scalp_oil_area_score_map'), style: 'bottom:6px;left:36px' },
-  { label: t('advancedResult.sensitivity'), score: getMetricFieldScore('redness_area_score_map'), style: 'top:50%;right:0;transform:translateY(-50%)' }
+  { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
+  { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
+  { label: t('advancedResult.hairRadius'), score: getMetricFieldScore('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
+  { label: t('advancedResult.keratin'), score: getMetricFieldScore('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
+  { label: t('advancedResult.oiliness'), score: getMetricFieldScore('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
+  { label: t('advancedResult.sensitivity'), score: getMetricFieldScore('redness_area_score_map'), style: 'top:50%;right:-55px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' }
+]);
+
+// 分享卡片专用标签（使用view元素，保持两行布局）
+const radarAxisLabelsForShare = computed(() => [
+  { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
+  { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
+  { label: t('advancedResult.hairRadius'), score: getMetricFieldScore('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
+  { label: t('advancedResult.keratin'), score: getMetricFieldScore('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
+  { label: t('advancedResult.oiliness'), score: getMetricFieldScore('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
+  { label: t('advancedResult.sensitivity'), score: getMetricFieldScore('redness_area_score_map'), style: 'top:50%;right:-55px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' }
 ]);
 
 const shareGridMetrics = [
@@ -2477,12 +2487,13 @@ watch(analysisData, (newVal: any) => {
           <image src="/static/images/bg_chart.svg" mode="aspectFit" class="rp-hex-bg" />
           <canvas canvas-id="hexagonCanvas" class="rp-hex-canvas" :style="{ width: HEX_W + 'px', height: HEX_H + 'px' }" />
           <view class="rp-hex-labels">
-            <text
+            <view
               v-for="(axis, idx) in radarAxisLabels"
               :key="'radar-label-' + idx"
               class="rp-hex-label"
+              :class="axis.class"
               :style="axis.style"
-            >{{ axis.label }}<text v-if="axis.score" class="rp-hex-score">{{ axis.score }}</text></text>
+            >{{ axis.label }}<text v-if="axis.score" class="rp-hex-score">{{ axis.score }}</text></view>
           </view>
         </view>
       </view>
@@ -2929,12 +2940,13 @@ watch(analysisData, (newVal: any) => {
             <path :d="hexagonPath" fill="rgba(103, 57, 198, 0.2)" stroke="#6739c6" stroke-width="1.5" />
           </svg>
           <view class="rp-hex-labels">
-            <text
-              v-for="(axis, idx) in radarAxisLabels"
+            <view
+              v-for="(axis, idx) in radarAxisLabelsForShare"
               :key="'share-radar-' + idx"
               class="rp-hex-label rp-share-hex-label"
+              :class="axis.class"
               :style="axis.style"
-            >{{ axis.label }}<text v-if="axis.score" class="rp-hex-score">{{ axis.score }}</text></text>
+            >{{ axis.label }}<text v-if="axis.score" class="rp-hex-score">{{ axis.score }}</text></view>
           </view>
         </view>
       </view>
@@ -3005,20 +3017,8 @@ watch(analysisData, (newVal: any) => {
         <view class="rp-share-footer-text">
           <text class="rp-share-footer-cta">{{ t('advancedResult.shareCardCta') }}</text>
         </view>
-        <!-- 使用内联 SVG 代替 image 标签，防止 iOS 跨域问题 / Use inline SVG instead of image tag to avoid iOS cross-origin issues -->
-        <svg width="72" height="72" viewBox="0 0 33 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="rp-share-qr">
-          <path d="M4.83337 14.6667H15.5V4H4.83337V14.6667ZM7.50004 6.66667H12.8334V12H7.50004V6.66667Z" fill="black"/>
-          <path d="M4.83337 28H15.5V17.3333H4.83337V28ZM7.50004 20H12.8334V25.3333H7.50004V20Z" fill="black"/>
-          <path d="M18.1667 4V14.6667H28.8334V4H18.1667ZM26.1667 12H20.8334V6.66667H26.1667V12Z" fill="black"/>
-          <path d="M28.8334 25.3333H26.1667V28H28.8334V25.3333Z" fill="black"/>
-          <path d="M20.8334 17.3333H18.1667V20H20.8334V17.3333Z" fill="black"/>
-          <path d="M23.5 20H20.8334V22.6667H23.5V20Z" fill="black"/>
-          <path d="M20.8334 22.6667H18.1667V25.3333H20.8334V22.6667Z" fill="black"/>
-          <path d="M23.5 25.3333H20.8334V28H23.5V25.3333Z" fill="black"/>
-          <path d="M26.1667 22.6667H23.5V25.3333H26.1667V22.6667Z" fill="black"/>
-          <path d="M26.1667 17.3333H23.5V20H26.1667V17.3333Z" fill="black"/>
-          <path d="M28.8334 20H26.1667V22.6667H28.8334V20Z" fill="black"/>
-        </svg>
+        <!-- 使用真实二维码图片，指向 https://lushair.net/download-app / Use real QR code image pointing to download URL -->
+        <image class="rp-share-qr" src="/static/images/qrcode-download.png" mode="aspectFit"></image>
       </view>
     </view>
 
