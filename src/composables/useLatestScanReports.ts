@@ -24,6 +24,7 @@ export interface ScanReportContext {
     reportId: string;
     scoreLabel: string;
     dateLabel: string;
+    createTime?: string;
 }
 
 export interface LatestScanReports {
@@ -84,15 +85,18 @@ function buildTrichoscanContext(record: DetectionRecordItem): ScanReportContext 
         reportId: record.reportId!,
         scoreLabel: score !== null && !Number.isNaN(score) ? String(score) : '',
         dateLabel: formatShortDate(record.createTime),
+        createTime: record.createTime,
     };
 }
 
 function buildSelfieContext(result: SelfieResultItem): ScanReportContext {
     const stage = result.stage;
+    const createTime = result.createTime || result.createdTime;
     return {
         reportId: result.reportId!,
         scoreLabel: stage ? `Stage ${stage}` : '',
-        dateLabel: formatShortDate(result.createTime || result.createdTime),
+        dateLabel: formatShortDate(createTime),
+        createTime,
     };
 }
 
@@ -170,10 +174,10 @@ export function useLatestScanReports() {
             const stored = readStoredScanReportIds();
             scanContext.value = {
                 trichoscan: stored.trichoscanReportId
-                    ? { reportId: stored.trichoscanReportId, scoreLabel: '', dateLabel: '' }
+                    ? { reportId: stored.trichoscanReportId, scoreLabel: '', dateLabel: '', createTime: '' }
                     : null,
                 selfie: stored.selfieReportId
-                    ? { reportId: stored.selfieReportId, scoreLabel: '', dateLabel: '' }
+                    ? { reportId: stored.selfieReportId, scoreLabel: '', dateLabel: '', createTime: '' }
                     : null,
                 trichoscanReportId: stored.trichoscanReportId,
                 selfieReportId: stored.selfieReportId,
@@ -225,22 +229,31 @@ export function buildChatReportPayload(options: {
     targetReportId?: string;
     trichoscanReportId?: string;
     selfieReportId?: string;
+    trichoscanTime?: string;
+    selfieTime?: string;
 }) {
     const targetReportId = options.targetReportId || '';
     const trichoscanReportId = options.trichoscanReportId || '';
     const selfieReportId = options.selfieReportId || '';
 
-    const primaryReportId = targetReportId || trichoscanReportId || selfieReportId;
+    // 优先使用 targetReportId，否则比较时间取最新的
+    let primaryReportId = targetReportId;
+
+    if (!primaryReportId && trichoscanReportId && selfieReportId) {
+        // 两者都有，比较时间取最新的
+        const trichoTime = parseTime(options.trichoscanTime);
+        const selfieTime = parseTime(options.selfieTime);
+        primaryReportId = selfieTime >= trichoTime ? selfieReportId : trichoscanReportId;
+    }
+
+    if (!primaryReportId) {
+        primaryReportId = trichoscanReportId || selfieReportId;
+    }
+
     const payload: Record<string, string> = {};
 
     if (primaryReportId) {
         payload.reportId = primaryReportId;
-    }
-    if (trichoscanReportId && trichoscanReportId !== primaryReportId) {
-        payload.trichoscanReportId = trichoscanReportId;
-    }
-    if (selfieReportId && selfieReportId !== primaryReportId) {
-        payload.selfieReportId = selfieReportId;
     }
 
     return {

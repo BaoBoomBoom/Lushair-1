@@ -188,6 +188,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
             targetReportId,
             trichoscanReportId: scanContext.value.trichoscanReportId || storedReports.trichoscanReportId,
             selfieReportId: scanContext.value.selfieReportId || storedReports.selfieReportId,
+            trichoscanTime: scanContext.value.trichoscan?.createTime,
+            selfieTime: scanContext.value.selfie?.createTime,
         });
 
         const { primaryReportId, contextKey, payload: reportPayload, hasAnyReport } = reportBundle;

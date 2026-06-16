@@ -635,7 +635,13 @@ window.receiveUserIdFromApp = function(userIdString: string) {
 
 onMounted(() => {
     userStore.initUserInfo();
-    
+
+    // 开发环境：如果没有userId，设置默认值
+    // Development environment: set default userId if not exists
+    if (import.meta.env.DEV && !userStore.userInfo.userId) {
+        userStore.userInfo.userId = 'lusHair330e986a';
+    }
+
     // 如果有userId，获取健康度数据
     // If there is a userId, get health data
     if (userStore.userInfo.userId) {
