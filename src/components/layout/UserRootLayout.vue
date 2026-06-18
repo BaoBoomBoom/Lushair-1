@@ -2,6 +2,12 @@
 import { useUserStore } from '@/stores/userStore';
 import { onMounted } from 'vue';
 
+// 页面滚动锁定控制属性
+// Page scroll lock control property
+defineProps<{
+    disableScroll?: boolean;
+}>();
+
 const userStore = useUserStore();
 let alreadyRedirected = false;
 
@@ -14,7 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <view class="user-root-layout app-page">
+    <view class="user-root-layout app-page" :class="{ 'disable-scroll': disableScroll }">
         <view class="content">
             <slot />
         </view>
@@ -27,6 +33,23 @@ onMounted(() => {
     flex-direction: column;
     min-height: 100vh;
     background-color: #ffffff;
+
+    /* 
+      当锁定页面滚动时，限制整体高度并确保内容自适应高度
+      When page scroll is locked, limit overall height and ensure content adapts to height
+    */
+    &.disable-scroll {
+        height: 100%;
+        max-height: 100vh;
+        overflow: hidden;
+
+        .content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+    }
 
     .content {
         flex: 1;

@@ -45,8 +45,8 @@ function notifyLanguageChange(val: string) {
         uni.$emit('languageChanged', val);
         const info = uni.getSystemInfoSync();
         if (info.platform !== 'devtools') {
-            if (window.webkit?.messageHandlers?.languageChange) {
-                window.webkit.messageHandlers.languageChange.postMessage({ locale: val });
+            if (window.webkit?.messageHandlers?.onLanguageChange) {
+                window.webkit.messageHandlers.onLanguageChange.postMessage({ locale: val });
             } else if (window.android?.onLanguageChange) {
                 window.android.onLanguageChange(val);
             }

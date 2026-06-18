@@ -10,12 +10,13 @@ const { statusBarHeight } = useStatusBar();
 
 defineProps<{
     showPromo?: boolean;
+    disableScroll?: boolean;
 }>();
 </script>
 
 <template>
-    <UserRootLayout>
-        <view class="main-tab-layout shell-page">
+    <UserRootLayout :disable-scroll="disableScroll">
+        <view class="main-tab-layout shell-page" :class="{ 'disable-scroll': disableScroll }">
             <!-- 状态栏占位，防止内容被状态栏遮挡 -->
             <!-- Status bar placeholder to prevent content from being covered by the status bar -->
             <view :style="{ height: statusBarHeight + 'px', width: '100%' }" class="status-bar-placeholder"></view>
@@ -39,6 +40,21 @@ defineProps<{
     flex-direction: column;
     min-height: 100vh;
     background: #ffffff;
+
+    /* 
+      当锁定页面滚动时，限制整体高度并确保子元素不溢出
+      When page scroll is locked, limit overall height and ensure child elements do not overflow
+    */
+    &.disable-scroll {
+        height: 100%;
+        max-height: 100vh;
+        overflow: hidden;
+
+        .shell-body {
+            height: 100%;
+            min-height: 0;
+        }
+    }
 }
 
 .shell-body {

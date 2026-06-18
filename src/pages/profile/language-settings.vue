@@ -100,8 +100,8 @@ const notifyLanguageChange = (locale: string) => {
       const systemInfo = uni.getSystemInfoSync();
       if (systemInfo.platform !== 'devtools') {
         // 尝试调用原生方法
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.languageChange) {
-          window.webkit.messageHandlers.languageChange.postMessage({ locale });
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.onLanguageChange) {
+          window.webkit.messageHandlers.onLanguageChange.postMessage({ locale });
         } else if (window.android && window.android.onLanguageChange) {
           window.android.onLanguageChange(locale);
         }

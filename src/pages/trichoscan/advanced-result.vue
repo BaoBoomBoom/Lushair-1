@@ -1359,9 +1359,9 @@ const fetchAIAnalysis = async (userId: string) => {
         avg_hair_count: analysisData.value.follicle_score_map?.score || 0,
         hair_radius: analysisData.value.hair_max_rad_score_map?.score || 0,
         follicle_density: analysisData.value.hair_density_score_map?.score || 0,
-        keratin_ratio: analysisData.value.keratinocytes_score_map?.score || 0,
+        keratin_ratio: (analysisData.value.keratinocytes_score_map?.score || 0) / 100,
         oil_ratio: (analysisData.value.scalp_oil_area_score_map?.score || 0) / 100,
-        sensitivity_ratio: analysisData.value.redness_area_score_map?.score || 0
+        sensitivity_ratio: (analysisData.value.redness_area_score_map?.score || 0) / 100
       }
     };
 

@@ -637,8 +637,8 @@ onShow(async () => {
 
 <template>
     <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
-    <MainTabLayout show-promo>
-        <view class="shell-chat consult-page">
+    <MainTabLayout show-promo :disable-scroll="disableScroll">
+        <view class="shell-chat consult-page" :class="{ 'disable-page-scroll': disableScroll }">
             <view class="chat-scan-row">
                 <button class="shell-scan-link" @tap="viewLastScan">
                     <image src="/static/tabbar/hair-active.svg" class="scan-link-icon" mode="aspectFit" />
@@ -680,7 +680,7 @@ onShow(async () => {
                     </text>
                 </view>
             </view>
-            <scroll-view scroll-y class="shell-chat-feed">
+            <view class="shell-chat-feed chat-messages">
                 <view v-if="!hasStartedChat" class="shell-chat-intro">
                     <text class="welcome">{{ $t('consult.welcome') }}</text>
                     <text class="bold">{{ $t('consult.placesTip') }}</text>
@@ -712,7 +712,7 @@ onShow(async () => {
                     </view>
                     <view id="scroll-bottom" class="scroll-anchor"></view>
                 </view>
-            </scroll-view>
+            </view>
             <view class="shell-chat-input">
                 <input
                     v-model="userInput"
@@ -739,6 +739,37 @@ onShow(async () => {
 .consult-page {
     flex: 1;
     min-height: calc(100vh - 130px);
+    display: flex;
+    flex-direction: column;
+
+    /* 
+      当锁定页面滚动时，重置最小高度并占满容器
+      When page scroll is locked, reset min-height and fill the container
+    */
+    &.disable-page-scroll {
+        min-height: 0;
+        height: 100%;
+    }
+}
+
+/* 
+  替换 scroll-view 为普通 view 并设置滚动属性，确保滚动流畅与兼容性
+  Replace scroll-view with a normal view and set scroll properties to ensure smooth scrolling and compatibility
+*/
+.shell-chat-feed {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 
+  覆盖输入框的内边距，移除上下内边距防止 iOS 端输入文字截断/隐藏
+  Override input field padding, remove top/bottom padding to prevent input text truncation/hiding on iOS
+*/
+.shell-chat-field {
+    padding: 0 18px;
 }
 
 .chat-scan-row {
