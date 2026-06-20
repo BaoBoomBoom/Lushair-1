@@ -59,6 +59,14 @@ declare var window: Window & {
 
 import { getApiUrl } from '@/utils/apiHelper';
 
+interface DetectionRecord {
+    createTime?: string;
+    scalp?: string;
+    hair?: string;
+    follicle?: string;
+    scalpScore?: string;
+}
+
 // 健康度数据
 const healthData = ref({
     scalpHealth: '0',
@@ -68,6 +76,52 @@ const healthData = ref({
     hasData: false,
     loading: true
 });
+
+/** Pick the most recent detection record by createTime. */
+const pickLatestDetectionRecord = (list: DetectionRecord[]): DetectionRecord | null => {
+    if (!list?.length) return null;
+    return [...list].sort((a, b) => {
+        const timeA = new Date(a.createTime || '').getTime();
+        const timeB = new Date(b.createTime || '').getTime();
+        if (Number.isNaN(timeA) && Number.isNaN(timeB)) return 0;
+        if (Number.isNaN(timeA)) return 1;
+        if (Number.isNaN(timeB)) return -1;
+        return timeB - timeA;
+    })[0];
+};
+
+const applyLatestScores = (record: DetectionRecord) => {
+    lastScanDisplay.value = formatLastScanRelative(record.createTime);
+    userData.value.lastUpdated = record.createTime || '';
+    healthData.value = {
+        scalpHealth: '0',
+        follicleHealth: '0',
+        hairHealth: '0',
+        totalScore: 0,
+        hasData: true,
+        loading: false,
+    };
+
+    setTimeout(() => {
+        healthData.value = {
+            scalpHealth: String(Math.round(parseFloat(record.scalp || '0') || 0)),
+            follicleHealth: String(Math.round(parseFloat(record.follicle || '0') || 0)),
+            hairHealth: String(Math.round(parseFloat(record.hair || '0') || 0)),
+            totalScore: Math.round(parseFloat(record.scalpScore || '0') || 0),
+            hasData: true,
+            loading: false,
+        };
+
+        userStore.updateUserInfo({
+            scalpHealth: healthData.value.scalpHealth,
+            follicleHealth: healthData.value.follicleHealth,
+            hairHealth: healthData.value.hairHealth,
+            totalScore: healthData.value.totalScore,
+        });
+
+        checkScroll();
+    }, 300);
+};
 
 // 用户数据
 const userData = ref({
@@ -253,9 +307,9 @@ const routineTasks = computed(() => [
 // scanTests 使用 computed，语言切换后标题/描述自动更新
 // Use computed so title/description update reactively on locale change
 const scoreMetrics = computed(() => [
-    { value: healthData.value.scalpHealth, label: t('analysis.scalp') },
-    { value: healthData.value.hairHealth, label: t('home.hairStrength') },
-    { value: healthData.value.follicleHealth, label: t('advancedResult.follicle') },
+    { value: healthData.value.scalpHealth, label: t('hair.scalpScore') },
+    { value: healthData.value.hairHealth, label: t('hair.hairScoreLabel') },
+    { value: healthData.value.follicleHealth, label: t('hair.follicleScore') },
 ]);
 
 const scanTests = computed(() => [
@@ -317,6 +371,29 @@ const formatDate = (dateString: string) => {
 
 const userStore = useUserStore();
 
+const DEV_DEFAULT_USER_ID = 'lusHair330e986a';
+
+const ensureUserId = () => {
+    if (!userStore.userInfo.userId) {
+        const localUserInfo = uni.getStorageSync('userInfo');
+        const storedUserId = uni.getStorageSync('userId');
+        const resolved = localUserInfo?.userId || storedUserId || '';
+        if (resolved) {
+            userStore.userInfo.userId = resolved;
+        } else if (import.meta.env.DEV) {
+            userStore.userInfo.userId = DEV_DEFAULT_USER_ID;
+        }
+    }
+    return userStore.userInfo.userId;
+};
+
+const loadLatestScoreOverview = () => {
+    const userId = ensureUserId();
+    if (userId) {
+        fetchHealthData(userId);
+    }
+};
+
 // 获取健康度数据
 const fetchHealthData = async (userId: string) => {
     try {
@@ -345,45 +422,9 @@ const fetchHealthData = async (userId: string) => {
             // 计算周环比差值
             weekOverWeekDifference.value = calculateWeekOverWeekDifference(list);
             
-            if (list && list.length > 0) {
-                const record = list[0];
-                lastScanDisplay.value = formatLastScanRelative(record.createTime);
-                userData.value.lastUpdated = record.createTime || '';
-                // 先设置为0，等待动画效果
-                healthData.value = {
-                    scalpHealth: '0',
-                    follicleHealth: '0',
-                    hairHealth: '0',
-                    totalScore: 0,
-                    hasData: true,
-                    loading: false
-                };
-                
-                // 延迟更新数据，以便看到动画效果
-                // Delay updating data to show animation effect
-                setTimeout(() => {
-                    healthData.value = {
-                        scalpHealth: String(Math.round(record.scalp) || 0),
-                        follicleHealth: String(Math.round(record.follicle) || 0),
-                        hairHealth: String(Math.round(record.hair) || 0),
-                        totalScore: Math.round(record.scalpScore) || 0,
-                        hasData: true,
-                        loading: false
-                    };
-                    
-                    // 更新用户信息中的健康度数据
-                    // Update health data in user info
-                    userStore.updateUserInfo({
-                        scalpHealth: healthData.value.scalpHealth,
-                        follicleHealth: healthData.value.follicleHealth,
-                        hairHealth: healthData.value.hairHealth,
-                        totalScore: healthData.value.totalScore
-                    });
-
-                    // 重新检测是否需要禁止滚动
-                    // Recheck if scroll needs to be disabled
-                    checkScroll();
-                }, 300);
+            const latestRecord = pickLatestDetectionRecord(list);
+            if (latestRecord) {
+                applyLatestScores(latestRecord);
             } else {
                 lastScanDisplay.value = formatLastScanRelative();
                 setNoDataState();
@@ -635,18 +676,7 @@ window.receiveUserIdFromApp = function(userIdString: string) {
 
 onMounted(() => {
     userStore.initUserInfo();
-
-    // 开发环境：如果没有userId，设置默认值
-    // Development environment: set default userId if not exists
-    if (import.meta.env.DEV && !userStore.userInfo.userId) {
-        userStore.userInfo.userId = 'lusHair330e986a';
-    }
-
-    // 如果有userId，获取健康度数据
-    // If there is a userId, get health data
-    if (userStore.userInfo.userId) {
-        fetchHealthData(userStore.userInfo.userId);
-    }
+    loadLatestScoreOverview();
     
     // 加载任务状态
     // Load task status
@@ -692,8 +722,7 @@ onPullDownRefresh(async () => {
 // 每次页面显示时调用
 // Called every time page shows
 onShow(() => {
-    // 如果有userId，获取每日任务状态
-    // If there is a userId, get daily task status
+    loadLatestScoreOverview();
     if (userStore.userInfo.userId) {
         fetchDailyTaskStatus(userStore.userInfo.userId);
     }

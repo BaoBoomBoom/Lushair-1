@@ -52,6 +52,10 @@ export default defineConfig(({ mode }) => {
                 '.trycloudflare.com',
             ],
             proxy: {
+                '/api/lushair': {
+                    target: 'http://localhost:3000',
+                    changeOrigin: true,
+                },
                 '/ai-api': {
                     target: 'http://43.156.213.63:5011',
                     changeOrigin: true,
@@ -84,6 +88,9 @@ function loadAppEnv(mode: string) {
 
     // 根据品牌确定API基础URL
     const getApiBaseUrl = (brand: string) => {
+        if (mode === 'development' && brand === 'lushair') {
+            return '/api/lushair';
+        }
         switch (brand) {
             case 'siyuejia':
                 return 'https://union.lushair.cn/api';
