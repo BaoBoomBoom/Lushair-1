@@ -41,6 +41,7 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/clerk-js": "^6.21.0",
     "@dcloudio/uni-app": "3.0.0-4030620241128001",
     "@dcloudio/uni-app-harmony": "3.0.0-4030620241128001",
     "@dcloudio/uni-app-plus": "3.0.0-4030620241128001",

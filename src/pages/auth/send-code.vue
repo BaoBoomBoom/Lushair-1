@@ -13,6 +13,11 @@ import {
     setUserIdToApp,
     type AuthPushType,
 } from '@/composables/useAuthFlow';
+import {
+    createClerkUserAfterVerification,
+    registerWithClerkToken,
+    clearClerkSession,
+} from '@/utils/clerk';
 
 const { t } = useI18n();
 const userStore = useUserStore();
@@ -110,12 +115,34 @@ const handlePaste = (event: ClipboardEvent) => {
     }
 };
 
-const persistSession = async (contactPayload: Record<string, string>) => {
-    const userInfoResponse = await post('user/info', contactPayload);
-    Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
-    uni.setStorageSync('userInfo', userStore.userInfo);
-    const userId = (userStore.userInfo as { userId?: string }).userId;
-    if (userId) setUserIdToApp(userId);
+const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string) => {
+    // 如果有 Clerk token，使用它注册到后端
+    if (clerkToken) {
+        try {
+            const registerResult = await registerWithClerkToken(clerkToken, contactPayload);
+            if (registerResult.success && registerResult.user) {
+                // 合并用户信息
+                Object.assign(userStore.userInfo, registerResult.user, contactPayload);
+                uni.setStorageSync('userInfo', userStore.userInfo);
+                const userId = (userStore.userInfo as { userId?: string }).userId;
+                if (userId) setUserIdToApp(userId);
+            } else {
+                throw new Error(registerResult.error || 'Registration failed');
+            }
+        } catch (error) {
+            console.error('Clerk registration error:', error);
+            // Clerk 注册失败，清除 Clerk session
+            clearClerkSession();
+            throw error;
+        }
+    } else {
+        // 原有流程：直接获取用户信息
+        const userInfoResponse = await post('user/info', contactPayload);
+        Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
+        uni.setStorageSync('userInfo', userStore.userInfo);
+        const userId = (userStore.userInfo as { userId?: string }).userId;
+        if (userId) setUserIdToApp(userId);
+    }
 
     uni.showToast({
         title: t('auth.sendCode.verificationSuccess'),
@@ -129,20 +156,51 @@ const persistSession = async (contactPayload: Record<string, string>) => {
 };
 
 const handlePhoneVerification = async (captcha: string) => {
+    // 1. 先验证验证码
     await post('login/verify', {
         phone: phone.value,
         countryCode: countryCode.value,
         captcha,
     });
-    await persistSession({ phone: phone.value });
+
+    // 2. 验证成功后，创建或获取 Clerk 用户
+    const clerkResult = await createClerkUserAfterVerification(
+        phone.value,
+        'phone',
+        countryCode.value
+    );
+
+    if (clerkResult.success && clerkResult.token) {
+        // 3. 使用 Clerk token 注册到后端
+        await persistSession({ phone: phone.value }, clerkResult.token);
+    } else {
+        // Clerk 创建失败，使用原有流程
+        console.warn('Clerk user creation failed, falling back to original flow:', clerkResult.error);
+        await persistSession({ phone: phone.value });
+    }
 };
 
 const handleEmailVerification = async (captcha: string) => {
+    // 1. 先验证验证码
     await post('login/verifyByEmail', {
         email: email.value,
         captcha,
     });
-    await persistSession({ email: email.value });
+
+    // 2. 验证成功后，创建或获取 Clerk 用户
+    const clerkResult = await createClerkUserAfterVerification(
+        email.value,
+        'email'
+    );
+
+    if (clerkResult.success && clerkResult.token) {
+        // 3. 使用 Clerk token 注册到后端
+        await persistSession({ email: email.value }, clerkResult.token);
+    } else {
+        // Clerk 创建失败，使用原有流程
+        console.warn('Clerk user creation failed, falling back to original flow:', clerkResult.error);
+        await persistSession({ email: email.value });
+    }
 };
 
 const handleNext = async () => {

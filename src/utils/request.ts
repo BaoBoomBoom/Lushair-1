@@ -1,5 +1,6 @@
 // 请求封装与类型定义
 import { getApiConfig, getApiUrl, ProjectBrand, getCurrentProjectBrand } from './apiConfig';
+import { getClerkToken } from './clerk';
 
 const getUni = () => (globalThis as any).uni;
 
@@ -67,10 +68,15 @@ export const request = (options: RequestOptions) => {
     }
 
     const uniRef = getUni();
+
+    // 获取 Clerk Token 并添加到请求头
+    const clerkToken = getClerkToken();
     const headers = {
       ...apiConfig.headers,
-      ...options.header
+      ...options.header,
+      ...(clerkToken ? { 'Authorization': `Bearer ${clerkToken}` } : {}),
     };
+
     const method = options.method || 'GET';
     const data = options.data || {};
 
