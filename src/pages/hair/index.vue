@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { onPullDownRefresh } from '@dcloudio/uni-app';
+import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
 import { useUserStore } from '@/stores/userStore';
 import { post } from '@/utils/request';
+import { getSelfieReports } from '@/utils/clerk';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 
@@ -45,6 +46,12 @@ interface SelfieResult {
     sleep: number;
     stage: number;
     userId: string;
+    // 新增字段匹配 hair_reports 表
+    generatedAt?: string | null;
+    hair?: number | null;
+    scalp?: number | null;
+    follicle?: number | null;
+    overallScore?: number | null;
 }
 
 // 统一的历史记录接口
@@ -74,6 +81,14 @@ type ScoreMetricKey = 'hair' | 'follicle' | 'scalp';
 const historyRecords = ref<HistoryRecord[]>([]);
 const isLoading = ref(false);
 const loadError = ref('');
+
+// 分页状态
+const selfiePagination = ref({
+    page: 1,
+    pageSize: 10,
+    hasMore: true,
+    isLoadingMore: false
+});
 
 // 日期筛选器相关状态
 const selectedDateFilter = ref<string | null>(null); // null表示"全部"，具体日期字符串表示选中日期
@@ -177,16 +192,65 @@ const fetchDetectionRecords = async (userId: string): Promise<DetectionRecord[]>
     }
 };
 
-const fetchSelfieResults = async (userId: string): Promise<SelfieResult[]> => {
+const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Promise<SelfieResult[]> => {
     try {
-        console.log('Fetching selfie results for userId:', userId);
-        const response = await post('user/getSelfieResultList', {
-            userId: userId
-        }) as SelfieResult[];
-        console.log('Selfie results response:', response);
-        return response || [];
+        console.log('Fetching selfie results for userId:', userId, 'page:', page);
+        // 使用新的 API 从 hair_reports 表获取自拍数据，传入 userId
+        const result = await getSelfieReports(userId, page, pageSize);
+        console.log('Selfie results response:', result);
+
+        // 更新分页状态
+        selfiePagination.value = {
+            page: result.page,
+            pageSize: result.pageSize,
+            hasMore: result.hasMore,
+            isLoadingMore: false
+        };
+
+        // 转换 hair_reports 数据为 SelfieResult 格式
+        const reports = result.reports || [];
+
+        // 处理数据格式，确保与原有 SelfieResult 接口兼容
+        return reports.map((report: any) => {
+            // 从 extInfo 解析额外信息（如果有的话）
+            let extInfo = null;
+            if (report.extInfo) {
+                try {
+                    extInfo = typeof report.extInfo === 'string' ? JSON.parse(report.extInfo) : report.extInfo;
+                } catch (e) {
+                    console.error('ExtInfo parsing error:', e);
+                }
+            }
+
+            return {
+                id: parseInt(report.id) || 0,
+                userId: report.userId || userId,
+                stage: report.stage || 1,
+                position: report.position || 'none',
+                image: report.image || '',
+                reportId: report.id || null,  // hair_reports 的 id 就是 reportId
+                createTime: report.generatedAt || report.created_at || null,
+                createdTime: report.generatedAt || report.created_at || null,
+                generatedAt: report.generatedAt || report.created_at || null,
+                extInfo: JSON.stringify(extInfo) || null,
+                // 新增字段
+                hair: report.hair || null,
+                scalp: report.scalp || null,
+                follicle: report.follicle || null,
+                overallScore: report.overallScore || null,
+                // 保持兼容性，设置默认值
+                approximateAge: extInfo?.approximateAge || 0,
+                breakHair: extInfo?.breakHair || 0,
+                drink: extInfo?.drink || 0,
+                loseHair: extInfo?.loseHair || 0,
+                scurf: extInfo?.scurf || 0,
+                sleep: extInfo?.sleep || 0,
+                gender: extInfo?.gender || null,
+            } as SelfieResult;
+        });
     } catch (error) {
         console.error('Failed to fetch selfie results:', error);
+        selfiePagination.value.isLoadingMore = false;
         return [];
     }
 };
@@ -450,6 +514,16 @@ onPullDownRefresh(async () => {
         console.error('Refresh failed:', error);
     } finally {
         uni.stopPullDownRefresh();
+    }
+});
+
+// 滚动到底部时自动加载更多自拍记录
+onReachBottom(async () => {
+    // 只有在历史记录标签页、自拍 tab、且还有更多数据时才加载
+    if (activeTab.value === 1 && historyTab.value === 'selfie' &&
+        selfiePagination.value.hasMore && !selfiePagination.value.isLoadingMore) {
+
+        await loadMoreSelfieResults();
     }
 });
 
@@ -1508,6 +1582,16 @@ const averageScore = computed(() => {
 
 const avgDelta = computed(() => formatDelta(currentScore.value - averageScore.value));
 
+// 判断是否是真正的第一条记录（已加载完所有数据）
+const isRealFirstRecord = (record: HistoryRecord, records: HistoryRecord[]): boolean => {
+    // 如果是自拍类型，检查是否还有更多自拍数据
+    if (record.type === 'phoneCamera') {
+        return !selfiePagination.value.hasMore;
+    }
+    // 如果是毛囊镜类型，暂时总是显示 First Scan（因为还没有分页）
+    return true;
+};
+
 const formatCompactDate = (dateString: string): string => {
     try {
         const d = new Date(dateString);
@@ -1989,6 +2073,114 @@ const getGalleryPrimaryText = (record: HistoryRecord, index: number, total: numb
     return String(getTrichoscanScores(record).overall);
 };
 
+// 加载更多自拍记录
+const loadMoreSelfieResults = async () => {
+    if (selfiePagination.value.isLoadingMore || !selfiePagination.value.hasMore) {
+        return;
+    }
+
+    selfiePagination.value.isLoadingMore = true;
+
+    try {
+        // 获取当前userId
+        let userId = userStore.userInfo.userId;
+        if (!userId) {
+            const localUserInfo = uni.getStorageSync('userInfo');
+            const storedUserId = uni.getStorageSync('userId');
+            userId = localUserInfo?.userId || storedUserId;
+        }
+
+        if (!userId) {
+            console.warn('No userId available for loading more selfie results');
+            return;
+        }
+
+        const nextPage = selfiePagination.value.page + 1;
+        const moreResults = await fetchSelfieResults(userId, nextPage, selfiePagination.value.pageSize);
+
+        // 合并数据
+        if (moreResults.length > 0) {
+            // 将新数据转换为 HistoryRecord 格式并添加到 existing records
+            const newHistoryRecords: HistoryRecord[] = [];
+            moreResults.forEach((result, index) => {
+                const score = calculateSelfieScore(result.stage, result.extInfo);
+                const level = result.stage;
+
+                // 获取当前所有自拍记录中的上一条（用于计算 improvement）
+                const currentSelfieResults = historyRecords.value
+                    .filter((r: HistoryRecord) => r.type === 'phoneCamera')
+                    .map((r: HistoryRecord) => r.originalData as SelfieResult);
+
+                const prevResult = currentSelfieResults[currentSelfieResults.length - 1];
+                const prevScore = prevResult ? calculateSelfieScore(prevResult.stage, prevResult.extInfo) : null;
+                const prevLevel = prevResult ? prevResult.stage : null;
+
+                const scoreImprovement = prevScore !== null ? score - prevScore : 0;
+                const levelImprovement = prevLevel !== null ? level - prevLevel : 0;
+
+                const dateString = result.createTime || result.createdTime || result.generatedAt || new Date().toISOString();
+
+                newHistoryRecords.push({
+                    id: result.id,
+                    userId: result.userId,
+                    date: formatDate(dateString),
+                    type: 'phoneCamera',
+                    typeLabel: t('hair.phoneCamera'),
+                    typeIcon: '/static/icons/camera_front.svg',
+                    hairLossPattern: {
+                        level,
+                        total: 7,
+                        improvement: levelImprovement > 0 ? Math.round(levelImprovement) : 0
+                    },
+                    hairScore: {
+                        score: Math.round(score),
+                        total: 100,
+                        improvement: scoreImprovement > 0 ? Math.round(scoreImprovement) : 0
+                    },
+                    originalData: result
+                });
+            });
+
+            // 合并到现有记录并重新排序
+            const allRecords = [...historyRecords.value, ...newHistoryRecords];
+
+            // 按时间倒序排列
+            allRecords.sort((a, b) => {
+                const getOriginalTime = (record: HistoryRecord) => {
+                    if (record.type === 'advancedScan') {
+                        return (record.originalData as DetectionRecord).createTime;
+                    } else {
+                        const selfieData = record.originalData as SelfieResult;
+                        return selfieData.createTime || selfieData.createdTime || selfieData.generatedAt || '';
+                    }
+                };
+
+                const timeA = getOriginalTime(a);
+                const timeB = getOriginalTime(b);
+                const hasTimeA = timeA !== '';
+                const hasTimeB = timeB !== '';
+
+                if (hasTimeA && !hasTimeB) return -1;
+                if (!hasTimeA && hasTimeB) return 1;
+
+                if (hasTimeA && hasTimeB) {
+                    const timestampA = new Date(timeA).getTime();
+                    const timestampB = new Date(timeB).getTime();
+                    return timestampB - timestampA;
+                }
+
+                return 0;
+            });
+
+            historyRecords.value = allRecords;
+        }
+    } catch (error) {
+        console.error('Load more selfie results error:', error);
+    } finally {
+        selfiePagination.value.isLoadingMore = false;
+    }
+};
+
 // 获取日历天数
 const getCalendarDays = () => {
     const start = new Date(datePickerMonth.value);
@@ -2315,7 +2507,7 @@ const getCalendarDays = () => {
                                         <text class="shell-tl-lvl-of">/ {{ record.hairLossPattern.total }}</text>
                                     </view>
                                     <text
-                                        v-if="index === chipFilteredRecords.length - 1"
+                                        v-if="index === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)"
                                         class="shell-pill shell-pill-p"
                                     >{{ t('hair.firstScan') }}</text>
                                     <text
@@ -2344,7 +2536,7 @@ const getCalendarDays = () => {
                                 <view class="shell-tl-score shell-tl-score--tricho">
                                     <text class="shell-tl-num">{{ getTrichoscanScores(record).overall }}</text>
                                     <text class="shell-tl-of">/100</text>
-                                    <text v-if="index === chipFilteredRecords.length - 1" class="shell-pill shell-pill-p">{{ t('hair.firstScan') }}</text>
+                                    <text v-if="index === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)" class="shell-pill shell-pill-p">{{ t('hair.firstScan') }}</text>
                                     <text
                                         v-else-if="getTrichoscanOverallDelta(record, index, chipFilteredRecords) !== 0"
                                         :class="getScoreDeltaClass(getTrichoscanOverallDelta(record, index, chipFilteredRecords))"

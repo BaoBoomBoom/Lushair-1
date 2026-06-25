@@ -232,6 +232,92 @@ export function hasClerkSession(): boolean {
 }
 
 /**
+ * 获取自拍报告列表（分页）
+ * 从 hair_reports 表获取，按 reportType='selfie' 筛选
+ *
+ * @param userId 用户 ID（老系统的 userId）
+ * @param page 页码，从 1 开始
+ * @param pageSize 每页条数，默认 10
+ * @returns 自拍报告列表数据
+ */
+export async function getSelfieReports(userId: string, page = 1, pageSize = 10): Promise<{
+    reports: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasMore: boolean;
+}> {
+    try {
+        const url = new URL(`${CLERK_BACKEND_API}/report/selfie`);
+        url.searchParams.append('userId', userId);
+        url.searchParams.append('page', String(page));
+        url.searchParams.append('pageSize', String(pageSize));
+
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.code === 200 && data.data) {
+            return data.data;
+        }
+
+        throw new Error(data.message || 'Failed to fetch selfie reports');
+    } catch (error) {
+        console.error('Get selfie reports error:', error);
+        throw error;
+    }
+}
+
+/**
+ * 获取毛囊镜报告列表（分页）
+ * 从 hair_reports 表获取，按 reportType='trichoscopy' 筛选
+ *
+ * @param userId 用户 ID（老系统的 userId）
+ * @param page 页码，从 1 开始
+ * @param pageSize 每页条数，默认 10
+ * @returns 毛囊镜报告列表数据
+ */
+export async function getTrichoReports(userId: string, page = 1, pageSize = 10): Promise<{
+    reports: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasMore: boolean;
+}> {
+    try {
+        const url = new URL(`${CLERK_BACKEND_API}/report/trichoscopy`);
+        url.searchParams.append('userId', userId);
+        url.searchParams.append('page', String(page));
+        url.searchParams.append('pageSize', String(pageSize));
+
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.code === 200 && data.data) {
+            return data.data;
+        }
+
+        throw new Error(data.message || 'Failed to fetch tricho reports');
+    } catch (error) {
+        console.error('Get tricho reports error:', error);
+        throw error;
+    }
+}
+
+/**
  * Clerk 错误处理
  */
 export function handleClerkError(error: unknown): string {

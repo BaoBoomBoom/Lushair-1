@@ -70,7 +70,7 @@ const loadRoutine = () => {
 const fetchDailyTask = async () => {
     if (!userStore.userInfo.userId) return;
     try {
-        await post('user/getEncrInfo', { userId: userStore.userInfo.userId });
+        await post('/encr/info', { userId: userStore.userInfo.userId });
     } catch (e) {
         console.error('routine encr fetch', e);
     }
