@@ -2,6 +2,9 @@
 import { getApiConfig, getApiUrl, ProjectBrand, getCurrentProjectBrand } from './apiConfig';
 import { getClerkToken } from './clerk';
 
+// Re-export ProjectBrand for convenience
+export { ProjectBrand };
+
 const getUni = () => (globalThis as any).uni;
 
 const showToast = (title: string) => {
@@ -24,6 +27,7 @@ interface RequestOptions {
   header?: Record<string, string>;
   brand?: ProjectBrand; // 新增：指定项目品牌
   timeout?: number; // 新增：自定义超时时间
+  silent?: boolean; // 新增：静默模式，不显示错误提示
   [key: string]: any;
 }
 
@@ -98,18 +102,18 @@ export const request = (options: RequestOptions) => {
               resolve(responseData.data);
             } else {
               // 业务错误
-              showToast(responseData.message || '请求失败');
+              if (!options.silent) showToast(responseData.message || '请求失败');
               reject(responseData);
             }
           } else {
             // HTTP状态码错误
-            showToast(`请求失败(${res.statusCode})`);
+            if (!options.silent) showToast(`请求失败(${res.statusCode})`);
             reject(res);
           }
         },
         fail: (err: any) => {
           // 网络错误等
-          showToast('网络异常，请稍后重试');
+          if (!options.silent) showToast('网络异常，请稍后重试');
           reject(err);
         }
       });
@@ -140,7 +144,7 @@ export const request = (options: RequestOptions) => {
     })
       .then(async (res) => {
         if (res.status !== 200) {
-          showToast(`请求失败(${res.status})`);
+          if (!options.silent) showToast(`请求失败(${res.status})`);
           reject(res);
           return;
         }
@@ -149,11 +153,11 @@ export const request = (options: RequestOptions) => {
           resolve(responseData.data);
           return;
         }
-        showToast(responseData.message || '请求失败');
+        if (!options.silent) showToast(responseData.message || '请求失败');
         reject(responseData);
       })
       .catch((err) => {
-        showToast('网络异常，请稍后重试');
+        if (!options.silent) showToast('网络异常，请稍后重试');
         reject(err);
       })
       .finally(() => {

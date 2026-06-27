@@ -31,7 +31,7 @@ const handleRegister = async () => {
 
     isLoading.value = true;
     try {
-        await sendEmailCaptcha(email.value);
+        await sendEmailCaptcha(email.value, true);
         navigateToSendCode({
             pushType: '1',
             type: 'email',

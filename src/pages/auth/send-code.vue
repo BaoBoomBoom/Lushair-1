@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import { ref, nextTick, computed, watch } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { post } from '@/utils/request';
+import { get, post, ProjectBrand } from '@/utils/request';
 import { useUserStore } from '@/stores/userStore';
 import AuthStepProgress from '@/components/auth/AuthStepProgress.vue';
 import {
@@ -115,16 +115,70 @@ const handlePaste = (event: ClipboardEvent) => {
     }
 };
 
+// 辅助函数：获取用户信息，支持新老后端兜底逻辑
+const getUserInfoWithFallback = async (contactPayload: Record<string, string>): Promise<any> => {
+    // 1. 先从新后端查询用户信息（通过 email/phone 查询参数，无需认证）
+    let userInfoResponse = await get('user/profile', contactPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
+
+    if (!userInfoResponse || !userInfoResponse.userId) {
+        console.log('[UserSync] 新后端未找到用户，尝试从老后端查询...');
+
+        // 2. 新后端没有，去老后端查询（用 try-catch 捕获 500 错误，表示用户不存在）
+        let legacyUserInfo: any = null;
+        try {
+            legacyUserInfo = await post('user/info', contactPayload, { brand: ProjectBrand.LUSHAIR, silent: true }) as any;
+        } catch (error: any) {
+            // 老后端返回 500 表示用户不存在，继续执行注册流程
+            console.log('[UserSync] 老后端查询失败(用户不存在):', error?.data?.message || 'error');
+        }
+
+        if (legacyUserInfo && legacyUserInfo.userId) {
+            console.log('[UserSync] 老后端找到用户，同步到新后端:', legacyUserInfo.userId);
+
+            // 3. 老后端查到了，同步到新后端
+            await post('user/sync', legacyUserInfo, { brand: ProjectBrand.LUSHAIR_NEW });
+            userInfoResponse = legacyUserInfo;
+        } else {
+            console.log('[UserSync] 老后端也未找到用户，调用 registUser 创建用户...');
+
+            // 4. 老后端也没有，调用注册接口创建用户
+            const registerResult = await post('login/registUser', contactPayload, { brand: ProjectBrand.LUSHAIR }) as any;
+
+            if (registerResult && (registerResult.userId || registerResult.customerId)) {
+                console.log('[UserSync] 老后端注册成功，同步到新后端:', registerResult.userId || registerResult.customerId);
+
+                // 5. 注册成功后，同步到新后端
+                // 处理老后端返回的数据格式（可能是 customerDO 或 responseMap）
+                const userData = registerResult.userId ? registerResult : {
+                    userId: registerResult.customerId || registerResult.userId,
+                    ...registerResult,
+                };
+
+                await post('user/sync', userData, { brand: ProjectBrand.LUSHAIR_NEW });
+                userInfoResponse = registerResult;
+            } else {
+                console.error('[UserSync] 老后端注册失败:', registerResult);
+            }
+        }
+    } else {
+        console.log('[UserSync] 新后端找到用户:', userInfoResponse.userId);
+    }
+
+    return userInfoResponse;
+};
+
 const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string) => {
     // 如果有 Clerk token，使用它注册到后端
     if (clerkToken) {
         try {
             const registerResult = await registerWithClerkToken(clerkToken, contactPayload);
-            if (registerResult.success && registerResult.user) {
+            if (registerResult.success) {
+                // 注册成功后，从新后端 Vercel 数据库获取完整用户信息（支持兜底逻辑）
+                const userInfoResponse = await getUserInfoWithFallback(contactPayload);
                 // 合并用户信息
-                Object.assign(userStore.userInfo, registerResult.user, contactPayload);
+                Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
                 uni.setStorageSync('userInfo', userStore.userInfo);
-                const userId = (userStore.userInfo as { userId?: string }).userId;
+                const userId = userInfoResponse?.userId || (userStore.userInfo as { userId?: string }).userId;
                 if (userId) setUserIdToApp(userId);
             } else {
                 throw new Error(registerResult.error || 'Registration failed');
@@ -136,11 +190,12 @@ const persistSession = async (contactPayload: Record<string, string>, clerkToken
             throw error;
         }
     } else {
-        // 原有流程：直接获取用户信息
-        const userInfoResponse = await post('user/info', contactPayload);
+        // 无 Clerk token 时，直接从新后端获取用户信息（Clerk 用户已在后端创建，支持兜底逻辑）
+        const userInfoResponse = await getUserInfoWithFallback(contactPayload);
+        // 合并用户信息
         Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
         uni.setStorageSync('userInfo', userStore.userInfo);
-        const userId = (userStore.userInfo as { userId?: string }).userId;
+        const userId = userInfoResponse?.userId || (userStore.userInfo as { userId?: string }).userId;
         if (userId) setUserIdToApp(userId);
     }
 
@@ -170,22 +225,16 @@ const handlePhoneVerification = async (captcha: string) => {
         countryCode.value
     );
 
-    if (clerkResult.success && clerkResult.token) {
-        // 3. 使用 Clerk token 注册到后端
-        await persistSession({ phone: phone.value }, clerkResult.token);
-    } else {
-        // Clerk 创建失败，使用原有流程
-        console.warn('Clerk user creation failed, falling back to original flow:', clerkResult.error);
-        await persistSession({ phone: phone.value });
-    }
+    // 3. 使用新后端完成登录流程（无论是否有 token）
+    await persistSession({ phone: phone.value }, clerkResult.token);
 };
 
 const handleEmailVerification = async (captcha: string) => {
-    // 1. 先验证验证码
+    // 1. 先验证验证码（使用新API）
     await post('login/verifyByEmail', {
         email: email.value,
         captcha,
-    });
+    }, { brand: ProjectBrand.LUSHAIR_NEW });
 
     // 2. 验证成功后，创建或获取 Clerk 用户
     const clerkResult = await createClerkUserAfterVerification(
@@ -193,14 +242,8 @@ const handleEmailVerification = async (captcha: string) => {
         'email'
     );
 
-    if (clerkResult.success && clerkResult.token) {
-        // 3. 使用 Clerk token 注册到后端
-        await persistSession({ email: email.value }, clerkResult.token);
-    } else {
-        // Clerk 创建失败，使用原有流程
-        console.warn('Clerk user creation failed, falling back to original flow:', clerkResult.error);
-        await persistSession({ email: email.value });
-    }
+    // 3. 使用新后端完成登录流程（无论是否有 token）
+    await persistSession({ email: email.value }, clerkResult.token);
 };
 
 const handleNext = async () => {
