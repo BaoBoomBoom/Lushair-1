@@ -5,8 +5,9 @@
 
 // 项目品牌类型枚举
 export enum ProjectBrand {
-  LUSHAIR = 'lushair',    // Lushair品牌 (https://union.lushair.ai/api)
-  SIYUEJIA = 'siyuejia'   // Siyuejia品牌 (https://union.lushair.cn/api)
+  LUSHAIR = 'lushair',        // Lushair品牌旧后端 (https://tool.lushair.net/api)
+  LUSHAIR_NEW = 'lushair_new', // Lushair品牌新后端 (Next.js)
+  SIYUEJIA = 'siyuejia'       // Siyuejia品牌 (https://union.lushair.cn/api)
 }
 
 // API配置接口
@@ -20,6 +21,16 @@ interface ApiConfig {
 const API_CONFIGS: Record<ProjectBrand, ApiConfig> = {
   [ProjectBrand.LUSHAIR]: {
     baseUrl: 'https://tool.lushair.net/api',
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  },
+  [ProjectBrand.LUSHAIR_NEW]: {
+    // 新后端服务地址 - 根据部署环境修改
+    // 本地开发: http://localhost:3001/api
+    // 生产环境: 修改为实际部署地址
+    baseUrl: 'https://backend.lushair.ai/api',
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json'
