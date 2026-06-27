@@ -49,7 +49,9 @@ const API_CONFIGS: Record<ProjectBrand, ApiConfig> = {
 export function getCurrentProjectBrand(): ProjectBrand {
   // 可以通过环境变量配置当前项目品牌
   const brand = (globalThis as any).PROJECT_BRAND || 'siyuejia';
-  return brand === 'lushair' ? ProjectBrand.LUSHAIR : ProjectBrand.SIYUEJIA;
+  if (brand === 'lushair') return ProjectBrand.LUSHAIR;
+  if (brand === 'lushair_new') return ProjectBrand.LUSHAIR_NEW;
+  return ProjectBrand.SIYUEJIA;
 }
 
 // 获取API配置

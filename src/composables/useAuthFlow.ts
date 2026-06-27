@@ -1,4 +1,5 @@
 import { post } from '@/utils/request';
+import { ProjectBrand } from '@/utils/apiConfig';
 export type AuthPushType = '0' | '1';
 
 export interface SendCodeParams {
@@ -62,15 +63,14 @@ export function navigateAuthPage(path: string, pushType?: AuthPushType) {
 export async function sendEmailCaptcha(email: string) {
     return post('login/sendEmailCaptcha', {
         email: email.trim(),
-        isForgotPsw: 1,
-    });
+    }, { brand: ProjectBrand.LUSHAIR_NEW });
 }
 
 export async function sendPhoneCaptcha(countryCode: string, phone: string) {
     return post('login/sendCaptcha', {
         countryCode,
         phone,
-    });
+    }, { brand: ProjectBrand.LUSHAIR_NEW });
 }
 
 export function setUserIdToApp(userId: string) {
