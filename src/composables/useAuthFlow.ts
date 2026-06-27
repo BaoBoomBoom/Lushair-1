@@ -1,5 +1,6 @@
 import { post } from '@/utils/request';
 import { ProjectBrand } from '@/utils/apiConfig';
+import { env } from '@/utils/env';
 export type AuthPushType = '0' | '1';
 
 export interface SendCodeParams {
@@ -60,17 +61,35 @@ export function navigateAuthPage(path: string, pushType?: AuthPushType) {
     });
 }
 
-export async function sendEmailCaptcha(email: string) {
-    return post('login/sendEmailCaptcha', {
+export async function sendEmailCaptcha(email: string, isDebug?: boolean) {
+    const shouldDebug = isDebug ?? env.isDevelopment();
+    const result = await post('login/sendEmailCaptcha', {
         email: email.trim(),
+        isDebug: shouldDebug,
     }, { brand: ProjectBrand.LUSHAIR_NEW });
+
+    // 开发环境：打印验证码到控制台
+    if (shouldDebug && result?.data?.captcha) {
+        console.log('🔐 [开发环境] 邮箱验证码:', result.data.captcha);
+    }
+
+    return result;
 }
 
-export async function sendPhoneCaptcha(countryCode: string, phone: string) {
-    return post('login/sendCaptcha', {
+export async function sendPhoneCaptcha(countryCode: string, phone: string, isDebug?: boolean) {
+    const shouldDebug = isDebug ?? env.isDevelopment();
+    const result = await post('login/sendCaptcha', {
         countryCode,
         phone,
+        isDebug: shouldDebug,
     }, { brand: ProjectBrand.LUSHAIR_NEW });
+
+    // 开发环境：打印验证码到控制台
+    if (shouldDebug && result?.data?.captcha) {
+        console.log('🔐 [开发环境] 手机验证码:', result.data.captcha);
+    }
+
+    return result;
 }
 
 export function setUserIdToApp(userId: string) {
