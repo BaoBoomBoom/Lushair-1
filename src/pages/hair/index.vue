@@ -227,7 +227,7 @@ const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Prom
                 userId: report.userId || userId,
                 stage: report.stage || 1,
                 position: report.position || 'none',
-                image: report.image || '',
+                image: report.coverImage || '',
                 reportId: report.id || null,  // hair_reports 的 id 就是 reportId
                 createTime: report.generatedAt || report.created_at || null,
                 createdTime: report.generatedAt || report.created_at || null,
