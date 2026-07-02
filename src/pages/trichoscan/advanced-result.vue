@@ -1177,14 +1177,33 @@ const captureAndShareImage = () => {
       return;
     }
 
-    html2canvas(element, {
+    // 克隆元素并临时移入可视区域，以解决 html2canvas 在部分移动端（如 iOS）截取 fixed/offscreen 元素时的视口偏移和截屏错乱问题
+    // Clone element and temporarily move it into viewport to solve viewport offset and capture corruption issues with html2canvas on mobile (e.g. iOS) when capturing fixed/offscreen elements
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.position = 'absolute';
+    clone.style.left = '0';
+    clone.style.top = '0';
+    clone.style.width = element.offsetWidth + 'px';
+    clone.style.height = element.offsetHeight + 'px';
+    clone.style.zIndex = '-9999';
+    clone.style.visibility = 'visible';
+    clone.style.display = 'block';
+    document.body.appendChild(clone);
+
+    html2canvas(clone, {
       useCORS: true,
       allowTaint: false, // 禁用 taint 以防止 Canvas 污染导致 iOS 导出报错 / Disable taint to prevent Canvas contamination causing export errors on iOS
       scale: 2,
       backgroundColor: '#ebebeb',
       width: element.offsetWidth,
-      height: element.offsetHeight
+      height: element.offsetHeight,
+      scrollX: 0,
+      scrollY: 0
     }).then((canvas) => {
+      // 移除克隆元素 / Remove clone element
+      if (clone.parentNode) {
+        clone.parentNode.removeChild(clone);
+      }
       uni.hideLoading();
       canvas.toBlob(async (blob) => {
         if (!blob) return;
@@ -1219,6 +1238,10 @@ const captureAndShareImage = () => {
         uni.showToast({ title: t('advancedResult.imageDownloaded'), icon: 'success' });
       }, 'image/png');
     }).catch((err: Error) => {
+      // 移除克隆元素 / Remove clone element
+      if (clone.parentNode) {
+        clone.parentNode.removeChild(clone);
+      }
       uni.hideLoading();
       uni.showToast({ title: err.message, icon: 'none' });
     });
