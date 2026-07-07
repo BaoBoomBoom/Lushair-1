@@ -16,6 +16,14 @@ $auth-color-surface-2: $color-surface-2;
     color: $auth-color-text;
     letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 .auth-back {
@@ -172,6 +180,8 @@ $auth-color-surface-2: $color-surface-2;
     flex-direction: column;
     padding: 0 16px;
     box-sizing: border-box;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .auth-actions {

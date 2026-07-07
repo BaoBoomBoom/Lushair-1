@@ -17,6 +17,8 @@ const userStore = useUserStore();
 // Use status bar height composable
 import { useStatusBar } from '@/composables/useStatusBar';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
+import ShellDisclaimer from '@/components/layout/ShellDisclaimer.vue';
 import html2canvas from 'html2canvas';
 
 const HEX_W = 230;
@@ -87,6 +89,18 @@ const improvement = ref(0);
 const scanDate = ref('April 22, 2025 at 5:00 PM');
 const hairLossLevel = ref(3);
 const isQuickScan = ref(false); // 是否为快速扫描模式 Whether it is quick scan mode
+
+function resolveQuickScan(options: Record<string, unknown>, data: Record<string, unknown> | null): boolean {
+  if (options.quick === 'true' || options.quick === true || options.quick === '1') return true;
+  if (options.scanType === 'lushairOne' || options.scanType === 'quick') return true;
+  const stored = uni.getStorageSync('lastTrichoScanType');
+  if (stored === 'lushairOne' || stored === 'quick') return true;
+  const detectionType = data?.detectionType ?? data?.scanType ?? data?.type;
+  if (detectionType === 200 || detectionType === '200' || detectionType === 'quick' || detectionType === 'lushairOne') {
+    return true;
+  }
+  return false;
+}
 
 // 头皮健康指标状态
 const selectedScalpMetric = ref('oiliness'); // 默认选中油性
@@ -401,9 +415,9 @@ const getCurrentHairMetricData = computed(() => {
     const percentage = total > 0 ? (tScore / total * 100) : 0;
     
     return {
-      score: percentage, // 使用计算后的百分比作为分数 Use calculated percentage as score
+      score: percentage,
       advice: terminalMap.advice || '',
-      display: `${Math.round(tScore)}:${Math.round(vScore)}`
+      display: `${Math.round(tScore)}:${Math.round(total)}`
     };
   }
 
@@ -447,7 +461,7 @@ const getCurrentHairDisplayValue = computed(() => {
 // 获取当前头发指标的单位
 const getCurrentHairUnit = computed(() => {
   if (selectedHairMetric.value === 'terminalVellusRatio') return '';
-  if (selectedHairMetric.value === 'hairDensity') return 'fu/cm²';
+  if (selectedHairMetric.value === 'hairDensity') return t('advancedResult.hairDensityUnit');
   if (selectedHairMetric.value === 'hairRadius') return 'μm';
   return '%';
 });
@@ -824,53 +838,38 @@ const getBellCurveY = (x: number) => {
 const getUserMarkerPosition = computed(() => {
   const percentile = getCurrentPercentile.value;
   const width = 311;
-  const centerX = width / 2;
-  const spread = 70;
-  
-  // 将百分位数转换为标准正态分布的z值
-  // 使用逆正态分布函数近似
-  const z = approximateInverseNormal(percentile / 100);
-  
-  // 将z值映射到曲线的x位置
-  const x = centerX + z * spread * 0.6; // 0.6是调整因子，使标记位置更合理
-  
-  // 确保x在有效范围内
-  return Math.max(20, Math.min(291, x));
+  const minX = 24;
+  const maxX = width - 24;
+  // Map percentile linearly across curve width (low = left, high = right)
+  const x = minX + (percentile / 100) * (maxX - minX);
+  return Math.max(minX, Math.min(maxX, x));
+});
+
+const getUserMarkerLeftPercent = computed(() => {
+  return `${(getUserMarkerPosition.value / 311) * 100}%`;
 });
 
 // 根据百分位数计算头发指标用户标记位置
 const getHairUserMarkerPosition = computed(() => {
   const percentile = getCurrentHairPercentile.value;
   const width = 311;
-  const centerX = width / 2;
-  const spread = 70;
-  
-  // 将百分位数转换为标准正态分布的z值
-  const z = approximateInverseNormal(percentile / 100);
-  
-  // 将z值映射到曲线的x位置
-  const x = centerX + z * spread * 0.6;
-  
-  // 确保x在有效范围内
-  return Math.max(20, Math.min(291, x));
+  const minX = 24;
+  const maxX = width - 24;
+  return minX + (percentile / 100) * (maxX - minX);
 });
+
+const getHairUserMarkerLeftPercent = computed(() => `${(getHairUserMarkerPosition.value / 311) * 100}%`);
 
 // 根据百分位数计算毛囊指标用户标记位置
 const getFollicleUserMarkerPosition = computed(() => {
   const percentile = getCurrentFolliclePercentile.value;
   const width = 311;
-  const centerX = width / 2;
-  const spread = 70;
-  
-  // 将百分位数转换为标准正态分布的z值
-  const z = approximateInverseNormal(percentile / 100);
-  
-  // 将z值映射到曲线的x位置
-  const x = centerX + z * spread * 0.6;
-  
-  // 确保x在有效范围内
-  return Math.max(20, Math.min(291, x));
+  const minX = 24;
+  const maxX = width - 24;
+  return minX + (percentile / 100) * (maxX - minX);
 });
+
+const getFollicleUserMarkerLeftPercent = computed(() => `${(getFollicleUserMarkerPosition.value / 311) * 100}%`);
 
 // 近似逆正态分布函数（用于将百分位数转换为z值）
 const approximateInverseNormal = (p: number) => {
@@ -1286,6 +1285,7 @@ const fetchAnalysisHistory = async (userId?: string) => {
 
     console.log('analyse/goHis API 响应:', response);
     analysisData.value = response;
+    isQuickScan.value = resolveQuickScan({}, response as Record<string, unknown>);
   } catch (err: any) {
     console.error('获取分析历史数据失败:', err);
     error.value = err;
@@ -2294,7 +2294,6 @@ onMounted(async () => {
   }
 
   if (options.data) {
-    // 检查是否为快速扫描模式 Check if it is quick scan mode
     if (options.quick) {
       isQuickScan.value = true;
     }
@@ -2302,6 +2301,7 @@ onMounted(async () => {
       const data = JSON.parse(options.data);
       if (data) {
         analysisData.value = data;
+        isQuickScan.value = resolveQuickScan(options, data);
         if (userId) {
           fetchHealthData(userId);
           fetchProductRecommendations(userId);
@@ -2312,6 +2312,7 @@ onMounted(async () => {
     }
   } else if (options.id) {
     recordId.value = parseInt(options.id, 10);
+    isQuickScan.value = resolveQuickScan(options, null);
     await fetchAnalysisHistory(userId);
     if (userId) {
       fetchHealthData(userId);
@@ -2385,12 +2386,7 @@ watch(analysisData, (newVal: any) => {
 
 <template>
   <view class="rp-page advanced-result">
-    <view v-if="loading" class="rp-loading">
-      <view class="rp-loading-inner">
-        <view class="rp-spinner" />
-        <text class="rp-loading-text">{{ t('common.loading') }}</text>
-      </view>
-    </view>
+    <ScanAnalyzingOverlay :visible="loading" />
 
     <view class="rp-topbar" :style="headerPaddingStyle(0)">
       <view class="rp-back" @click="handleBack"><text>‹</text></view>
@@ -2574,7 +2570,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
               
               <!-- 百分位数标签 -->
-              <view class="rp-percentile" :style="{ left: getUserMarkerPosition - 30 + 'px' }">
+              <view class="rp-percentile" :style="{ left: getUserMarkerLeftPercent, transform: 'translateX(-50%)' }">
                 <text>{{ t('advancedResult.aheadOfPeers', [getCurrentPercentile]) }}</text>
               </view>
             </view>
@@ -2671,7 +2667,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
               
               <!-- 百分位数标签 -->
-              <view class="rp-percentile" :style="{ left: getHairUserMarkerPosition - 30 + 'px' }">
+              <view class="rp-percentile" :style="{ left: getHairUserMarkerLeftPercent, transform: 'translateX(-50%)' }">
                 <text>{{ t('advancedResult.aheadOfPeers', [getCurrentHairPercentile]) }}</text>
               </view>
             </view>
@@ -2768,7 +2764,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
               
               <!-- 百分位数标签 -->
-              <view class="rp-percentile" :style="{ left: getFollicleUserMarkerPosition - 30 + 'px' }">
+              <view class="rp-percentile" :style="{ left: getFollicleUserMarkerLeftPercent, transform: 'translateX(-50%)' }">
                 <text>{{ t('advancedResult.aheadOfPeers', [getCurrentFolliclePercentile]) }}</text>
               </view>
             </view>
@@ -2926,6 +2922,8 @@ watch(analysisData, (newVal: any) => {
           <text>{{ t('advancedResult.shareDownloadLink') }}</text>
         </view>
       </view>
+
+      <ShellDisclaimer />
 
       <view class="rp-actions">
         <view class="rp-btn rp-btn--ghost" @click="handleRetakeScan">

@@ -1,55 +1,34 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import DeviceConfidenceSheet from '@/components/scan/DeviceConfidenceSheet.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
 import { useUserStore } from '@/stores/userStore';
 import { post } from '@/utils/request';
+import { useHomeHealthInsights } from '@/composables/useHomeHealthInsights';
+import { useHairCareRecommendations } from '@/composables/useHairCareRecommendations';
+import { useCareRoutinePlan } from '@/composables/useCareRoutinePlan';
+import type { TablerIconName } from '@/components/icons/tabler-icons';
+import { navigateToLatestScanResult } from '@/utils/latestScanNavigation';
+import {
+    buildScoreSituationNote,
+    buildScoreTrendLine,
+    computeScoreDeltas,
+    deltaTone,
+    formatScoreDelta,
+    type ScoreDeltas,
+} from '@/utils/homeScoreTrend';
+import {
+    getFindingDetailKey,
+    getFindingDetailParams,
+    isNormalFindingKey,
+    type FindingDetailKey,
+} from '@/utils/homeHealthRules';
 
-// 引入及初始化页面滚动控制逻辑
-// Import and initialize page scrolling control logic
-import { useStatusBar } from '@/composables/useStatusBar';
-const { statusBarHeight } = useStatusBar();
-const disableScroll = ref(false);
-
-const checkScroll = () => {
-    // 延迟以等待渲染完成
-    // Delay to wait for rendering to complete
-    setTimeout(() => {
-        const query = uni.createSelectorQuery();
-        query.select('.home-shell').boundingClientRect();
-        query.select('.shell-promo').boundingClientRect();
-        query.select('.app-shell-header').boundingClientRect();
-        query.exec((res) => {
-            const homeShell = res[0];
-            const promo = res[1];
-            const header = res[2];
-            
-            const homeHeight = homeShell ? homeShell.height : 0;
-            const promoHeight = promo ? promo.height : 0;
-            const headerHeight = header ? header.height : 0;
-            
-            // 总页面内容高度 = 状态栏高度 + 广告条高度 + 头部高度 + 首页内容高度
-            // Total page content height = status bar height + promo height + header height + home content height
-            const totalPageHeight = statusBarHeight + promoHeight + headerHeight + homeHeight;
-            const sysInfo = uni.getSystemInfoSync();
-            const windowHeight = sysInfo.windowHeight;
-            
-            // 当屏幕可用高度大于等于页面高度（含底部tab栏高度除外，因为windowHeight已扣除tabbar高度），则整体页面不要可上下滑动
-            // When window height (which excludes native tabbar) >= total content height, disable scroll
-            disableScroll.value = windowHeight >= totalPageHeight;
-            console.log('[Home Page Scroll Control]', {
-                windowHeight,
-                totalPageHeight,
-                disableScroll: disableScroll.value
-            });
-        });
-    }, 150);
-};
-
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 declare var window: Window & { 
   webkit: any,
@@ -118,8 +97,6 @@ const applyLatestScores = (record: DetectionRecord) => {
             hairHealth: healthData.value.hairHealth,
             totalScore: healthData.value.totalScore,
         });
-
-        checkScroll();
     }, 300);
 };
 
@@ -150,15 +127,259 @@ const thisWeekCheckTimes = ref(0);
 
 const RING_RADIUS = 35;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const MAIN_RING_RADIUS = 46;
+const MAIN_RING_CIRCUMFERENCE = 2 * Math.PI * MAIN_RING_RADIUS;
+
+const { insight, loadHomeHealthInsights } = useHomeHealthInsights();
+const { loading: planLoading, fetchRecommendations } = useHairCareRecommendations();
+const { items: carePlanItems, hasPlan, loadPlan, doneCount: carePlanDoneCount, totalCount: carePlanTotalCount } = useCareRoutinePlan();
+
+const scoreDeltas = ref<ScoreDeltas>({
+    overall: null,
+    scalp: null,
+    hair: null,
+    follicle: null,
+    hasPrevious: false,
+});
+
+const detectionRecords = ref<DetectionRecord[]>([]);
+const showDeviceSheet = ref(false);
+
+const formatShortMonth = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString(locale.value, { month: 'short' });
+};
+
+const sortedDetectionRecords = computed(() =>
+    [...detectionRecords.value]
+        .filter((record) => record.createTime && record.scalpScore)
+        .sort((a, b) => new Date(a.createTime || '').getTime() - new Date(b.createTime || '').getTime()),
+);
+
+const progressChart = computed(() => {
+    const records = sortedDetectionRecords.value;
+    if (records.length < 2) return null;
+
+    const scores = records.map((record) => Math.round(parseFloat(record.scalpScore || '0') || 0));
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+    const range = max - min || 1;
+    const width = 80;
+    const height = 40;
+    const pad = 6;
+
+    const points = scores.map((score, index) => {
+        const x = pad + (index / (scores.length - 1)) * (width - pad * 2);
+        const y = pad + (1 - (score - min) / range) * (height - pad * 2);
+        return { x, y };
+    });
+
+    const last = points[points.length - 1];
+    const firstRecord = records[0];
+    const lastRecord = records[records.length - 1];
+
+    return {
+        polyline: points.map((point) => `${point.x},${point.y}`).join(' '),
+        lastX: last.x,
+        lastY: last.y,
+        summary: `${formatShortMonth(firstRecord.createTime)} → ${formatShortMonth(lastRecord.createTime)} · ${scores[scores.length - 1]}`,
+    };
+});
+
+const progressSummaryText = computed(() => {
+    if (progressChart.value) return progressChart.value.summary;
+    if (healthData.value.hasData) {
+        return `${t('home.progressCurrentScore')} · ${healthData.value.totalScore}`;
+    }
+    return t('home.progressNoData');
+});
+
+const showProgressCard = computed(() => healthData.value.hasData);
+const showConfidenceCard = computed(() => healthData.value.hasData);
 
 const lastScanDisplay = ref({ value: '—', unit: '' });
 
-const getRingStroke = (value: string) => {
+const getRingStroke = (value: string, circumference = RING_CIRCUMFERENCE) => {
     const pct = Math.min(100, Math.max(0, parseInt(value, 10) || 0));
     return {
-        dasharray: RING_CIRCUMFERENCE,
-        dashoffset: RING_CIRCUMFERENCE * (1 - pct / 100),
+        dasharray: circumference,
+        dashoffset: circumference * (1 - pct / 100),
     };
+};
+
+const healthSummary = computed(() => {
+    if (!healthData.value.hasData) return t('analysis.noData');
+    return healthData.value.totalScore >= 70 ? t('home.generallyHealthy') : t('home.needsAttention');
+});
+
+const overallDeltaLabel = computed(() => formatScoreDelta(scoreDeltas.value.overall));
+const overallDeltaTone = computed(() => deltaTone(scoreDeltas.value.overall));
+
+const lastScanRelativeText = computed(() => {
+    const { value, unit } = lastScanDisplay.value;
+    if (!value || value === '—') return '';
+    return unit ? `${value} ${unit}` : value;
+});
+
+const scoreTrendLine = computed(() =>
+    buildScoreTrendLine({
+        deltas: scoreDeltas.value,
+        lastScanRelative: lastScanRelativeText.value,
+        t,
+    }),
+);
+
+const scoreSituationNote = computed(() => {
+    if (!healthData.value.hasData) return '';
+
+    const watchoutLabels: string[] = [];
+    if (insight.value.findings.hairThinning) watchoutLabels.push(t('home.hairThinning'));
+    if (insight.value.findings.shedding) watchoutLabels.push(t('home.shedding'));
+    insight.value.findings.scalpConditions
+        .filter((c) => c !== 'mild scalp')
+        .forEach((c) => watchoutLabels.push(getConditionLabel(c)));
+
+    const hasMildScalpOnly =
+        insight.value.findings.scalpConditions.includes('mild scalp') &&
+        !insight.value.findings.hairThinning &&
+        !insight.value.findings.shedding &&
+        watchoutLabels.length === 0;
+
+    return buildScoreSituationNote({
+        deltas: scoreDeltas.value,
+        watchoutLabels,
+        hasMildScalpOnly,
+        t,
+    });
+});
+
+const conditionLabelKey: Record<string, string> = {
+    'hair thinning': 'home.hairThinning',
+    'shedding': 'home.shedding',
+    'oily scalp': 'home.oilyScalp',
+    'dry scalp': 'home.dryScalpFinding',
+    'scurfy scalp': 'home.scurfyScalp',
+    'mild scalp': 'home.mildScalp',
+    'sensitive scalp': 'home.sensitiveScalp',
+    hairThinning: 'home.hairThinning',
+};
+
+const findingRows = computed(() => {
+    const rows: {
+        key: string;
+        tone: 'neutral' | 'warn';
+        icon: TablerIconName;
+        title: string;
+        subtitle: string;
+        statusChip: string;
+    }[] = [];
+
+    const pushRow = (
+        key: string,
+        tone: 'neutral' | 'warn',
+        icon: TablerIconName,
+        titleKey: string,
+        subtitleKey: string,
+        statusKey: string,
+    ) => {
+        rows.push({
+            key,
+            tone,
+            icon,
+            title: t(titleKey),
+            subtitle: t(subtitleKey),
+            statusChip: t(statusKey),
+        });
+    };
+
+    if (insight.value.findings.hairThinning) {
+        pushRow('hairThinning', 'warn', 'wave-sine', 'home.hairThinning', 'home.findingSubtitleHairThinning', 'home.findingChipMonitor');
+    }
+    if (insight.value.findings.shedding) {
+        pushRow('shedding', 'warn', 'trending-up', 'home.shedding', 'home.findingSubtitleShedding', 'home.findingChipWatch');
+    }
+    insight.value.findings.scalpConditions.forEach((condition) => {
+        const neutral = isNormalFindingKey(condition);
+        const iconMap: Record<string, TablerIconName> = {
+            'oily scalp': 'droplet',
+            'dry scalp': 'snowflake',
+            'scurfy scalp': 'color-filter',
+            'mild scalp': 'check',
+            'sensitive scalp': 'alert-triangle',
+        };
+        const subtitleMap: Record<string, string> = {
+            'oily scalp': 'home.findingSubtitleOilyScalp',
+            'dry scalp': 'home.findingSubtitleDryScalp',
+            'scurfy scalp': 'home.findingSubtitleScurfyScalp',
+            'mild scalp': 'home.findingSubtitleMildScalp',
+            'sensitive scalp': 'home.findingSubtitleSensitiveScalp',
+        };
+        const statusMap: Record<string, string> = {
+            'oily scalp': 'home.findingChipMild',
+            'dry scalp': 'home.findingChipMild',
+            'scurfy scalp': 'home.findingChipMild',
+            'mild scalp': 'home.findingChipNormal',
+            'sensitive scalp': 'home.findingChipMonitor',
+        };
+        rows.push({
+            key: condition,
+            tone: neutral ? 'neutral' : 'warn',
+            icon: iconMap[condition] || 'circle-dotted',
+            title: getConditionLabel(condition),
+            subtitle: t(subtitleMap[condition] || 'home.findingSubtitleMildScalp'),
+            statusChip: t(statusMap[condition] || 'home.findingChipMonitor'),
+        });
+    });
+
+    return rows;
+});
+
+const carePlanSummary = computed(() =>
+    carePlanTotalCount.value
+        ? t('home.planProgressSummary', [carePlanDoneCount.value, carePlanTotalCount.value])
+        : '',
+);
+
+const goToRoutineTab = () => {
+    uni.switchTab({ url: '/pages/routine/index' });
+};
+
+const expandedFindingKey = ref<string | null>(null);
+
+const findingDetailI18nKey: Record<FindingDetailKey, string> = {
+    'mild scalp': 'home.findingDetailMildScalp',
+    'oily scalp': 'home.findingDetailOilyScalp',
+    'dry scalp': 'home.findingDetailDryScalp',
+    'scurfy scalp': 'home.findingDetailScurfyScalp',
+    'sensitive scalp': 'home.findingDetailSensitiveScalp',
+    hairThinning: 'home.findingDetailHairThinning',
+    shedding: 'home.findingDetailShedding',
+};
+
+const toggleFinding = (key: string) => {
+    expandedFindingKey.value = expandedFindingKey.value === key ? null : key;
+};
+
+const getFindingDetail = (key: string): string => {
+    const detailKey = getFindingDetailKey(key);
+    if (!detailKey) return '';
+    const i18nKey = findingDetailI18nKey[detailKey];
+    const params = getFindingDetailParams(detailKey, insight.value.metrics);
+    return t(i18nKey, params);
+};
+
+const getConditionLabel = (key: string) => {
+    const i18nKey = conditionLabelKey[key];
+    return i18nKey ? t(i18nKey) : key;
+};
+
+const refreshHealthInsights = async (userId: string) => {
+    await loadHomeHealthInsights(userId);
+    if (insight.value.hasData) {
+        fetchRecommendations();
+    }
 };
 
 const formatLastScanRelative = (createTime?: string) => {
@@ -267,6 +488,13 @@ const setNoDataState = () => {
         hasData: false,
         loading: false
     };
+    scoreDeltas.value = {
+        overall: null,
+        scalp: null,
+        hair: null,
+        follicle: null,
+        hasPrevious: false,
+    };
 };
 
 // 任务动态状态（completed/color/disabled 需要保持可写）
@@ -307,9 +535,9 @@ const routineTasks = computed(() => [
 // scanTests 使用 computed，语言切换后标题/描述自动更新
 // Use computed so title/description update reactively on locale change
 const scoreMetrics = computed(() => [
-    { value: healthData.value.scalpHealth, label: t('hair.scalpScore') },
-    { value: healthData.value.hairHealth, label: t('hair.hairScoreLabel') },
-    { value: healthData.value.follicleHealth, label: t('hair.follicleScore') },
+    { value: healthData.value.scalpHealth, label: t('hair.scalpScore'), delta: scoreDeltas.value.scalp },
+    { value: healthData.value.hairHealth, label: t('hair.hairScoreLabel'), delta: scoreDeltas.value.hair },
+    { value: healthData.value.follicleHealth, label: t('hair.follicleScore'), delta: scoreDeltas.value.follicle },
 ]);
 
 const scanTests = computed(() => [
@@ -413,6 +641,8 @@ const fetchHealthData = async (userId: string) => {
         if (response) {
             const { list } = response;
             console.log('list数据响应:', list);
+
+            detectionRecords.value = list || [];
             
             // 计算本周内的检测次数
             const weekCheckTimes = calculateWeekCheckTimes(list);
@@ -421,25 +651,24 @@ const fetchHealthData = async (userId: string) => {
             
             // 计算周环比差值
             weekOverWeekDifference.value = calculateWeekOverWeekDifference(list);
+            scoreDeltas.value = computeScoreDeltas(list || []);
             
             const latestRecord = pickLatestDetectionRecord(list);
             if (latestRecord) {
                 applyLatestScores(latestRecord);
+                await refreshHealthInsights(userId);
             } else {
                 lastScanDisplay.value = formatLastScanRelative();
                 setNoDataState();
-                checkScroll();
             }
         } else {
             lastScanDisplay.value = formatLastScanRelative();
             setNoDataState();
-            checkScroll();
         }
     } catch (error) {
         console.error('获取健康度数据失败:', error);
         lastScanDisplay.value = formatLastScanRelative();
         setNoDataState();
-        checkScroll();
     }
 };
 
@@ -598,11 +827,39 @@ const resetDailyTasks = () => {
     console.log('每日任务已重置');
 };
 
+const goToLatestResult = () => {
+    const navigated = navigateToLatestScanResult(
+        insight.value.latestDetectionRecord,
+        insight.value.latestSelfieRecord,
+        userStore.userInfo.userId,
+    );
+    if (!navigated) {
+        uni.showToast({ title: t('analysis.noData'), icon: 'none' });
+    }
+};
+
 // 跳转到聊天页面
 const goToChat = () => {
     uni.switchTab({
         url: '/pages/consult/new',
     });
+};
+
+const goToProgress = () => {
+    uni.switchTab({ url: '/pages/hair/index' });
+};
+
+const openDeviceSheet = () => {
+    showDeviceSheet.value = true;
+};
+
+const closeDeviceSheet = () => {
+    showDeviceSheet.value = false;
+};
+
+const openLushairDeviceSite = () => {
+    closeDeviceSheet();
+    window.open('https://lushair.net', '_blank');
 };
 
 const goToHairPoints = () => {
@@ -677,14 +934,16 @@ window.receiveUserIdFromApp = function(userIdString: string) {
 onMounted(() => {
     userStore.initUserInfo();
     loadLatestScoreOverview();
-    
+    loadPlan();
+    uni.$on('care-plan-updated', loadPlan);
+
     // 加载任务状态
     // Load task status
     loadTaskStatus();
+});
 
-    // 检测页面滚动限制
-    // Check page scroll limit
-    checkScroll();
+onUnmounted(() => {
+    uni.$off('care-plan-updated', loadPlan);
 });
 
 // 下拉刷新
@@ -715,108 +974,234 @@ onPullDownRefresh(async () => {
         console.error('刷新失败:', error);
     } finally {
         uni.stopPullDownRefresh();
-        checkScroll();
     }
 });
 
 // 每次页面显示时调用
 // Called every time page shows
 onShow(() => {
+    loadPlan();
     loadLatestScoreOverview();
     if (userStore.userInfo.userId) {
         fetchDailyTaskStatus(userStore.userInfo.userId);
     }
-    checkScroll();
 });
 </script>
 
 <template>
-    <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
-    <MainTabLayout show-promo>
+    <MainTabLayout show-promo fixed-header>
+        <view class="tab-page-scroll">
         <view class="home-shell">
             <text class="shell-welcome">
                 {{ t('home.welcome') }}
                 <text class="name">{{ userStore.userInfo.name || 'User' }}</text>
             </text>
 
-            <view class="shell-card shell-score-card">
+            <view class="shell-card shell-score-card shell-home-score-card shell-home-score-card--compact">
                 <view class="shell-score-head">
                     <TablerIcon name="chart-bar" :size="15" color="#6B21C8" />
                     <text>{{ t('home.scoreOverview') }}</text>
                 </view>
-                <view class="shell-rings">
-                    <view v-for="(metric, idx) in scoreMetrics" :key="idx" class="shell-ring-wrap">
-                        <view class="shell-ring">
-                            <svg class="shell-ring-svg" viewBox="0 0 84 84">
-                                <circle class="shell-ring-track-stroke" cx="42" cy="42" :r="RING_RADIUS" />
-                                <circle
-                                    class="shell-ring-fg-stroke"
-                                    cx="42"
-                                    cy="42"
-                                    :r="RING_RADIUS"
-                                    :stroke-dasharray="getRingStroke(metric.value).dasharray"
-                                    :stroke-dashoffset="getRingStroke(metric.value).dashoffset"
-                                />
-                            </svg>
-                            <text class="shell-ring-num">{{ metric.value }}</text>
+
+                <view class="shell-home-hero-row">
+                    <view class="shell-overall-ring">
+                        <svg class="shell-overall-ring-svg" viewBox="0 0 108 108">
+                            <circle class="shell-ring-track-stroke" cx="54" cy="54" :r="MAIN_RING_RADIUS" />
+                            <circle
+                                class="shell-ring-fg-stroke"
+                                cx="54"
+                                cy="54"
+                                :r="MAIN_RING_RADIUS"
+                                :stroke-dasharray="getRingStroke(String(healthData.totalScore), MAIN_RING_CIRCUMFERENCE).dasharray"
+                                :stroke-dashoffset="getRingStroke(String(healthData.totalScore), MAIN_RING_CIRCUMFERENCE).dashoffset"
+                            />
+                        </svg>
+                        <view class="shell-overall-ring-center">
+                            <text class="shell-overall-ring-num">{{ healthData.totalScore }}</text>
                         </view>
-                        <text class="shell-ring-lbl">{{ metric.label }}</text>
+                    </view>
+                    <view class="shell-home-hero-copy">
+                        <view class="shell-home-hero-title-row">
+                            <text class="shell-home-hero-title">{{ healthSummary }}</text>
+                            <text
+                                v-if="overallDeltaLabel"
+                                class="shell-score-delta-chip"
+                                :class="`shell-score-delta-chip--${overallDeltaTone}`"
+                            >
+                                {{ overallDeltaLabel }}
+                            </text>
+                        </view>
+                    </view>
+                </view>
+
+                <view class="shell-home-divider" />
+
+                <view class="shell-metric-bars shell-metric-bars--compact shell-metric-bars--inline">
+                    <view v-for="(metric, idx) in scoreMetrics" :key="idx" class="shell-metric-bar-row">
+                        <text class="shell-metric-bar-label">{{ metric.label }}</text>
+                        <text class="shell-metric-bar-value">{{ metric.value }}</text>
+                        <view class="shell-metric-bar-track">
+                            <view
+                                class="shell-metric-bar-fill"
+                                :style="{ width: `${Math.min(100, Math.max(0, parseInt(metric.value, 10) || 0))}%` }"
+                            />
+                        </view>
+                        <text
+                            v-if="formatScoreDelta(metric.delta)"
+                            class="shell-metric-bar-delta shell-metric-bar-delta--inline"
+                            :class="`shell-metric-bar-delta--${deltaTone(metric.delta)}`"
+                        >
+                            {{ formatScoreDelta(metric.delta) }}
+                        </text>
+                    </view>
+                </view>
+
+                <view v-if="findingRows.length" class="shell-home-findings">
+                    <view class="shell-home-findings-head">
+                        <text class="shell-label">{{ t('home.latestFindings') }}</text>
+                        <text class="shell-home-link" @tap="goToLatestResult">{{ t('home.viewResult') }}</text>
+                    </view>
+                    <view class="shell-finding-listcard">
+                        <view
+                            v-for="(row, idx) in findingRows"
+                            :key="`${row.key}-${idx}`"
+                            class="shell-finding-row"
+                            :class="{ expanded: expandedFindingKey === row.key }"
+                        >
+                            <view class="shell-finding-row-head" @tap="toggleFinding(row.key)">
+                                <view
+                                    class="shell-finding-row-icon"
+                                    :class="row.tone === 'neutral' ? 'shell-finding-row-icon--neutral' : 'shell-finding-row-icon--warn'"
+                                >
+                                    <TablerIcon :name="row.icon" :size="18" />
+                                </view>
+                                <view class="shell-finding-row-copy">
+                                    <text class="shell-finding-row-title">{{ row.title }}</text>
+                                    <text class="shell-finding-row-sub">{{ row.subtitle }}</text>
+                                    <view class="shell-finding-row-chips">
+                                        <text
+                                            class="shell-finding-chip shell-finding-chip--compact"
+                                            :class="row.tone === 'neutral' ? 'shell-finding-chip--neutral' : 'shell-finding-chip--warn'"
+                                        >
+                                            {{ row.statusChip }}
+                                        </text>
+                                    </view>
+                                </view>
+                                <TablerIcon
+                                    :name="expandedFindingKey === row.key ? 'chevron-up' : 'chevron-right'"
+                                    :size="16"
+                                    color="#AEAEB6"
+                                />
+                            </view>
+                            <text
+                                v-if="expandedFindingKey === row.key"
+                                class="shell-finding-detail shell-finding-detail--row"
+                            >
+                                {{ getFindingDetail(row.key) }}
+                            </text>
+                        </view>
                     </view>
                 </view>
             </view>
 
-            <text class="shell-section-h">{{ t('home.weeklyHighlights') }}</text>
-            <scroll-view
-                scroll-x
-                enable-flex
-                :show-scrollbar="false"
-                class="shell-hl-scroll-view"
+            <view
+                v-if="planLoading || hasPlan"
+                class="shell-card shell-card-tint shell-home-plan-card shell-home-plan-card--link"
+                @tap="goToRoutineTab"
             >
-                <view class="shell-hl-row">
-                    <view class="shell-hl-card" @tap="goToHairPoints">
-                        <view class="shell-hl-top">
-                            <TablerIcon name="circle-dotted" :size="17" color="#1A1228" />
-                            <text>{{ t('home.hairPoints') }}</text>
+                <view class="shell-home-plan-head">
+                    <view class="shell-home-plan-head-main">
+                        <TablerIcon name="sparkles" :size="15" color="#6B21C8" />
+                        <view class="shell-home-plan-head-copy">
+                            <text>{{ t('home.personalizedPlan') }}</text>
+                            <text v-if="!planLoading && carePlanSummary" class="shell-home-plan-summary">{{ carePlanSummary }}</text>
                         </view>
-                        <view class="shell-hl-val">
-                            <text>{{ userStore.userInfo.points || 0 }}</text>
-                        </view>
-                        <text class="shell-hl-unit">{{ t('home.points') }}</text>
                     </view>
-                    <view class="shell-hl-card" @tap="goToScanTab">
-                        <view class="shell-hl-top">
-                            <TablerIcon name="qrcode" :size="17" color="#1A1228" />
-                            <text>{{ t('home.scans') }}</text>
-                        </view>
-                        <view class="shell-hl-val">
-                            <text>{{ thisWeekCheckTimes || 0 }}</text>
-                            <text v-if="weekOverWeekDifference !== 0" class="shell-hl-badge">
-                                {{ weekOverWeekDifference > 0 ? '+' : '' }}{{ weekOverWeekDifference }}
-                            </text>
-                        </view>
-                        <text class="shell-hl-unit">{{ t('home.times') }}</text>
-                    </view>
-                    <view class="shell-hl-card">
-                        <view class="shell-hl-top">
-                            <TablerIcon name="clock" :size="17" color="#1A1228" />
-                            <text>{{ t('home.lastScan') }}</text>
-                        </view>
-                        <view class="shell-hl-val">
-                            <text>{{ lastScanDisplay.value }}</text>
-                        </view>
-                        <text class="shell-hl-unit">{{ lastScanDisplay.unit }}</text>
-                    </view>
+                    <TablerIcon name="chevron-right" :size="16" color="#8A82A0" />
                 </view>
-            </scroll-view>
+                <text v-if="planLoading" class="shell-home-plan-loading">{{ t('home.loadingPlan') }}</text>
+                <view v-else-if="hasPlan" class="shell-home-plan-preview">
+                    <view
+                        v-for="item in carePlanItems.slice(0, 2)"
+                        :key="item.id"
+                        class="shell-home-plan-preview-item"
+                    >
+                        <view class="shell-home-plan-preview-dot" :class="{ done: item.done }" />
+                        <text class="shell-home-plan-preview-name" :class="{ done: item.done }">{{ item.name }}</text>
+                    </view>
+                    <text v-if="carePlanItems.length > 2" class="shell-home-plan-preview-more">
+                        {{ t('home.planOpenRoutine') }}
+                    </text>
+                </view>
+            </view>
 
-            <view class="shell-ai-banner" @tap="goToChat">
-                <view class="ai-ic">
-                    <TablerIcon name="sparkles" :size="20" color="#ffffff" />
+            <view class="shell-ask-card" @tap="goToChat">
+                <view class="shell-ask-card-icon">
+                    <TablerIcon name="sparkles" :size="19" color="#6D28D9" />
                 </view>
-                <view class="shell-ai-banner-text">
-                    <text class="ai-t">{{ t('home.askLushairAi') }}</text>
-                    <text class="ai-s">{{ t('home.askLushairAiDesc') }}</text>
+                <view class="shell-ask-card-body">
+                    <text class="shell-ask-card-title">{{ t('home.askLushairAi') }}</text>
+                    <text class="shell-ask-card-desc">{{ t('home.askLushairAiDesc') }}</text>
                 </view>
+                <TablerIcon name="chevron-right" :size="18" color="#AEAEB6" />
+            </view>
+
+            <view
+                v-if="showProgressCard"
+                class="shell-card shell-home-action-card"
+                @tap="goToProgress"
+            >
+                <svg
+                    v-if="progressChart"
+                    class="shell-home-progress-spark"
+                    viewBox="0 0 80 40"
+                >
+                    <defs>
+                        <linearGradient id="homeProgressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#A78BFA" />
+                            <stop offset="100%" stop-color="#6D28D9" />
+                        </linearGradient>
+                    </defs>
+                    <polyline
+                        :points="progressChart.polyline"
+                        fill="none"
+                        stroke="url(#homeProgressGrad)"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                    <circle
+                        :cx="progressChart.lastX"
+                        :cy="progressChart.lastY"
+                        r="3.2"
+                        fill="#6D28D9"
+                    />
+                </svg>
+                <view v-else class="shell-home-progress-fallback">
+                    <TablerIcon name="trending-up" :size="22" color="#6D28D9" />
+                </view>
+                <view class="shell-home-action-copy">
+                    <text class="shell-home-action-title">{{ t('home.yourProgress') }}</text>
+                    <text class="shell-home-action-desc">{{ progressSummaryText }}</text>
+                </view>
+                <TablerIcon name="chevron-right" :size="18" color="#AEAEB6" />
+            </view>
+
+            <view
+                v-if="showConfidenceCard"
+                class="shell-card shell-card-confidence shell-home-action-card"
+                @tap="openDeviceSheet"
+            >
+                <view class="shell-home-confidence-icon">
+                    <TablerIcon name="device-mobile" :size="18" color="#5B21B6" />
+                </view>
+                <view class="shell-home-action-copy">
+                    <text class="shell-home-action-title shell-home-action-title--accent">
+                        {{ t('home.improveScanConfidence') }}
+                    </text>
+                    <text class="shell-home-action-desc">{{ t('home.improveScanConfidenceDesc') }}</text>
+                </view>
+                <TablerIcon name="chevron-right" :size="18" color="#6D28D9" />
             </view>
 
             <button class="shell-btn shell-btn-home-scan" @tap="goToScanTab">
@@ -824,7 +1209,14 @@ onShow(() => {
                 <text>{{ t('home.newScan') }}</text>
             </button>
         </view>
+        </view>
     </MainTabLayout>
+
+    <DeviceConfidenceSheet
+        :visible="showDeviceSheet"
+        @close="closeDeviceSheet"
+        @learn-more="openLushairDeviceSite"
+    />
 </template>
 
 <style scoped lang="scss">
@@ -832,10 +1224,5 @@ onShow(() => {
 
 .shell-hl-scroll-view {
     -webkit-overflow-scrolling: touch;
-}
-
-.shell-ai-banner-text {
-    min-width: 0;
-    flex: 1;
 }
 </style>

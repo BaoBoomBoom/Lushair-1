@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import uni from '@dcloudio/vite-plugin-uni';
 import legacy from '@vitejs/plugin-legacy';
 import path from 'path';
@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
     // 根据当前的构建模式来确定环境
     // mode 可能的值: 'development', 'production'
     const env = loadAppEnv(mode);
+    const dotenv = loadEnv(mode, process.cwd(), '');
+    const openAiApiKey = dotenv.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '';
 
     console.log('当前构建模式:', mode);
     console.log('当前环境变量:', env);
@@ -75,6 +77,18 @@ export default defineConfig(({ mode }) => {
                     target: 'http://43.156.213.63:5000',
                     changeOrigin: true,
                     rewrite: (path) => path.replace(/^\/hair-loss-log/, '/log')
+                },
+                '/openai-api': {
+                    target: 'https://api.openai.com',
+                    changeOrigin: true,
+                    rewrite: (proxyPath) => proxyPath.replace(/^\/openai-api/, ''),
+                    configure: (proxy) => {
+                        proxy.on('proxyReq', (proxyReq) => {
+                            if (openAiApiKey) {
+                                proxyReq.setHeader('Authorization', `Bearer ${openAiApiKey}`);
+                            }
+                        });
+                    },
                 },
             },
         },

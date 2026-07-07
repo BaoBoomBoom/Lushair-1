@@ -11,6 +11,7 @@ export type TablerIconName =
     | 'x'
     | 'arrow-right'
     | 'chevron-right'
+    | 'chevron-left'
     | 'chevron-down'
     | 'chevron-up'
     | 'plus'
@@ -76,6 +77,9 @@ export const TABLER_ICONS: Record<TablerIconName, TablerIconDef> = {
     },
     'chevron-right': {
         paths: ['M9 6l6 6-6 6'],
+    },
+    'chevron-left': {
+        paths: ['M15 6l-6 6 6 6'],
     },
     'chevron-down': {
         paths: ['M6 9l6 6 6-6'],

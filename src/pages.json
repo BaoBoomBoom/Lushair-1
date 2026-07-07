@@ -3,6 +3,7 @@
         {
             "path": "pages/landing/index",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -52,6 +53,7 @@
         {
             "path": "pages/landing/intro",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -60,6 +62,7 @@
         {
             "path": "pages/auth/splash",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -88,6 +91,7 @@
             "path": "pages/scan/index",
             "style": {
                 "navigationStyle": "custom",
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -118,7 +122,8 @@
                 "app-plus": {
                     "titleNView": false
                 },
-                "navigationStyle": "custom"
+                "navigationStyle": "custom",
+                "disableScroll": true
             }
         },
         {
@@ -149,6 +154,7 @@
         {
             "path": "pages/auth/register-email-first",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -157,6 +163,7 @@
         {
             "path": "pages/auth/login-email-first",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -165,6 +172,7 @@
         {
             "path": "pages/auth/register-phone-first",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -173,6 +181,7 @@
         {
             "path": "pages/auth/login-phone-first",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -181,6 +190,7 @@
         {
             "path": "pages/auth/send-code",
             "style": {
+                "disableScroll": true,
                 "app-plus": {
                     "titleNView": false
                 }
@@ -196,7 +206,7 @@
             }
         },
         {
-            "path": "pages/selfie/results",
+            "path": "pages/Selfie/results",
             "style": {
                 "navigationStyle": "custom",
                 "app-plus": {
@@ -415,6 +425,13 @@
             "path": "pages/routine/clock-in",
             "style": {
                 "navigationBarTitleText": "%pages.clockIn%",
+                "navigationStyle": "custom"
+            }
+        },
+        {
+            "path": "pages/routine/product-log",
+            "style": {
+                "navigationBarTitleText": "%pages.productLog%",
                 "navigationStyle": "custom"
             }
         },

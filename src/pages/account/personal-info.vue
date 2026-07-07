@@ -9,6 +9,9 @@ const { t } = useI18n();
 const userStore = useUserStore();
 const { userInfo } = userStore;
 
+const step = ref<1 | 2>(1);
+const submitting = ref(false);
+
 const convertGenderToString = (genderNum: number): string => {
     switch (genderNum) {
         case 1: return 'Male';
@@ -36,17 +39,21 @@ const form = reactive({
     birthday: userInfo.dob || '',
     city: normalizeCity(userInfo.region),
 });
-const submitting = ref(false);
+
+const pageSubtitle = computed(() =>
+    step.value === 1 ? t('profile.personalInfoStep1Tip') : t('profile.personalInfoStep2Tip'),
+);
 
 onMounted(() => {
     form.name = userInfo.name || '';
     form.gender = convertGenderToString(userInfo.gender);
     form.birthday = userInfo.dob || '';
     form.city = normalizeCity(userInfo.region);
+    genderIndex.value = genderOptions.findIndex((g) => g === form.gender);
 });
 
 const genderOptions = ['Male', 'Female', 'Other'];
-const genderIndex = ref(genderOptions.findIndex((g) => g === form.gender));
+const genderIndex = ref(0);
 
 function onGenderChange(e: any) {
     genderIndex.value = e.detail.value;
@@ -66,10 +73,20 @@ const displayBirthday = computed(() => {
     return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 });
 
-const saveDisabled = computed(() => submitting.value || !form.name.trim() || !form.birthday);
+const step1Disabled = computed(() => submitting.value || !form.name.trim());
+const step2Disabled = computed(() => submitting.value || !form.birthday);
+
+function goToStep2() {
+    if (step1Disabled.value) return;
+    step.value = 2;
+}
+
+function backToStep1() {
+    step.value = 1;
+}
 
 function saveChanges() {
-    if (saveDisabled.value) return;
+    if (step2Disabled.value) return;
     submitting.value = true;
 
     userStore.updateUserInfo({
@@ -80,59 +97,77 @@ function saveChanges() {
     }).then((response: any) => {
         submitting.value = false;
         if (response.success) {
-            uni.showToast({ title: t('success'), icon: 'success' });
-            uni.navigateBack();
+            uni.showToast({
+                title: t('profile.success'),
+                icon: 'success',
+                duration: 1500,
+                success: () => setTimeout(() => uni.navigateBack(), 1500),
+            });
         } else {
-            uni.showToast({ title: response.message || t('error'), icon: 'none' });
+            uni.showToast({ title: response.message || t('profile.error'), icon: 'none' });
         }
     }).catch(() => {
         submitting.value = false;
-        uni.showToast({ title: t('error'), icon: 'none' });
+        uni.showToast({ title: t('profile.error'), icon: 'none' });
     });
 }
 </script>
 
 <template>
-    <AccountSubLayout :title="t('profile.personalInfo')">
-        <view class="shell-card">
-            <view class="shell-form-field">
-                <text class="shell-form-label">{{ t('profile.name') }}</text>
-                <input v-model="form.name" class="shell-input" :placeholder="t('profile.namePlaceholder')" />
-            </view>
+    <AccountSubLayout :title="t('profile.personalInfo')" :subtitle="pageSubtitle">
+        <view class="account-step-row">
+            <view class="account-step-pill" :class="{ active: step >= 1, current: step === 1 }" />
+            <view class="account-step-pill" :class="{ active: step >= 2, current: step === 2 }" />
+        </view>
 
-            <view class="shell-form-field">
-                <text class="shell-form-label">{{ t('profile.gender') }}</text>
-                <picker mode="selector" :range="genderOptions" :value="genderIndex" @change="onGenderChange">
-                    <view class="shell-picker">
-                        <text>{{ t(`profile.gender${form.gender}`) }}</text>
-                        <TablerIcon name="chevron-down" :size="16" color="#6B21C8" />
-                    </view>
-                </picker>
-            </view>
+        <view class="shell-card account-form-card">
+            <template v-if="step === 1">
+                <view class="shell-form-field">
+                    <text class="shell-form-label">{{ t('profile.name') }}</text>
+                    <input v-model="form.name" class="shell-input" :placeholder="t('profile.namePlaceholder')" />
+                </view>
 
-            <view class="shell-form-field">
-                <text class="shell-form-label">{{ t('profile.birthday') }}</text>
-                <picker mode="date" :value="form.birthday" :start="minDate" :end="maxDate" @change="onBirthdayChange">
-                    <view class="shell-picker">
-                        <text>{{ displayBirthday }}</text>
-                        <TablerIcon name="calendar" :size="16" color="#6B21C8" />
-                    </view>
-                </picker>
-            </view>
+                <view class="shell-form-field">
+                    <text class="shell-form-label">{{ t('profile.gender') }}</text>
+                    <picker mode="selector" :range="genderOptions" :value="genderIndex" @change="onGenderChange">
+                        <view class="shell-picker">
+                            <text>{{ t(`profile.gender${form.gender}`) }}</text>
+                            <TablerIcon name="chevron-down" :size="16" color="#6B21C8" />
+                        </view>
+                    </picker>
+                </view>
+            </template>
 
-            <view class="shell-form-field">
-                <text class="shell-form-label">{{ t('profile.city') }}</text>
-                <input
-                    v-model="form.city"
-                    class="shell-input"
-                    :placeholder="t('profile.cityPlaceholder')"
-                />
-                <text class="shell-form-hint">{{ t('profile.cityHint') }}</text>
-            </view>
+            <template v-else>
+                <view class="shell-form-field">
+                    <text class="shell-form-label">{{ t('profile.birthday') }}</text>
+                    <picker mode="date" :value="form.birthday" :start="minDate" :end="maxDate" @change="onBirthdayChange">
+                        <view class="shell-picker">
+                            <text>{{ displayBirthday }}</text>
+                            <TablerIcon name="calendar" :size="16" color="#6B21C8" />
+                        </view>
+                    </picker>
+                </view>
+
+                <view class="shell-form-field">
+                    <text class="shell-form-label">{{ t('profile.city') }}</text>
+                    <input
+                        v-model="form.city"
+                        class="shell-input"
+                        :placeholder="t('profile.cityPlaceholder')"
+                    />
+                    <text class="account-password-hint">{{ t('profile.cityHint') }}</text>
+                </view>
+
+                <text class="account-form-link" @tap="backToStep1">{{ t('profile.editNameGender') }}</text>
+            </template>
         </view>
 
         <template #footer>
-            <button class="shell-btn" :disabled="saveDisabled" @click="saveChanges">
+            <button v-if="step === 1" class="shell-btn" :disabled="step1Disabled" @click="goToStep2">
+                {{ t('profile.continue') }}
+            </button>
+            <button v-else class="shell-btn" :disabled="step2Disabled" @click="saveChanges">
                 {{ t('profile.saveChanges') }}
             </button>
         </template>
@@ -140,6 +175,8 @@ function saveChanges() {
 </template>
 
 <style scoped lang="scss">
+@import '@/styles/app-shell.scss';
+
 .shell-btn:disabled {
     opacity: 0.55;
 }

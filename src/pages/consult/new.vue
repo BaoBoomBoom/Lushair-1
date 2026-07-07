@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import { getAchievementTracker } from '@/utils/achievementTracker';
 import { getLocale } from '@/i18n.js';
 import { useUserStore } from '@/stores/userStore';
 import MarkdownRenderer from '../../components/MarkdownRenderer.vue';
-import MainTabLayout from '@/components/layout/MainTabLayout.vue';
-import TablerIcon from '@/components/icons/TablerIcon.vue';
+import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
+import { extractChatSharePayload } from '@/utils/chatShareExtract';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
@@ -15,62 +15,14 @@ const { userInfo } = userStore;
 
 // 使用状态栏高度 composable
 // Use status bar height composable
-import { useStatusBar } from '@/composables/useStatusBar';
 import {
     buildChatReportPayload,
     readStoredScanReportIds,
     useLatestScanReports,
 } from '@/composables/useLatestScanReports';
-const { statusBarHeight, headerPaddingStyle } = useStatusBar();
+import { AI_HOME_CARE_PROMPT_KEY } from '@/composables/useHomeHealthInsights';
 
 // 页面滚动控制逻辑
-// Page scrolling control logic
-const disableScroll = ref(false);
-
-const checkScroll = () => {
-    if (hasStartedChat.value) {
-        // 对话开始后，页面整体不可滚动，仅内部 feed 滚动
-        // Once chat starts, the overall page shouldn't scroll, only the internal feed scroll-view should scroll
-        disableScroll.value = true;
-        return;
-    }
-    
-    // 欢迎界面：动态计算内容高度是否超出屏幕高度
-    // Welcome screen: dynamically calculate if content height exceeds screen height
-    setTimeout(() => {
-        const query = uni.createSelectorQuery();
-        query.select('.chat-scan-row').boundingClientRect();
-        query.select('.scan-context-strip').boundingClientRect();
-        query.select('.shell-chat-intro').boundingClientRect();
-        query.select('.shell-chat-input').boundingClientRect();
-        query.select('.shell-promo').boundingClientRect();
-        query.select('.app-shell-header').boundingClientRect();
-        
-        query.exec((res) => {
-            const scanRowHeight = res[0] ? res[0].height : 0;
-            const contextStripHeight = res[1] ? res[1].height : 0;
-            const introHeight = res[2] ? res[2].height : 0;
-            const inputHeight = res[3] ? res[3].height : 0;
-            const promoHeight = res[4] ? res[4].height : 0;
-            const headerHeight = res[5] ? res[5].height : 0;
-            
-            // 总页面内容高度 = 状态栏高度 + 广告条高度 + 头部高度 + 欢迎界面各部分高度之和
-            // Total page content height = status bar height + promo height + header height + welcome screen elements height sum
-            const totalPageHeight = statusBarHeight + promoHeight + headerHeight + scanRowHeight + contextStripHeight + introHeight + inputHeight;
-            const sysInfo = uni.getSystemInfoSync();
-            const windowHeight = sysInfo.windowHeight;
-            
-            disableScroll.value = windowHeight >= totalPageHeight;
-            console.log('[Consult Page Scroll Control]', {
-                windowHeight,
-                totalPageHeight,
-                disableScroll: disableScroll.value
-            });
-        });
-    }, 150);
-};
-
-// 新 API 模式标志
 const useNewChatApi = ref(true);
 
 const userInput = ref('');
@@ -111,7 +63,6 @@ const shortcuts = computed(() => [
     t('consult.shortcut1'),
     t('consult.shortcut2'),
     t('consult.shortcut3'),
-    t('consult.shortcut4'),
 ]);
 
 async function send(text: string) {
@@ -225,7 +176,7 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
             requestData = {
                 userId: userInfo.userId,
                 ...reportPayload,
-                content: content,
+                content: buildAgentMessageContent(content),
                 stream: true,
                 language: currentLanguage
             };
@@ -560,7 +511,12 @@ const shouldShowTime = (date: Date) => {
 // 滚动到底部
 const scrollToBottom = async () => {
     await nextTick();
-    const chatContainer = document.querySelector('.chat-messages');
+    const anchor = document.getElementById('scroll-bottom');
+    if (anchor) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        return;
+    }
+    const chatContainer = document.querySelector('.shell-chat-feed');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -575,6 +531,36 @@ let hasAutoStarted = false;
 const viewLastScan = () => {
     uni.switchTab({ url: '/pages/hair/index' });
 };
+
+const shareChatSnippet = computed(() =>
+    extractChatSharePayload(
+        chatMessages.value,
+        typingContent.value,
+        t('consult.shortcut1'),
+        t('consult.welcome'),
+    ),
+);
+
+const shareChat = async () => {
+    try {
+        uni.showLoading({ title: t('common.loading') });
+        const dataUrl = await captureShareCard('.consult-share-card');
+        await shareCapturedImage(dataUrl, 'My AI Health Chat', 'Get personalized advice 24/7');
+    } catch (error) {
+        console.error('Chat share failed', error);
+        uni.showToast({ title: 'Share failed', icon: 'none' });
+    } finally {
+        uni.hideLoading();
+    }
+};
+
+function buildAgentMessageContent(userMessage: string): string {
+    const carePrompt = uni.getStorageSync(AI_HOME_CARE_PROMPT_KEY) || '';
+    if (!carePrompt) return userMessage;
+    return `[Latest trichoscopy & selfie quantitative context]\n${carePrompt}\n\n[User question]\n${userMessage}`;
+}
+
+const careContextLoaded = ref(false);
 
 const refreshScanContext = async () => {
     const previousKey = scanContext.value.contextKey || savedContextKey.value;
@@ -595,23 +581,14 @@ const refreshScanContext = async () => {
     }
 };
 
-// 监听聊天状态，在开始聊天后自动锁定页面滚动
-// Watch chat state, automatically lock page scrolling when chat starts
-watch(hasStartedChat, () => {
-    checkScroll();
-});
-
 onMounted(() => {
     savedChatId.value = uni.getStorageSync('ai_chat_chatId') || '';
     savedReportId.value = uni.getStorageSync('ai_chat_reportId') || '';
     savedContextKey.value = uni.getStorageSync('ai_chat_contextKey') || readStoredScanReportIds().contextKey;
-    
-    // 初始化滚动限制
-    // Initialize scrolling limit
-    checkScroll();
 });
 
 onShow(async () => {
+    careContextLoaded.value = !!uni.getStorageSync(AI_HOME_CARE_PROMPT_KEY);
     await refreshScanContext();
 
     const autoStart = uni.getStorageSync('ai_chat_autoStart');
@@ -628,58 +605,63 @@ onShow(async () => {
         // Reset flag when autoStart is not set, allowing next trigger to work
         hasAutoStarted = false;
     }
-    
-    // 每次显示页面时重新检测滚动限制
-    // Recheck scroll limit when page shows
-    checkScroll();
 });
 </script>
 
 <template>
-    <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
-    <MainTabLayout show-promo :disable-scroll="disableScroll">
-        <view class="shell-chat consult-page" :class="{ 'disable-page-scroll': disableScroll }">
-            <view class="chat-scan-row">
-                <button class="shell-scan-link" @tap="viewLastScan">
-                    <image src="/static/tabbar/hair-active.svg" class="scan-link-icon" mode="aspectFit" />
-                    {{ $t('consult.viewLastScan') }}
-                </button>
-            </view>
-            <view v-if="scanContextReady" class="scan-context-strip">
-                <text class="scan-context-title">{{ $t('consult.scanContextTitle') }}</text>
-                <view v-if="scanContextLoading" class="scan-context-loading">
-                    {{ $t('consult.scanContextLoading') }}
+    <page-meta page-style="height: 100%;" />
+    <MainTabLayout show-promo fill-screen fixed-header>
+        <view class="shell-chat consult-page">
+            <view class="consult-page__header">
+                <view class="chat-header-actions">
+                    <button class="shell-scan-link" @tap="viewLastScan">
+                        <image src="/static/tabbar/hair-active.svg" class="scan-link-icon" mode="aspectFit" />
+                        {{ $t('consult.viewLastScan') }}
+                    </button>
+                    <view v-if="hasStartedChat" class="consult-share-btn" @tap="shareChat">
+                        <image src="/static/icons/share.svg" class="consult-share-icon" mode="aspectFit" />
+                    </view>
                 </view>
-                <view v-else class="scan-context-chips">
-                    <view
-                        v-if="scanContext.trichoscan"
-                        class="scan-context-chip scan-context-chip--trichoscan"
-                    >
-                        <text class="chip-label">{{ $t('consult.trichoscanContext') }}</text>
-                        <text v-if="scanContext.trichoscan.scoreLabel" class="chip-meta">
-                            {{ $t('consult.scanContextScore', [scanContext.trichoscan.scoreLabel]) }}
-                        </text>
-                        <text v-if="scanContext.trichoscan.dateLabel" class="chip-date">
-                            {{ scanContext.trichoscan.dateLabel }}
+                <view v-if="scanContextReady" class="scan-context-strip">
+                    <text class="scan-context-title">{{ $t('consult.scanContextTitle') }}</text>
+                    <view v-if="scanContextLoading" class="scan-context-loading">
+                        {{ $t('consult.scanContextLoading') }}
+                    </view>
+                    <view v-else class="scan-context-chips">
+                        <view
+                            v-if="scanContext.trichoscan"
+                            class="scan-context-chip scan-context-chip--trichoscan"
+                        >
+                            <text class="chip-label">{{ $t('consult.trichoscanContext') }}</text>
+                            <text v-if="scanContext.trichoscan.scoreLabel" class="chip-meta">
+                                {{ $t('consult.scanContextScore', [scanContext.trichoscan.scoreLabel]) }}
+                            </text>
+                            <text v-if="scanContext.trichoscan.dateLabel" class="chip-date">
+                                {{ scanContext.trichoscan.dateLabel }}
+                            </text>
+                        </view>
+                        <view
+                            v-if="scanContext.selfie"
+                            class="scan-context-chip scan-context-chip--selfie"
+                        >
+                            <text class="chip-label">{{ $t('consult.selfieContext') }}</text>
+                            <text v-if="scanContext.selfie.scoreLabel" class="chip-meta">
+                                {{ scanContext.selfie.scoreLabel }}
+                            </text>
+                            <text v-if="scanContext.selfie.dateLabel" class="chip-date">
+                                {{ scanContext.selfie.dateLabel }}
+                            </text>
+                        </view>
+                        <text v-if="!scanContext.trichoscan && !scanContext.selfie" class="scan-context-empty">
+                            {{ $t('consult.scanContextMissing') }}
                         </text>
                     </view>
-                    <view
-                        v-if="scanContext.selfie"
-                        class="scan-context-chip scan-context-chip--selfie"
-                    >
-                        <text class="chip-label">{{ $t('consult.selfieContext') }}</text>
-                        <text v-if="scanContext.selfie.scoreLabel" class="chip-meta">
-                            {{ scanContext.selfie.scoreLabel }}
-                        </text>
-                        <text v-if="scanContext.selfie.dateLabel" class="chip-date">
-                            {{ scanContext.selfie.dateLabel }}
-                        </text>
-                    </view>
-                    <text v-if="!scanContext.trichoscan && !scanContext.selfie" class="scan-context-empty">
-                        {{ $t('consult.scanContextMissing') }}
+                    <text v-if="careContextLoaded" class="scan-context-care-note">
+                        {{ $t('consult.careContextLoaded') }}
                     </text>
                 </view>
             </view>
+
             <view class="shell-chat-feed chat-messages">
                 <view v-if="!hasStartedChat" class="shell-chat-intro">
                     <text class="welcome">{{ $t('consult.welcome') }}</text>
@@ -708,7 +690,12 @@ onShow(async () => {
                         </view>
                     </view>
                     <view v-if="isAiTyping" class="shell-bubble shell-bubble-bot">
-                        <MarkdownRenderer :content="typingContent" />
+                        <view v-if="!typingContent" class="typing-indicator">
+                            <view class="typing-dot" />
+                            <view class="typing-dot" />
+                            <view class="typing-dot" />
+                        </view>
+                        <MarkdownRenderer v-else :content="typingContent" />
                     </view>
                     <view id="scroll-bottom" class="scroll-anchor"></view>
                 </view>
@@ -731,51 +718,225 @@ onShow(async () => {
             </view>
         </view>
     </MainTabLayout>
+
+    <view class="consult-share-card">
+        <text class="consult-share-kicker">SCALP HEALTH REPORT</text>
+        <text class="consult-share-title">My AI Health Chat</text>
+        <text class="consult-share-sub">Get personalized advice 24/7</text>
+        <view class="consult-share-bubble consult-share-bubble--user">
+            <text>{{ shareChatSnippet.question }}</text>
+        </view>
+        <view class="consult-share-bubble consult-share-bubble--bot">
+            <text>{{ shareChatSnippet.answer }}</text>
+        </view>
+        <view v-if="shareChatSnippet.productTitle" class="consult-share-product">
+            <text class="consult-share-product-label">RECOMMENDED</text>
+            <text class="consult-share-product-title">{{ shareChatSnippet.productTitle }}</text>
+            <text v-if="shareChatSnippet.productSub" class="consult-share-product-sub">{{ shareChatSnippet.productSub }}</text>
+        </view>
+        <view class="consult-share-footer">
+            <view>
+                <text class="consult-share-footer-cta">Download Lushair</text>
+                <text class="consult-share-footer-sub">Start your AI hair care journey</text>
+            </view>
+            <image class="consult-share-qr" src="/static/images/qrcode-download.png" mode="aspectFit" />
+        </view>
+        <text class="consult-share-url">Lushair.ai</text>
+    </view>
 </template>
 
 <style lang="scss" scoped>
 @import '@/styles/app-shell.scss';
 
-.consult-page {
-    flex: 1;
-    min-height: calc(100vh - 130px);
-    display: flex;
-    flex-direction: column;
+.shell-chat-field {
+    padding: 0 18px;
+}
 
-    /* 
-      当锁定页面滚动时，重置最小高度并占满容器
-      When page scroll is locked, reset min-height and fill the container
-    */
-    &.disable-page-scroll {
-        min-height: 0;
-        height: 100%;
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.consult-share-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: #f3ecff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.consult-share-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 20px;
+}
+
+.typing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #6b21c8;
+    animation: consult-typing 1.2s infinite ease-in-out;
+
+    &:nth-child(2) {
+        animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+        animation-delay: 0.3s;
     }
 }
 
-/* 
-  替换 scroll-view 为普通 view 并设置滚动属性，确保滚动流畅与兼容性
-  Replace scroll-view with a normal view and set scroll properties to ensure smooth scrolling and compatibility
-*/
-.shell-chat-feed {
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+@keyframes consult-typing {
+    0%, 80%, 100% {
+        opacity: 0.3;
+        transform: translateY(0);
+    }
+    40% {
+        opacity: 1;
+        transform: translateY(-3px);
+    }
 }
 
-/* 
-  覆盖输入框的内边距，移除上下内边距防止 iOS 端输入文字截断/隐藏
-  Override input field padding, remove top/bottom padding to prevent input text truncation/hiding on iOS
-*/
-.shell-chat-field {
-    padding: 0 18px;
+.consult-share-card {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 360px;
+    padding: 28px 24px;
+    background: #fff;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
+
+.consult-share-kicker {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #4da3f0;
+}
+
+.consult-share-title {
+    display: block;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1228;
+    margin: 8px 0 4px;
+}
+
+.consult-share-sub {
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    color: #8a82a0;
+    margin-bottom: 16px;
+}
+
+.consult-share-bubble {
+    padding: 12px 14px;
+    border-radius: 16px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.consult-share-bubble--user {
+    margin-left: 36px;
+    background: #6b21c8;
+    color: #fff;
+}
+
+.consult-share-bubble--bot {
+    margin-right: 36px;
+    background: #fff;
+    border: 1px solid #f0edf7;
+    color: #1a1228;
+}
+
+.consult-share-product {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid #f0edf7;
+    margin: 12px 0;
+}
+
+.consult-share-product-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #4da3f0;
+}
+
+.consult-share-product-title {
+    display: block;
+    margin-top: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1228;
+}
+
+.consult-share-product-sub {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #8a82a0;
+}
+
+.consult-share-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #faf5ff, #fff);
+}
+
+.consult-share-footer-cta {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #6b21c8;
+}
+
+.consult-share-footer-sub {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #8a82a0;
+}
+
+.consult-share-qr {
+    width: 72px;
+    height: 72px;
+}
+
+.consult-share-url {
+    display: block;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #8a82a0;
 }
 
 .chat-scan-row {
     display: flex;
     justify-content: flex-end;
     margin-bottom: 8px;
+    padding-top: 8px;
 }
 
 .scan-link-icon {
@@ -850,6 +1011,14 @@ onShow(async () => {
 .scan-context-empty {
     font-size: 12px;
     color: #8a82a0;
+}
+
+.scan-context-care-note {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #6b21c8;
+    line-height: 1.45;
 }
 
 .msg-wrap {

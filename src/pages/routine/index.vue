@@ -1,71 +1,40 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
-import TablerIcon from '@/components/icons/TablerIcon.vue';
-import type { TablerIconName } from '@/components/icons/tabler-icons';
+import CarePlanChecklist from '@/components/care/CarePlanChecklist.vue';
+import { useCareRoutinePlan, type CarePlanPeriod } from '@/composables/useCareRoutinePlan';
 import { useUserStore } from '@/stores/userStore';
 import { post } from '@/utils/request';
 
 const { t } = useI18n();
 const userStore = useUserStore();
 
-interface RoutineItem {
-    id: string;
-    period: 'morning' | 'evening';
-    name: string;
-    sub: string;
-    icon: TablerIconName;
-    done: boolean;
-}
-
-const items = ref<RoutineItem[]>([
-    { id: '1', period: 'morning', name: 'Biotin 5 mg', sub: 'With breakfast', icon: 'pill', done: false },
-    { id: '2', period: 'morning', name: 'Minoxidil 5%', sub: 'Apply to crown · AM', icon: 'droplet', done: false },
-    { id: '3', period: 'evening', name: 'Gentle shampoo', sub: '2× / week', icon: 'bath', done: false },
-    { id: '4', period: 'evening', name: 'Scalp massage', sub: '3 min', icon: 'yoga', done: false },
-]);
+const {
+    items,
+    loadPlan,
+    toggleItem,
+    removeItem,
+    addItem,
+    doneCount,
+    totalCount,
+    adherencePct,
+    hasPlan,
+} = useCareRoutinePlan();
 
 const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const todayIndex = (new Date().getDay() + 6) % 7;
+const showAddSheet = ref(false);
+const newRoutineName = ref('');
+const newRoutinePeriod = ref<CarePlanPeriod>('morning');
 
-const doneCount = computed(() => items.value.filter((i) => i.done).length);
-const totalCount = computed(() => items.value.length);
-const adherencePct = computed(() =>
-    totalCount.value ? Math.round((doneCount.value / totalCount.value) * 100) : 0
-);
-
-const morningItems = computed(() => items.value.filter((i) => i.period === 'morning'));
-const eveningItems = computed(() => items.value.filter((i) => i.period === 'evening'));
-
-const toggleItem = (id: string) => {
-    const item = items.value.find((i) => i.id === id);
-    if (item) item.done = !item.done;
-    persistRoutine();
-};
-
-const persistRoutine = () => {
-    try {
-        uni.setStorageSync('routine_check_state', JSON.stringify(items.value.map((i) => ({ id: i.id, done: i.done }))));
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const loadRoutine = () => {
-    try {
-        const raw = uni.getStorageSync('routine_check_state');
-        if (raw) {
-            const saved = JSON.parse(raw) as { id: string; done: boolean }[];
-            saved.forEach((s) => {
-                const item = items.value.find((i) => i.id === s.id);
-                if (item) item.done = s.done;
-            });
-        }
-    } catch (e) {
-        console.error(e);
-    }
-};
+const periodOptions = computed(() => [
+    { id: 'morning' as CarePlanPeriod, label: t('routine.morning') },
+    { id: 'evening' as CarePlanPeriod, label: t('routine.evening') },
+    { id: 'treatment' as CarePlanPeriod, label: t('home.planSectionTreatments') },
+    { id: 'diet' as CarePlanPeriod, label: t('home.planSectionDiet') },
+]);
 
 const fetchDailyTask = async () => {
     if (!userStore.userInfo.userId) return;
@@ -76,22 +45,59 @@ const fetchDailyTask = async () => {
     }
 };
 
-const goClockIn = () => {
-    uni.navigateTo({ url: '/pages/routine/clock-in' });
+const refreshPlan = () => {
+    loadPlan();
 };
 
-const addFromRecs = () => {
-    uni.switchTab({ url: '/pages/scan/index' });
+const confirmRemove = (id: string) => {
+    uni.showModal({
+        title: t('routine.deleteConfirmTitle'),
+        content: t('routine.deleteConfirmBody'),
+        success: (res) => {
+            if (res.confirm) removeItem(id);
+        },
+    });
+};
+
+const openAddSheet = () => {
+    newRoutineName.value = '';
+    newRoutinePeriod.value = 'morning';
+    showAddSheet.value = true;
+};
+
+const closeAddSheet = () => {
+    showAddSheet.value = false;
+};
+
+const submitNewRoutine = () => {
+    if (!newRoutineName.value.trim()) {
+        uni.showToast({ title: t('routine.addNameRequired'), icon: 'none' });
+        return;
+    }
+    addItem(newRoutineName.value, newRoutinePeriod.value);
+    closeAddSheet();
+    uni.showToast({ title: t('routine.added'), icon: 'success' });
 };
 
 onMounted(() => {
-    loadRoutine();
+    loadPlan();
     fetchDailyTask();
+    uni.$on('care-plan-updated', refreshPlan);
+});
+
+onUnmounted(() => {
+    uni.$off('care-plan-updated', refreshPlan);
+});
+
+onShow(() => {
+    loadPlan();
 });
 </script>
 
 <template>
-    <MainTabLayout>
+    <MainTabLayout fixed-header>
+        <view class="tab-page-scroll">
+        <view class="routine-page">
         <text class="shell-ptitle">{{ t('routine.title') }}</text>
 
         <view class="shell-card adherence-card">
@@ -124,47 +130,37 @@ onMounted(() => {
             </view>
         </view>
 
-        <text class="shell-section-h">{{ t('routine.morning') }}</text>
-        <view class="shell-card task-card">
-            <view
-                v-for="item in morningItems"
-                :key="item.id"
-                class="shell-rt-item"
-                @click="toggleItem(item.id)"
-            >
-                <checkbox :checked="item.done" color="#6b21c8" @click.stop="toggleItem(item.id)" />
-                <view class="shell-rt-ic">
-                    <TablerIcon :name="item.icon" :size="18" />
-                </view>
-                <view class="rt-body">
-                    <text class="shell-rt-name" :class="{ done: item.done }">{{ item.name }}</text>
-                    <text class="shell-rt-sub">{{ item.sub }}</text>
-                </view>
-            </view>
+        <CarePlanChecklist v-if="hasPlan" :items="items" @toggle="toggleItem" @remove="confirmRemove" />
+
+        <view v-else class="shell-card routine-empty-card">
+            <text class="routine-empty-title">{{ t('routine.emptyTitle') }}</text>
+            <text class="routine-empty-desc">{{ t('routine.emptyDesc') }}</text>
         </view>
 
-        <text class="shell-section-h">{{ t('routine.evening') }}</text>
-        <view class="shell-card task-card">
-            <view
-                v-for="item in eveningItems"
-                :key="item.id"
-                class="shell-rt-item"
-                @click="toggleItem(item.id)"
-            >
-                <checkbox :checked="item.done" color="#6b21c8" @click.stop="toggleItem(item.id)" />
-                <view class="shell-rt-ic">
-                    <TablerIcon :name="item.icon" :size="18" />
-                </view>
-                <view class="rt-body">
-                    <text class="shell-rt-name" :class="{ done: item.done }">{{ item.name }}</text>
-                    <text class="shell-rt-sub">{{ item.sub }}</text>
-                </view>
-            </view>
+        <button class="shell-btn" @click="openAddSheet">{{ t('routine.addItem') }}</button>
         </view>
-
-        <button class="shell-btn shell-btn-ghost" @click="goClockIn">{{ t('routine.haircareLog') }}</button>
-        <button class="shell-btn shell-btn-ghost" @click="addFromRecs">{{ t('routine.addFromRecs') }}</button>
+        </view>
     </MainTabLayout>
+
+    <view v-if="showAddSheet" class="routine-add-mask" @tap="closeAddSheet">
+        <view class="routine-add-sheet" @tap.stop>
+            <text class="routine-add-title">{{ t('routine.addItem') }}</text>
+            <input v-model="newRoutineName" class="routine-add-input" :placeholder="t('routine.addPlaceholder')" />
+            <view class="routine-period-row">
+                <view
+                    v-for="opt in periodOptions"
+                    :key="opt.id"
+                    class="routine-period-chip"
+                    :class="{ on: newRoutinePeriod === opt.id }"
+                    @tap="newRoutinePeriod = opt.id"
+                >
+                    {{ opt.label }}
+                </view>
+            </view>
+            <button class="shell-btn" @click="submitNewRoutine">{{ t('common.confirm') }}</button>
+            <button class="shell-btn shell-btn-ghost" @click="closeAddSheet">{{ t('common.back') }}</button>
+        </view>
+    </view>
 </template>
 
 <style scoped lang="scss">
@@ -219,12 +215,76 @@ onMounted(() => {
     padding: 16px 18px;
 }
 
-.task-card {
-    padding: 6px 18px;
+.routine-empty-card {
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.rt-body {
-    flex: 1;
-    min-width: 0;
+.routine-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1228;
+}
+
+.routine-empty-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #8a82a0;
+}
+
+.routine-add-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 18, 40, 0.45);
+    z-index: 1200;
+    display: flex;
+    align-items: flex-end;
+}
+
+.routine-add-sheet {
+    width: 100%;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.routine-add-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1228;
+}
+
+.routine-add-input {
+    height: 44px;
+    border: 1px solid #e8e4f4;
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 14px;
+}
+
+.routine-period-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.routine-period-chip {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #e8e4f4;
+    font-size: 12px;
+    color: #6b5f80;
+
+    &.on {
+        border-color: #6b21c8;
+        background: #f3ecff;
+        color: #6b21c8;
+        font-weight: 600;
+    }
 }
 </style>

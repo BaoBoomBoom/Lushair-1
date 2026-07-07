@@ -1,55 +1,26 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
-
-// 引入及初始化页面滚动控制逻辑
-// Import and initialize page scrolling control logic
-import { useStatusBar } from '@/composables/useStatusBar';
-const { statusBarHeight } = useStatusBar();
-const disableScroll = ref(false);
-
-const checkScroll = () => {
-    // 延迟以等待组件渲染完成
-    // Delay to wait for component rendering to complete
-    setTimeout(() => {
-        const query = uni.createSelectorQuery();
-        query.select('.scan-shell').boundingClientRect();
-        query.select('.shell-promo').boundingClientRect();
-        query.select('.app-shell-header').boundingClientRect();
-        query.exec((res) => {
-            const scanShell = res[0];
-            const promo = res[1];
-            const header = res[2];
-            
-            const scanHeight = scanShell ? scanShell.height : 0;
-            const promoHeight = promo ? promo.height : 0;
-            const headerHeight = header ? header.height : 0;
-            
-            // 总页面内容高度 = 状态栏高度 + 广告条高度 + 头部高度 + 扫描页面内容高度
-            // Total page content height = status bar height + promo height + header height + scan content height
-            const totalPageHeight = statusBarHeight + promoHeight + headerHeight + scanHeight;
-            const sysInfo = uni.getSystemInfoSync();
-            const windowHeight = sysInfo.windowHeight;
-            
-            // 当屏幕可用高度大于等于页面内容总高度时，禁止上下滑动
-            // When window height >= total content height, disable scrolling
-            disableScroll.value = windowHeight >= totalPageHeight;
-            console.log('[Scan Page Scroll Control]', {
-                windowHeight,
-                totalPageHeight,
-                disableScroll: disableScroll.value
-            });
-        });
-    }, 150);
-};
+import { analyzeSelfieImage } from '@/composables/useSelfieScanAnalysis';
+import { useUserStore } from '@/stores/userStore';
+import { getApiUrl } from '@/utils/apiHelper';
 
 const { t } = useI18n();
+const userStore = useUserStore();
 
 type ScanOptionId = 'phone' | 'lushairOne' | 'advanced';
+type SelfieAngleId = 'front' | 'crown' | 'back' | 'sideFront';
+
+const angleOptions: { id: SelfieAngleId; labelKey: string }[] = [
+    { id: 'front', labelKey: 'scan.angleFront' },
+    { id: 'crown', labelKey: 'scan.angleCrown' },
+    { id: 'back', labelKey: 'scan.angleBack' },
+    { id: 'sideFront', labelKey: 'scan.angleSideFront' },
+];
 
 const options: { id: ScanOptionId; labelKey: string; descKey: string }[] = [
     { id: 'phone', labelKey: 'scan.selfie', descKey: 'scan.selfieDesc' },
@@ -58,16 +29,33 @@ const options: { id: ScanOptionId; labelKey: string; descKey: string }[] = [
 ];
 
 const selected = ref<ScanOptionId>('phone');
-
-const selectedDescKey = computed(() => {
-    return options.find((option) => option.id === selected.value)?.descKey || '';
+const activeAngle = ref<SelfieAngleId>('front');
+const angleImages = ref<Record<SelfieAngleId, { preview: string; url: string }>>({
+    front: { preview: '', url: '' },
+    crown: { preview: '', url: '' },
+    back: { preview: '', url: '' },
+    sideFront: { preview: '', url: '' },
 });
+const uploadingAngles = ref<Record<SelfieAngleId, boolean>>({
+    front: false,
+    crown: false,
+    back: false,
+    sideFront: false,
+});
+const isAnalyzing = ref(false);
+
+const selectedDescKey = computed(() => options.find((option) => option.id === selected.value)?.descKey || '');
+const currentAnglePreview = computed(() => angleImages.value[activeAngle.value].preview);
+const currentAngleUrl = computed(() => angleImages.value[activeAngle.value].url);
+const hasCurrentPreview = computed(() => !!currentAnglePreview.value);
+const allAnglesUploaded = computed(() => angleOptions.every((angle) => !!angleImages.value[angle.id].url));
+const isCurrentUploading = computed(() => uploadingAngles.value[activeAngle.value]);
+const captureLabel = computed(() =>
+    selected.value === 'phone' && allAnglesUploaded.value ? t('scan.analyze') : t('scan.capture'),
+);
 
 function selectOption(id: ScanOptionId) {
     selected.value = id;
-    // 重新计算滚动限制
-    // Recalculate scrolling limit
-    checkScroll();
 }
 
 function launchNativeScan(action: ScanActionType) {
@@ -79,77 +67,226 @@ function launchNativeScan(action: ScanActionType) {
     }
 }
 
-function captureScan() {
-    if (selected.value === 'phone') {
-        runScanAction('phone');
+function advanceToNextAngle(afterAngleId: SelfieAngleId) {
+    const currentIndex = angleOptions.findIndex((angle) => angle.id === afterAngleId);
+    const nextAngle = angleOptions.slice(currentIndex + 1).find((angle) => !angleImages.value[angle.id].url);
+    if (nextAngle) {
+        activeAngle.value = nextAngle.id;
+    }
+}
+
+function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
+    uploadingAngles.value[angleId] = true;
+    angleImages.value[angleId].url = '';
+    uni.uploadFile({
+        url: getApiUrl('file/uploadHairLoss'),
+        filePath: tempFilePath,
+        name: 'file',
+        formData: {
+            userId: userStore.userInfo.userId || '',
+            type: userStore.userInfo.type || '0',
+        },
+        success: (uploadRes) => {
+            try {
+                const data = JSON.parse(uploadRes.data);
+                if (data.code === 200 && data.data) {
+                    angleImages.value[angleId] = {
+                        preview: data.data,
+                        url: data.data,
+                    };
+                    advanceToNextAngle(angleId);
+                } else {
+                    uni.showToast({ title: data.msg || t('scan.uploadFailed'), icon: 'none' });
+                }
+            } catch {
+                uni.showToast({ title: t('scan.uploadFailed'), icon: 'none' });
+            }
+        },
+        fail: () => uni.showToast({ title: t('scan.uploadFailed'), icon: 'none' }),
+        complete: () => {
+            uploadingAngles.value[angleId] = false;
+        },
+    });
+}
+
+function choosePhoneImage(angleId: SelfieAngleId = activeAngle.value) {
+    activeAngle.value = angleId;
+    uni.chooseImage({
+        count: 1,
+        sourceType: ['camera', 'album'],
+        success: (res) => {
+            const tempFilePath = res.tempFilePaths[0];
+            angleImages.value[angleId].preview = tempFilePath;
+            uploadImage(tempFilePath, angleId);
+        },
+    });
+}
+
+async function runPhoneAnalysis(imageUrl: string) {
+    isAnalyzing.value = true;
+    try {
+        const result = await analyzeSelfieImage(imageUrl);
+        const anglePayload = encodeURIComponent(JSON.stringify({
+            front: angleImages.value.front.url,
+            crown: angleImages.value.crown.url,
+            back: angleImages.value.back.url,
+            sideFront: angleImages.value.sideFront.url,
+        }));
+        angleOptions.forEach((angle) => {
+            angleImages.value[angle.id] = { preview: '', url: '' };
+        });
+        uni.navigateTo({
+            url: `/pages/questionnaire/index?position=${encodeURIComponent(result.position)}&stage=${result.stage}&image=${encodeURIComponent(result.imageUrl)}&angles=${anglePayload}`,
+        });
+    } catch (error) {
+        console.error('[scan] analysis failed', error);
+        uni.showToast({ title: t('scan.analysisFailed'), icon: 'none' });
+    } finally {
+        isAnalyzing.value = false;
+    }
+}
+
+async function captureScan() {
+    if (selected.value !== 'phone') {
+        launchNativeScan(selected.value);
         return;
     }
 
-    launchNativeScan(selected.value);
+    const nextMissing = angleOptions.find((angle) => !angleImages.value[angle.id].url);
+    if (nextMissing) {
+        choosePhoneImage(nextMissing.id);
+        return;
+    }
+
+    if (angleOptions.some((angle) => uploadingAngles.value[angle.id])) {
+        uni.showToast({ title: t('scan.uploading'), icon: 'none' });
+        return;
+    }
+
+    if (!allAnglesUploaded.value) {
+        uni.showToast({ title: t('scan.angleRequired'), icon: 'none' });
+        return;
+    }
+
+    await runPhoneAnalysis(angleImages.value.front.url);
 }
 
-onMounted(() => {
-    checkScroll();
-});
+function clearAngle(angleId: SelfieAngleId) {
+    angleImages.value[angleId] = { preview: '', url: '' };
+}
 
-onShow(() => {
-    checkScroll();
-});
+function selectAngle(angleId: SelfieAngleId) {
+    activeAngle.value = angleId;
+}
 </script>
 
 <template>
-    <page-meta :page-style="disableScroll ? 'overflow: hidden; height: 100vh;' : ''" />
-    <MainTabLayout>
-        <view class="scan-shell">
-            <text class="shell-ptitle">{{ t('scan.title') }}</text>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
+    <MainTabLayout fill-screen fixed-header>
+        <view class="scan-scroll">
+            <view class="scan-shell">
+                <text class="shell-ptitle">{{ t('scan.title') }}</text>
 
-            <view class="shell-card shell-card-compact">
-                <text class="shell-label">{{ t('scan.scanType') }}</text>
-                <view class="shell-scan-types">
-                    <view
-                        v-for="opt in options"
-                        :key="opt.id"
-                        class="shell-scan-chip"
-                        :class="{ on: selected === opt.id }"
-                        @click="selectOption(opt.id)"
-                    >
-                        {{ t(opt.labelKey) }}
+                <view class="shell-card shell-card-compact">
+                    <text class="shell-label">{{ t('scan.scanType') }}</text>
+                    <view class="shell-scan-types">
+                        <view
+                            v-for="opt in options"
+                            :key="opt.id"
+                            class="shell-scan-chip"
+                            :class="{ on: selected === opt.id }"
+                            @click="selectOption(opt.id)"
+                        >
+                            {{ t(opt.labelKey) }}
+                        </view>
+                    </view>
+                    <text class="scan-desc">{{ t(selectedDescKey) }}</text>
+                </view>
+
+                <view v-if="selected === 'phone'" class="shell-card shell-card-compact scan-angles-card">
+                    <text class="shell-label">{{ t('scan.anglesTitle') }}</text>
+                    <text class="scan-desc">{{ t('scan.anglesSubtitle') }}</text>
+                    <view class="scan-angle-grid">
+                        <view
+                            v-for="angle in angleOptions"
+                            :key="angle.id"
+                            class="scan-angle-tile"
+                            :class="{ on: activeAngle === angle.id, done: !!angleImages[angle.id].url }"
+                            @click="selectAngle(angle.id)"
+                        >
+                            <image
+                                v-if="angleImages[angle.id].preview"
+                                :src="angleImages[angle.id].preview"
+                                class="scan-angle-thumb"
+                                mode="aspectFill"
+                            />
+                            <text v-else class="scan-angle-label">{{ t(angle.labelKey) }}</text>
+                        </view>
+                    </view>
+                    <text v-if="allAnglesUploaded" class="scan-all-ready">{{ t('scan.allAnglesReady') }}</text>
+                </view>
+
+                <view
+                    class="shell-cambox"
+                    :class="{ 'shell-cambox--preview': selected === 'phone' && hasCurrentPreview }"
+                    @click="selected === 'phone' ? choosePhoneImage(activeAngle) : undefined"
+                >
+                    <image
+                        v-if="selected === 'phone' && hasCurrentPreview"
+                        :src="currentAnglePreview"
+                        class="scan-preview-image"
+                        mode="aspectFill"
+                    />
+                    <view v-if="selected === 'phone' && hasCurrentPreview" class="scan-preview-actions">
+                        <view class="scan-preview-badge" @click.stop="clearAngle(activeAngle)">
+                            <TablerIcon name="x" :size="12" color="#1A1228" />
+                        </view>
+                        <text v-if="isCurrentUploading" class="scan-preview-status">{{ t('scan.uploading') }}</text>
+                        <text v-else-if="currentAngleUrl" class="scan-preview-status scan-preview-status--ready">
+                            {{ t('scan.previewReady') }}
+                        </text>
+                    </view>
+                    <template v-if="selected !== 'phone' || !hasCurrentPreview">
+                        <TablerIcon name="camera" :size="34" color="#6B21C8" />
+                        <text class="cam-hint">{{ t('scan.positionHint') }}</text>
+                        <text v-if="selected === 'phone'" class="cam-upload-hint">{{ t('scan.tapToUpload') }}</text>
+                    </template>
+                </view>
+
+                <view class="status-row">
+                    <view class="shell-pill shell-pill-g pill-with-icon">
+                        <TablerIcon name="check" :size="11" color="#0e9e62" />
+                        <text>{{ t('scan.focus') }}</text>
+                    </view>
+                    <view class="shell-pill shell-pill-g pill-with-icon">
+                        <TablerIcon name="check" :size="11" color="#0e9e62" />
+                        <text>{{ t('scan.lighting') }}</text>
+                    </view>
+                    <view class="shell-pill" :class="allAnglesUploaded ? 'shell-pill-g' : 'shell-pill-w'">
+                        <TablerIcon :name="allAnglesUploaded ? 'check' : 'x'" :size="11" :color="allAnglesUploaded ? '#0e9e62' : '#c2610a'" />
+                        <text>{{ t('scan.angle') }}</text>
                     </view>
                 </view>
-                <text class="scan-desc">{{ t(selectedDescKey) }}</text>
-            </view>
 
-            <view class="shell-cambox">
-                <image src="/static/tabbar/scan-active.svg" class="cam-icon" mode="aspectFit" />
-                <text class="cam-hint">{{ t('scan.positionHint') }}</text>
-            </view>
+                <button class="shell-btn" :disabled="isAnalyzing" @click="captureScan">{{ captureLabel }}</button>
 
-            <view class="status-row">
-                <view class="shell-pill shell-pill-g pill-with-icon">
-                    <TablerIcon name="check" :size="11" color="#0e9e62" />
-                    <text>{{ t('scan.focus') }}</text>
+                <view class="extra-actions">
+                    <text class="extra-link" @click="runScanAction('device')">{{ t('home.getDevice') }}</text>
                 </view>
-                <view class="shell-pill shell-pill-g pill-with-icon">
-                    <TablerIcon name="check" :size="11" color="#0e9e62" />
-                    <text>{{ t('scan.lighting') }}</text>
-                </view>
-                <view class="shell-pill shell-pill-w pill-with-icon">
-                    <TablerIcon name="x" :size="11" color="#c2610a" />
-                    <text>{{ t('scan.angle') }}</text>
-                </view>
-            </view>
-
-            <button class="shell-btn" @click="captureScan">{{ t('scan.capture') }}</button>
-
-            <view class="extra-actions">
-                <text class="extra-link" @click="runScanAction('device')">{{ t('home.getDevice') }}</text>
             </view>
         </view>
     </MainTabLayout>
+
+    <ScanAnalyzingOverlay :visible="isAnalyzing" />
 </template>
 
 <style scoped lang="scss">
 @import '@/styles/app-shell.scss';
+
+.scan-shell {
+    padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+}
 
 .scan-desc {
     display: block;
@@ -159,17 +296,112 @@ onShow(() => {
     line-height: 1.45;
 }
 
-.cam-icon {
-    width: 38px;
-    height: 38px;
+.scan-angles-card {
+    margin-bottom: 12px;
+}
+
+.scan-angle-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.scan-angle-tile {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    border: 1.5px dashed #d8d2ea;
+    background: #faf8ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    &.on {
+        border-color: #6b21c8;
+    }
+
+    &.done {
+        border-style: solid;
+    }
+}
+
+.scan-angle-thumb {
+    width: 100%;
+    height: 100%;
+}
+
+.scan-angle-label {
+    font-size: 10px;
+    color: #6b21c8;
+    text-align: center;
+    padding: 4px;
+    line-height: 1.2;
+}
+
+.scan-all-ready {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #0e9e62;
+    font-weight: 600;
+}
+
+.scan-preview-image {
+    width: 100%;
+    height: 240px;
+    display: block;
+    border-radius: 12px;
+}
+
+.scan-preview-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.scan-preview-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    box-shadow: 0 2px 8px rgba(20, 18, 45, 0.12);
+}
+
+.scan-preview-status {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(26, 18, 40, 0.55);
+    padding: 4px 10px;
+    border-radius: 999px;
+
+    &--ready {
+        background: rgba(15, 107, 73, 0.82);
+    }
 }
 
 .cam-hint {
-    font-size: 11px;
+    font-size: 12px;
     color: #8a82a0;
     margin-top: 10px;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    line-height: 1.4;
+}
+
+.cam-upload-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6b21c8;
+    font-weight: 600;
 }
 
 .status-row {
@@ -188,11 +420,17 @@ onShow(() => {
 .extra-actions {
     margin-top: 16px;
     text-align: center;
+    padding-bottom: 8px;
 }
 
 .extra-link {
     font-size: 13px;
     color: #6b21c8;
     font-weight: 600;
+}
+
+.shell-cambox {
+    position: relative;
+    overflow: hidden;
 }
 </style>

@@ -47,6 +47,7 @@ const handleRegister = async () => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="register-page auth-flow-page">
         <view class="auth-content register-layout">
             <view class="auth-back" @click="goBack">
@@ -104,13 +105,14 @@ const handleRegister = async () => {
 
 <style scoped lang="scss">
 .register-page {
-    width: 100vw;
-    min-height: 100vh;
+    width: 100%;
+    height: 100%;
     background-color: #fff;
+    overflow: hidden;
 }
 
 .register-layout {
-    min-height: 100vh;
+    height: 100%;
 }
 
 .form-section {

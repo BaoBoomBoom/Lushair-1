@@ -138,6 +138,7 @@ onMounted(() => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="landing-page">
         <image class="bg-image" src="@/static/images/first-bg.png" mode="aspectFill" />
 

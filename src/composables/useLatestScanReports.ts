@@ -90,11 +90,16 @@ function buildTrichoscanContext(record: DetectionRecordItem): ScanReportContext 
 }
 
 function buildSelfieContext(result: SelfieResultItem): ScanReportContext {
-    const stage = result.stage;
     const createTime = result.createTime || result.createdTime;
+    const position = (result.position || '').trim();
+    const stage = result.stage;
+    let scoreLabel = '';
+    if (position && stage) scoreLabel = `${position}·Stage ${stage}`;
+    else if (stage) scoreLabel = `Stage ${stage}`;
+    else if (position) scoreLabel = position;
     return {
         reportId: result.reportId!,
-        scoreLabel: stage ? `Stage ${stage}` : '',
+        scoreLabel,
         dateLabel: formatShortDate(createTime),
         createTime,
     };

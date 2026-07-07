@@ -1,16 +1,13 @@
 <template>
     <view class="rp-page">
-        <view v-if="loadingAnalysis" class="rp-loading">
-            <view class="rp-loading-inner">
-                <view class="rp-spinner" />
-                <text class="rp-loading-text">Analyzing your hair profile...</text>
-            </view>
-        </view>
+        <ScanAnalyzingOverlay :visible="loadingAnalysis" />
 
         <view class="rp-topbar" :style="headerPaddingStyle(0)">
             <view class="rp-back" @tap="goBack"><text>‹</text></view>
             <text class="rp-topbar-title">{{ $t('selfieResult.title') }}</text>
-            <view class="rp-topbar-spacer" />
+            <view class="rp-share" @tap="shareResults">
+                <image class="share-icon" src="/static/icons/share.svg" mode="aspectFit" />
+            </view>
         </view>
 
         <view class="rp-body" :style="contentMarginStyle(48)">
@@ -30,6 +27,7 @@
                             <text class="rp-stage-num">{{ $t('hair.level') }} {{ hairLossLevel }}</text>
                             <text class="rp-stage-of">/ 7</text>
                         </view>
+                        <text class="rp-level-name">{{ levelDescriptor }}</text>
                     </view>
                 </view>
             </view>
@@ -40,75 +38,54 @@
                     <view v-for="i in 7" :key="i" class="stage-seg" :class="{ on: i <= hairLossLevel }" />
                 </view>
                 <view class="rp-stage-labels">
-                    <text>{{ $t('selfieResult.mildHairloss') }}</text>
-                    <text>{{ $t('selfieResult.severeHairloss') }}</text>
+                    <text>{{ $t('selfieResult.benchmarkNormal') }}</text>
+                    <text>{{ $t('selfieResult.benchmarkSevere') }}</text>
                 </view>
                 <text class="rp-desc">{{ patternDescription }}</text>
+            </view>
+
+            <view class="shell-card rp-findings-card">
+                <text class="shell-label">{{ $t('selfieResult.keyInsights') }}</text>
+                <view v-for="finding in keyFindings" :key="finding.key" class="rp-insight-row">
+                    <view class="rp-insight-main">
+                        <text class="rp-insight-label">{{ finding.label }}</text>
+                        <text class="rp-insight-value">{{ finding.value }}</text>
+                    </view>
+                    <view class="rp-insight-tags">
+                        <text v-for="tag in finding.tags" :key="tag.text" class="rp-insight-tag" :class="tag.tone">{{ tag.text }}</text>
+                    </view>
+                    <text class="rp-insight-note">{{ finding.note }}</text>
+                </view>
             </view>
 
             <view class="shell-card">
                 <view class="rp-ai-head">
                     <TablerIcon name="sparkles" :size="18" color="#6B21C8" />
-                    <text class="rp-ai-title">{{ $t('selfieResult.smartSummary') }}</text>
+                    <text class="rp-ai-title">{{ $t('selfieResult.routineUpdates') }}</text>
                 </view>
-                <text class="rp-ai-text">{{ smartSummaryText }}</text>
-                <text v-if="positionRecommendations" class="rp-tip">{{ positionRecommendations }}</text>
-                <text class="shell-label">{{ $t('selfieResult.suggestions') }}</text>
-                <view class="rp-suggest-list">
-                    <view v-for="(suggestion, index) in suggestions" :key="index" class="rp-suggest-item">
-                        <text class="rp-suggest-dot">•</text>
-                        <text>{{ suggestion }}</text>
-                    </view>
-                </view>
-                <view v-if="showGenerateButton && !useNewApi" class="rp-btn rp-btn--primary rp-btn--wide" @tap="generateMore">
-                    <text>{{ $t('selfieResult.generateMore') }}</text>
-                </view>
-                <view v-else class="rp-ai-foot">
-                    <text>{{ useNewApi ? 'AI Analysis Complete' : $t('selfieResult.allSuggestionsShown') }}</text>
-                </view>
-            </view>
-
-            <view class="shell-card">
-                <text class="shell-label">{{ $t('selfieResult.yourMetrics') }}</text>
-                <text class="shell-section-sub">{{ $t('selfieResult.metricsDescription') }}</text>
-                <view class="rp-radar-wrap">
-                    <view class="rp-radar-core">
-                        <svg class="rp-radar-svg" viewBox="0 0 260 260">
-                            <g stroke="#E8E4F4" stroke-width="1" fill="none">
-                                <circle cx="130" cy="130" r="80" />
-                                <circle cx="130" cy="130" r="60" />
-                                <circle cx="130" cy="130" r="40" />
-                                <circle cx="130" cy="130" r="20" />
-                            </g>
-                            <g stroke="#E8E4F4" stroke-width="1">
-                                <line x1="130" y1="130" x2="130" y2="50" />
-                                <line x1="130" y1="130" x2="199" y2="90" />
-                                <line x1="130" y1="130" x2="199" y2="170" />
-                                <line x1="130" y1="130" x2="130" y2="210" />
-                                <line x1="130" y1="130" x2="61" y2="170" />
-                                <line x1="130" y1="130" x2="61" y2="90" />
-                            </g>
-                            <polygon
-                                points="130,80 179,105 170,150 130,170 85,155 90,100"
-                                fill="rgba(107, 33, 200, 0.18)"
-                                stroke="#6B21C8"
-                                stroke-width="2"
-                            />
-                        </svg>
-                        <view class="rp-radar-labels">
-                            <text class="rp-radar-label" style="left:50%;top:14%;transform:translate(-50%,-50%)">{{ $t('selfieResult.grayHair') }}</text>
-                            <text class="rp-radar-label" style="left:80%;top:26%;transform:translate(-50%,-50%)">{{ $t('selfieResult.sensitivity') }}</text>
-                            <text class="rp-radar-label" style="left:80%;top:76%;transform:translate(-50%,-50%)">{{ $t('selfieResult.scalpLabel') }}</text>
-                            <text class="rp-radar-label" style="left:50%;top:86%;transform:translate(-50%,-50%)">{{ $t('selfieResult.oiliness') }}</text>
-                            <text class="rp-radar-label" style="left:20%;top:76%;transform:translate(-50%,-50%)">{{ $t('selfieResult.follicle') }}</text>
-                            <text class="rp-radar-label" style="left:20%;top:26%;transform:translate(-50%,-50%)">{{ $t('selfieResult.hair') }}</text>
+                <text class="rp-routine-note">{{ $t('selfieResult.routineUpdatesNote') }}</text>
+                <template v-if="routinePlanSections.length">
+                    <view v-for="section in routinePlanSections" :key="section.period" class="rp-routine-section">
+                        <text class="shell-label">{{ routinePeriodLabel(section.period) }}</text>
+                        <view class="rp-plan-list">
+                            <view v-for="item in section.items" :key="item.id" class="rp-plan-item">
+                                <text class="rp-plan-dot">•</text>
+                                <view class="rp-plan-copy">
+                                    <text class="rp-plan-title">{{ item.name }}</text>
+                                    <text v-if="item.sub" class="rp-plan-sub">{{ item.sub }}</text>
+                                </view>
+                            </view>
                         </view>
                     </view>
+                </template>
+                <text v-else class="rp-routine-empty">{{ $t('selfieResult.routineUpdatesEmpty') }}</text>
+                <view class="rp-btn rp-btn--primary rp-btn--wide" @tap="askLushairAi">
+                    <text>{{ $t('selfieResult.askLushairAi') }}</text>
                 </view>
             </view>
 
             <text class="shell-section-h">{{ $t('selfieResult.scoreBreakdown') }}</text>
-            <text class="shell-section-sub">{{ $t('selfieResult.basicMetrics') }}</text>
+            <text class="shell-section-sub">{{ $t('selfieResult.scoreBreakdownNote') }}</text>
 
             <view class="shell-card rp-metrics-card">
                 <view class="rp-metric-group">
@@ -157,13 +134,52 @@
                 </view>
             </view>
 
-            <view class="shell-card shell-card-tint rp-cta">
-                <text class="rp-cta-title">{{ $t('selfieResult.wantMoreInsights') }}</text>
-                <text class="rp-cta-sub">{{ $t('selfieResult.tryAdvancedScanner') }}</text>
-                <view class="rp-btn rp-btn--primary rp-btn--wide" @tap="getDermascope">
-                    <text>{{ $t('selfieResult.getMyDermascope') }}</text>
+            <view class="shell-card rp-metrics-locked-card">
+                <view class="rp-metrics-locked-head">
+                    <text class="shell-label">{{ $t('selfieResult.yourMetrics') }}</text>
+                    <view class="rp-lock-badge">
+                        <TablerIcon name="lock" :size="12" color="#6B21C8" />
+                        <TablerIcon name="help" :size="12" color="#6B21C8" />
+                    </view>
+                </view>
+                <view class="rp-radar-wrap rp-radar-wrap--locked">
+                    <view class="rp-radar-core">
+                        <svg class="rp-radar-svg" viewBox="0 0 260 260">
+                            <g stroke="#E8E4F4" stroke-width="1" fill="none">
+                                <polygon points="130,50 199,90 199,170 130,210 61,170 61,90" />
+                                <circle cx="130" cy="130" r="80" />
+                                <circle cx="130" cy="130" r="60" />
+                                <circle cx="130" cy="130" r="40" />
+                                <circle cx="130" cy="130" r="20" />
+                            </g>
+                            <g stroke="#E8E4F4" stroke-width="1">
+                                <line x1="130" y1="130" x2="130" y2="50" />
+                                <line x1="130" y1="130" x2="199" y2="90" />
+                                <line x1="130" y1="130" x2="199" y2="170" />
+                                <line x1="130" y1="130" x2="130" y2="210" />
+                                <line x1="130" y1="130" x2="61" y2="170" />
+                                <line x1="130" y1="130" x2="61" y2="90" />
+                            </g>
+                            <path
+                                :d="previewHexPath"
+                                fill="rgba(107, 33, 200, 0.22)"
+                                stroke="#6B21C8"
+                                stroke-width="1.5"
+                            />
+                        </svg>
+                    </view>
+                    <view class="rp-metrics-lock-overlay">
+                        <TablerIcon name="lock" :size="28" color="#6B21C8" />
+                        <text class="rp-metrics-lock-title">{{ $t('selfieResult.metricsLockedTitle') }}</text>
+                        <text class="rp-metrics-lock-body">{{ $t('selfieResult.metricsLockedBody') }}</text>
+                    </view>
+                </view>
+                <view class="rp-btn rp-btn--ghost rp-btn--wide" @tap="openImproveConfidence">
+                    <text>{{ $t('selfieResult.improveScanConfidence') }}</text>
                 </view>
             </view>
+
+            <ShellDisclaimer />
 
             <view class="rp-actions">
                 <view class="rp-btn rp-btn--ghost" @tap="retakeScan">
@@ -174,7 +190,34 @@
                 </view>
             </view>
         </view>
+
+        <view class="rp-share-card" v-if="!loadingAnalysis">
+            <text class="rp-share-kicker">{{ $t('selfieResult.shareReportLabel') }}</text>
+            <text class="rp-share-title">{{ $t('selfieResult.shareReportTitle') }}</text>
+            <text class="rp-share-score">{{ overallScore }}<text class="rp-share-score-sub">/100</text></text>
+            <text v-if="scoreDelta > 0" class="rp-share-delta">{{ $t('selfieResult.scoreImprovement', [scoreDelta]) }}</text>
+            <text class="rp-share-section-title">{{ $t('selfieResult.keyInsights') }}</text>
+            <view v-for="finding in keyFindings" :key="'share-' + finding.key" class="rp-share-insight">
+                <text class="rp-share-insight-label">{{ finding.label }}</text>
+                <text class="rp-share-insight-value">{{ finding.value }}</text>
+                <text v-if="finding.tags[0]" class="rp-share-insight-tag">{{ finding.tags[0].text }}</text>
+            </view>
+            <view class="rp-share-footer">
+                <view>
+                    <text class="rp-share-footer-cta">Download Lushair</text>
+                    <text class="rp-share-footer-sub">Start your AI hair care journey</text>
+                </view>
+                <image class="rp-share-qr" src="/static/images/qrcode-download.png" mode="aspectFit" />
+            </view>
+            <text class="rp-share-url">Lushair.ai</text>
+        </view>
     </view>
+
+    <DeviceConfidenceSheet
+        :visible="showDeviceSheet"
+        @close="closeDeviceSheet"
+        @learn-more="openLushairDeviceSite"
+    />
 </template>
 
 <script setup lang="ts">
@@ -192,7 +235,13 @@ const userStore = useUserStore();
 // Use status bar height composable
 import { useStatusBar } from '@/composables/useStatusBar';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
+import ShellDisclaimer from '@/components/layout/ShellDisclaimer.vue';
+import DeviceConfidenceSheet from '@/components/scan/DeviceConfidenceSheet.vue';
+import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
+import { useCareRoutinePlan, type CarePlanPeriod } from '@/composables/useCareRoutinePlan';
 const { statusBarHeight, headerPaddingStyle, contentMarginStyle } = useStatusBar();
+const { applyActionablePlan, groupedSections, loadPlan } = useCareRoutinePlan();
 
 // 从出生日期计算年龄
 const calculateAgeFromDob = (dob: string): number => {
@@ -238,6 +287,7 @@ const oilValue = ref<number>(0);
 const scurfOrKeratinValue = ref<number>(0);
 const overallValue = ref<number>(0);
 const hairLossValue = ref<number>(0);
+const discomfortValue = ref<number>(0);
 
 declare var window: Window & { 
   webkit: any,
@@ -298,10 +348,37 @@ const showErrorPopup = (err: any) => {
 };
 
 // Parse URL parameters on mount
-onMounted(async () => {
+const getPageOptionsFromHash = (): Record<string, string> => {
+    try {
+        const hash = window.location.hash;
+        const queryStart = hash.indexOf('?');
+        if (queryStart === -1) return {};
+        const queryStr = hash.substring(queryStart + 1);
+        const params: Record<string, string> = {};
+        queryStr.split('&').forEach((part) => {
+            const eqIdx = part.indexOf('=');
+            if (eqIdx !== -1) {
+                const key = decodeURIComponent(part.substring(0, eqIdx));
+                const val = decodeURIComponent(part.substring(eqIdx + 1));
+                params[key] = val;
+            }
+        });
+        return params;
+    } catch {
+        return {};
+    }
+};
+
+const readPageOptions = (): Record<string, string> => {
     const pages = getCurrentPages();
     const currentPage = pages[pages.length - 1] as any;
-    const options = currentPage.options || {};
+    const optionsFromPage = currentPage?.$page?.options || currentPage?.options || {};
+    const optionsFromHash = typeof window !== 'undefined' ? getPageOptionsFromHash() : {};
+    return Object.keys(optionsFromPage).length > 0 ? optionsFromPage : optionsFromHash;
+};
+
+onMounted(async () => {
+    const options = readPageOptions();
 
     // 修复：uni-app 页面参数直接存储在 options 中，不是 options.data 中
     position.value = decodeURIComponent(options.position || '');
@@ -336,6 +413,7 @@ onMounted(async () => {
             scurfOrKeratinValue.value = parsedExtInfo.scurfOrKeratin || 0;
             overallValue.value = parsedExtInfo.overall || 0;
             hairLossValue.value = parsedExtInfo.hairLoss || 0;
+            discomfortValue.value = parsedExtInfo.discomfort || 0;
         } catch (e) {
             console.error('Failed to parse extInfo for metrics:', e);
         }
@@ -348,6 +426,11 @@ onMounted(async () => {
     } else if (extInfo.value && userId.value) {
         console.log('new api');
         await fetchAnalysis();
+    }
+
+    loadPlan();
+    if (!reportIdFromList.value && !(extInfo.value && userId.value)) {
+        applyFallbackRoutine();
     }
 });
 
@@ -407,6 +490,8 @@ const fetchExistingReport = async () => {
                 }
             }
 
+            syncRoutineFromReport();
+
             uni.showToast({
                 title: 'Report loaded',
                 icon: 'success'
@@ -418,6 +503,7 @@ const fetchExistingReport = async () => {
         showErrorPopup(error);
     } finally {
         loadingAnalysis.value = false;
+        applyFallbackRoutine();
     }
 };
 
@@ -540,6 +626,8 @@ const fetchAnalysis = async () => {
                 }
             }
 
+            syncRoutineFromReport();
+
             // 获取report_id并更新到数据库
             if (response.reportId) {
                 const reportId = response.reportId;
@@ -588,62 +676,148 @@ const fetchAnalysis = async () => {
         showErrorPopup(error);
     } finally {
         loadingAnalysis.value = false;
+        applyFallbackRoutine();
+    }
+};
+
+const syncRoutineFromReport = () => {
+    const plan = analysisReport.value?.actionable_plan;
+    if (plan) {
+        applyActionablePlan(plan);
+    } else {
+        applyFallbackRoutine();
+    }
+};
+
+const applyFallbackRoutine = () => {
+    if (groupedSections.value.length) return;
+    const lines = getBaseSuggestions(hairLossLevel.value);
+    if (lines.length) {
+        applyActionablePlan({ advice: lines });
     }
 };
 
 // Computed properties for dynamic display
 const hairLossLevel = computed(() => {
     const stageNum = parseInt(stage.value) || 1;
-    // Map stage (1-5) to level (1-7)
-    // Stage 1 -> Level 1-2 (Mild)
-    // Stage 2 -> Level 2-3
-    // Stage 3 -> Level 3-4 (Moderate)
-    // Stage 4 -> Level 5-6
-    // Stage 5 -> Level 6-7 (Severe)
-    const levelMap: { [key: number]: number } = {
-        1: 1,
-        2: 3,
-        3: 4,
-        4: 6,
-        5: 7
-    };
-    return levelMap[stageNum] || 1;
+    return Math.min(7, Math.max(1, stageNum));
 });
 
-const severityText = computed(() => {
+const levelDescriptor = computed(() => {
     const level = hairLossLevel.value;
-    if (level <= 2) return 'Mild';
-    if (level <= 4) return 'Moderate';
-    if (level <= 6) return 'Advanced';
-    return 'Severe';
+    const key = `selfieResult.levelDesc${level}`;
+    const label = t(key);
+    return label === key ? t('selfieResult.levelDesc1') : label;
 });
+
+const severityText = computed(() => levelDescriptor.value);
 
 const patternDescription = computed(() => {
-    const pos = positionText.value || 'Unknown area';
-    const severity = severityText.value;
-    
-    if (hairLossLevel.value <= 2) {
-        return `Your hairline is normal in the ${pos} area. You have a higher than average hair count!`;
-    } else if (hairLossLevel.value <= 4) {
-        return `Hair thinning detected in the ${pos} area. Consider following suggestions below to maintain hair health.`;
-    } else {
-        return `Significant hair loss detected in the ${pos} area. We recommend following a care routine and consulting with specialists.`;
+    const level = hairLossLevel.value;
+    const area = positionText.value || t('selfieResult.positionNone');
+    const key = `selfieResult.patternDesc${level}`;
+    const template = t(key);
+    if (template !== key) {
+        return template.replace('{area}', area);
     }
+    return t('selfieResult.patternDesc1').replace('{area}', area);
 });
 
-// Smart Summary - 从API获取或使用默认文本
-const smartSummaryText = computed(() => {
-    if (useNewApi.value && analysisReport.value && analysisReport.value.actionable_plan) {
-        const adviceList = analysisReport.value.actionable_plan.advice;
-        if (Array.isArray(adviceList) && adviceList.length > 0) {
-            return adviceList.join('\n');
+const routinePlanSections = computed(() => groupedSections.value);
+
+const routinePeriodLabel = (period: CarePlanPeriod) => {
+    const map: Record<CarePlanPeriod, string> = {
+        morning: t('routine.morning'),
+        evening: t('routine.evening'),
+        treatment: t('routine.morning'),
+        diet: t('routine.morning'),
+        ingredient: t('routine.recommendedIngredients'),
+    };
+    return map[period] || period;
+};
+
+const metricToScore = (value: number, max = 3) => Math.max(0.18, Math.min(1, 1 - value / max));
+
+const previewHexPath = computed(() => {
+    const level = hairLossLevel.value;
+    const densityScore = Math.max(0.18, 1 - (level - 1) / 6);
+    const keratinDisplay = scurfOrKeratinValue.value === 2 ? 3 : scurfOrKeratinValue.value;
+    const values = [
+        densityScore,
+        densityScore,
+        metricToScore(overallValue.value >= 3 ? 1 : Math.max(0, 3 - overallValue.value)),
+        metricToScore(keratinDisplay),
+        metricToScore(oilValue.value),
+        metricToScore(discomfortValue.value),
+    ];
+
+    const cx = 130;
+    const cy = 130;
+    const radius = 72;
+    const points = values.map((value, index) => {
+        const angle = (Math.PI * 2 * index) / 6 - (Math.PI * 2) / 3;
+        const x = cx + radius * value * Math.cos(angle);
+        const y = cy + radius * value * Math.sin(angle);
+        return `${x},${y}`;
+    });
+
+    return `M ${points[0]} L ${points.slice(1).join(' L ')} Z`;
+});
+
+const calculateOverallScore = (): number => {
+    const level = hairLossLevel.value;
+    let baseScore = 100 - (level - 1) * (70 / 6);
+    if (extInfo.value) {
+        try {
+            const info = JSON.parse(extInfo.value);
+            ['oil', 'discomfort', 'scurfOrKeratin', 'overall', 'hairLoss'].forEach((factor) => {
+                const value = info[factor];
+                if (value === 1) baseScore -= 5;
+                else if (value === 2) baseScore -= 10;
+                else if (value === 3) baseScore -= 15;
+            });
+        } catch {
+            // ignore parse errors
         }
     }
+    return Math.max(0, Math.min(100, Math.round(baseScore)));
+};
 
-    // 默认文本
-    const pos = positionText.value || 'Unknown area';
-    return `Hair loss analysis detected in the ${pos} area with severity level ${stage.value}. ${patternDescription.value}`;
-});
+const overallScore = computed(() => calculateOverallScore());
+const scoreDelta = ref(0);
+
+const askLushairAi = () => {
+    uni.setStorageSync('ai_chat_autoStart', 'true');
+    uni.switchTab({ url: '/pages/consult/new' });
+};
+
+const showDeviceSheet = ref(false);
+
+const openImproveConfidence = () => {
+    showDeviceSheet.value = true;
+};
+
+const closeDeviceSheet = () => {
+    showDeviceSheet.value = false;
+};
+
+const openLushairDeviceSite = () => {
+    closeDeviceSheet();
+    window.open('https://lushair.net', '_blank');
+};
+
+const shareResults = async () => {
+    try {
+        uni.showLoading({ title: t('common.loading') });
+        const dataUrl = await captureShareCard('.rp-share-card');
+        await shareCapturedImage(dataUrl, t('selfieResult.shareReportTitle'), t('selfieResult.shareReportTitle'));
+    } catch (error) {
+        console.error('Share failed', error);
+        uni.showToast({ title: t('advancedResult.shareFailed') || 'Share failed', icon: 'none' });
+    } finally {
+        uni.hideLoading();
+    }
+};
 
 // Base suggestions for each stage
 const getBaseSuggestions = (stageNum: number) => {
@@ -791,20 +965,37 @@ const positionText = computed(() => {
     return position.value || t('selfieResult.positionNone');
 });
 
-// Position-specific recommendations
-const positionRecommendations = computed(() => {
-    const pos = position.value.toLowerCase();
-    
-    if (pos.includes('前额') || pos.includes('forehead') || pos.includes('frontal')) {
-        return 'Frontal hair loss is often related to hormonal factors. Consider DHT-blocking treatments.';
-    } else if (pos.includes('头顶') || pos.includes('crown') || pos.includes('top')) {
-        return 'Crown area thinning typically responds well to topical treatments like minoxidil.';
-    } else if (pos.includes('两侧') || pos.includes('temple') || pos.includes('side')) {
-        return 'Temple recession is common and may benefit from early intervention with growth serums.';
-    }
-    
-    return 'Maintain overall scalp health for optimal hair growth.';
+const scalpConditionSummary = computed(() => {
+    const oil = getRatingLabel(oilValue.value);
+    const keratin = getRatingLabel(scurfOrKeratinValue.value === 2 ? 3 : scurfOrKeratinValue.value);
+    return `${oil} oil · ${keratin} keratin`;
 });
+
+const hairlineSummary = computed(() => {
+    return `${positionText.value} · ${levelDescriptor.value}`;
+});
+
+const keyFindings = computed(() => [
+    {
+        key: 'scalp',
+        label: t('selfieResult.scalpCondition'),
+        value: scalpConditionSummary.value,
+        tags: [
+            { text: oilValue.value >= 2 ? t('selfieResult.symptomTag') : t('common.low'), tone: oilValue.value >= 2 ? 'warn' : 'ok' },
+            { text: oilRecommendation.value ? t('selfieResult.actionTag') : '', tone: 'action' },
+        ].filter((tag) => tag.text),
+        note: oilRecommendation.value || keratinRecommendation.value || t('selfieResult.scoreBreakdownNote'),
+    },
+    {
+        key: 'hairline',
+        label: t('selfieResult.hairline'),
+        value: hairlineSummary.value,
+        tags: [
+            { text: hairLossLevel.value <= 1 ? t('selfieResult.benchmarkNormal') : t('common.high'), tone: hairLossLevel.value <= 1 ? 'ok' : 'warn' },
+        ],
+        note: patternDescription.value,
+    },
+]);
 
 // 将数值转换为评级标签 (0,1=Low, 2=Average, 3=High)
 const getRatingLabel = (value: number): string => {
@@ -1025,4 +1216,297 @@ const exitResults = () => {
 
 <style lang="scss">
 @import '@/styles/result-page-shell.scss';
+
+.rp-share {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.rp-insight-row {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0edf7;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.rp-insight-main {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.rp-insight-label,
+.rp-insight-value {
+    font-size: 14px;
+    color: #1a1228;
+}
+
+.rp-insight-value {
+    font-weight: 700;
+    color: #6b21c8;
+}
+
+.rp-insight-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.rp-insight-tag {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f3ecff;
+    color: #6b21c8;
+
+    &.warn {
+        background: #fff4e8;
+        color: #c2610a;
+    }
+
+    &.ok {
+        background: #e8faf3;
+        color: #0e9e62;
+    }
+}
+
+.rp-insight-note {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #8a82a0;
+}
+
+.rp-plan-list {
+    margin: 10px 0 14px;
+}
+
+.rp-plan-item {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #3f3655;
+    margin-bottom: 8px;
+}
+
+.rp-plan-copy {
+    flex: 1;
+}
+
+.rp-plan-title {
+    display: block;
+    font-size: 13px;
+    color: #1a1228;
+}
+
+.rp-plan-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #8a82a0;
+}
+
+.rp-level-name {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b21c8;
+}
+
+.rp-routine-note {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #8a82a0;
+}
+
+.rp-routine-empty {
+    display: block;
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #8a82a0;
+}
+
+.rp-routine-section + .rp-routine-section {
+    margin-top: 8px;
+}
+
+.rp-metrics-locked-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rp-lock-badge {
+    display: flex;
+    gap: 6px;
+}
+
+.rp-radar-wrap--locked {
+    position: relative;
+}
+
+.rp-radar-wrap--locked .rp-radar-core {
+    opacity: 0.92;
+}
+
+.rp-metrics-lock-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.64);
+    backdrop-filter: blur(2px);
+}
+
+.rp-metrics-lock-title {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1228;
+}
+
+.rp-metrics-lock-body {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #8a82a0;
+}
+
+.rp-share-card {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 360px;
+    padding: 28px 24px;
+    background: #fff;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
+
+.rp-share-kicker {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #4da3f0;
+    margin-bottom: 8px;
+}
+
+.rp-share-title {
+    display: block;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1228;
+}
+
+.rp-share-score {
+    display: block;
+    text-align: center;
+    font-size: 48px;
+    font-weight: 800;
+    color: #6b21c8;
+    margin: 12px 0;
+}
+
+.rp-share-score-sub {
+    font-size: 22px;
+}
+
+.rp-share-delta {
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    color: #6b21c8;
+    margin-bottom: 18px;
+}
+
+.rp-share-section-title {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #6b21c8;
+    margin-bottom: 10px;
+}
+
+.rp-share-insight {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid #f0edf7;
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.rp-share-insight-label,
+.rp-share-insight-value,
+.rp-share-insight-tag {
+    font-size: 12px;
+}
+
+.rp-share-insight-tag {
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f3ecff;
+    color: #6b21c8;
+}
+
+.rp-share-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding: 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #faf5ff, #fff);
+}
+
+.rp-share-footer-cta {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #6b21c8;
+}
+
+.rp-share-footer-sub {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #8a82a0;
+}
+
+.rp-share-qr {
+    width: 72px;
+    height: 72px;
+}
+
+.rp-share-url {
+    display: block;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #8a82a0;
+}
 </style>

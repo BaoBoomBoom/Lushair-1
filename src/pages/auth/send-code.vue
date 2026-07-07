@@ -313,6 +313,7 @@ onLoad((options) => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="send-code-page auth-flow-page">
         <AuthStepProgress :step="2" />
 
@@ -385,18 +386,23 @@ onLoad((options) => {
 
 <style scoped lang="scss">
 .send-code-page {
-    width: 100vw;
-    min-height: 100vh;
+    width: 100%;
+    height: 100%;
     background-color: #fff;
     display: flex;
     flex-direction: column;
     padding: 0 16px;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .content {
     flex: 1;
+    min-height: 0;
     padding-top: 32px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .send-code-header {

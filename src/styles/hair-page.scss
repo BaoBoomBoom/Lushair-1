@@ -3,7 +3,8 @@
 @import './app-shell.scss';
 
 .your-hair-container {
-    padding: 0 2px 40px;
+    padding: 0 2px calc(56px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
 }
 
 .analysis-tab,
@@ -485,4 +486,188 @@
             font-weight: 600;
         }
     }
+}
+
+.hair-page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.hair-share-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: #f3ecff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hair-share-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.hair-scan-reminder {
+    display: block;
+    margin: 4px 2px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $shell-muted;
+}
+
+.hair-chart-with-axis {
+    display: flex;
+    gap: 8px;
+}
+
+.chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 180px;
+    padding: 4px 0 28px;
+}
+
+.chart-y-axis-label {
+    font-size: 10px;
+    color: $shell-muted;
+}
+
+.chart-point-callout {
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: $shell-primary;
+}
+
+.chart-trend-comment {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: $shell-muted;
+}
+
+.hair-share-card {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 360px;
+    padding: 28px 24px;
+    background: #fff;
+    border-radius: 20px;
+    box-sizing: border-box;
+}
+
+.hair-share-kicker {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: #4da3f0;
+}
+
+.hair-share-title {
+    display: block;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1228;
+    margin: 8px 0;
+}
+
+.hair-share-sub {
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    color: #8a82a0;
+    margin-bottom: 16px;
+}
+
+.hair-share-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid #f0edf7;
+    margin-bottom: 8px;
+}
+
+.hair-share-metric-label {
+    font-size: 14px;
+    color: #1a1228;
+}
+
+.hair-share-metric-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #6b21c8;
+}
+
+.hair-share-metric-small {
+    font-size: 14px;
+}
+
+.hair-share-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #faf5ff, #fff);
+}
+
+.hair-share-footer-cta {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #6b21c8;
+}
+
+.hair-share-footer-sub {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #8a82a0;
+}
+
+.hair-share-qr {
+    width: 72px;
+    height: 72px;
+}
+
+.hair-share-url {
+    display: block;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 11px;
+    color: #8a82a0;
+}
+
+.hair-share-using {
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid #f0edf7;
+}
+
+.hair-share-using-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #4da3f0;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.hair-share-using-value {
+    display: block;
+    font-size: 14px;
+    color: #1a1228;
+    font-weight: 600;
 }

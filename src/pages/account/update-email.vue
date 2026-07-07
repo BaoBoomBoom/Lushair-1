@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AccountSubLayout from '@/components/layout/AccountSubLayout.vue';
 
@@ -12,9 +12,13 @@ const loading = ref(false);
 
 const codeRefs = ref<(HTMLInputElement | null)[]>([]);
 
+const pageSubtitle = computed(() =>
+    step.value === 1 ? t('profile.enterEmailTip') : t('profile.enterCodeTip'),
+);
+
 const sendCode = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-        uni.showToast({ title: t('invalidEmail'), icon: 'none' });
+        uni.showToast({ title: t('profile.invalidEmail'), icon: 'none' });
         return;
     }
     loading.value = true;
@@ -39,19 +43,24 @@ const handleKeydown = (e: KeyboardEvent, index: number) => {
 const verifyCode = () => {
     const finalCode = code.value.join('');
     if (finalCode.length < 4) {
-        uni.showToast({ title: t('incompleteCode'), icon: 'none' });
+        uni.showToast({ title: t('profile.incompleteCode'), icon: 'none' });
         return;
     }
     loading.value = true;
     setTimeout(() => {
         loading.value = false;
         uni.showToast({
-            title: t('success'),
+            title: t('profile.success'),
             icon: 'success',
             duration: 1500,
             success: () => setTimeout(() => uni.navigateBack(), 1500),
         });
     }, 800);
+};
+
+const backToEmail = () => {
+    step.value = 1;
+    code.value = ['', '', '', ''];
 };
 
 watch(code, (v) => {
@@ -60,18 +69,27 @@ watch(code, (v) => {
 </script>
 
 <template>
-    <AccountSubLayout :title="t('profile.updateEmail')">
-        <view class="shell-card">
+    <AccountSubLayout :title="t('profile.updateEmail')" :subtitle="pageSubtitle">
+        <view class="account-step-row">
+            <view class="account-step-pill" :class="{ active: step >= 1, current: step === 1 }" />
+            <view class="account-step-pill" :class="{ active: step >= 2, current: step === 2 }" />
+        </view>
+
+        <view class="shell-card account-form-card">
             <template v-if="step === 1">
-                <text class="shell-form-hint">{{ t('profile.enterEmailTip') }}</text>
                 <view class="shell-form-field">
                     <text class="shell-form-label">{{ t('profile.email') }}</text>
-                    <input v-model="email" class="shell-input" placeholder="emailaddress@provider.com" />
+                    <input
+                        v-model="email"
+                        class="shell-input"
+                        type="text"
+                        inputmode="email"
+                        placeholder="email@example.com"
+                    />
                 </view>
             </template>
 
             <template v-else>
-                <text class="shell-form-hint">{{ t('profile.enterCodeTip') }}</text>
                 <view class="shell-form-field">
                     <text class="shell-form-label">{{ t('profile.verificationCode') }}</text>
                     <view class="shell-code-row">
@@ -88,6 +106,7 @@ watch(code, (v) => {
                         />
                     </view>
                 </view>
+                <text class="account-form-link" @tap="backToEmail">{{ t('profile.changeEmail') }}</text>
             </template>
         </view>
 
@@ -113,6 +132,8 @@ watch(code, (v) => {
 </template>
 
 <style scoped lang="scss">
+@import '@/styles/app-shell.scss';
+
 .shell-btn:disabled {
     opacity: 0.55;
 }

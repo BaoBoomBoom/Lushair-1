@@ -162,6 +162,7 @@ const isNextButtonEnabled = computed(() => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="register-page auth-flow-page">
         <AuthStepProgress :step="1" />
 
@@ -257,10 +258,11 @@ const isNextButtonEnabled = computed(() => {
 
 <style lang="less" scoped>
 .register-page {
-    min-height: 100vh;
+    height: 100%;
     background-color: #ffffff;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .progress-indicator {

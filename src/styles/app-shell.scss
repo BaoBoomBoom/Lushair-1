@@ -270,12 +270,653 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     letter-spacing: -0.01em;
 }
 
+.shell-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+}
+
+.shell-rings--subtle {
+    .shell-ring-num--subtle {
+        position: static;
+        font-size: 18px;
+        font-weight: 600;
+        color: $shell-muted;
+        line-height: 1;
+    }
+
+    .shell-ring-fg-stroke--subtle {
+        stroke: rgba(107, 33, 200, 0.45);
+    }
+
+    .shell-ring-track-stroke {
+        stroke: #f0edf7;
+    }
+}
+
+.shell-ring-delta-inner {
+    font-family: $shell-font-display;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: -0.01em;
+}
+
+.shell-ring-delta-inner--up {
+    color: $shell-green;
+}
+
+.shell-ring-delta-inner--down {
+    color: $shell-warn;
+}
+
+.shell-ring-delta-inner--flat {
+    color: $shell-muted;
+}
+
 .shell-ring-lbl {
     font-size: 11px;
     font-weight: 600;
     color: $shell-soft;
     letter-spacing: 0.01em;
     text-align: center;
+}
+
+.shell-metric-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.shell-metric-bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.shell-metric-bar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.shell-metric-bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: $shell-soft;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.shell-metric-bar-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.shell-metric-bar-value {
+    font-family: $shell-font-display;
+    font-size: 15px;
+    font-weight: 600;
+    color: $shell-muted;
+}
+
+.shell-metric-bar-delta {
+    font-size: 11px;
+    font-weight: 650;
+
+    &--up {
+        color: $shell-green;
+    }
+
+    &--down {
+        color: $shell-warn;
+    }
+
+    &--flat {
+        color: $shell-muted;
+    }
+}
+
+.shell-metric-bar-track {
+    height: 7px;
+    border-radius: 999px;
+    background: #ececf1;
+    overflow: hidden;
+}
+
+.shell-metric-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #b8b3c7;
+    transition: width 1s cubic-bezier(0.5, 0, 0.2, 1);
+}
+
+.shell-metric-bars--compact {
+    gap: 8px;
+    margin-top: 0;
+}
+
+.shell-metric-bars--compact .shell-metric-bar-row {
+    gap: 4px;
+}
+
+.shell-metric-bars--compact .shell-metric-bar-track {
+    height: 5px;
+}
+
+.shell-metric-bars--compact .shell-metric-bar-label {
+    font-size: 10px;
+}
+
+.shell-metric-bars--compact .shell-metric-bar-value {
+    font-size: 13px;
+}
+
+.shell-home-score-card.shell-home-score-card--compact {
+    padding-bottom: 12px;
+}
+
+.shell-home-score-card--compact .shell-overall-ring {
+    width: 92px;
+    height: 92px;
+}
+
+.shell-home-score-card--compact .shell-overall-ring-svg {
+    width: 92px;
+    height: 92px;
+}
+
+.shell-home-score-card--compact .shell-overall-ring-num {
+    font-size: 28px;
+}
+
+.shell-metric-bars--inline {
+    flex-direction: row;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.shell-metric-bars--inline .shell-metric-bar-row {
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    text-align: center;
+    gap: 3px;
+    padding: 8px 4px 6px;
+    border-radius: 10px;
+    background: $shell-bg2;
+}
+
+.shell-metric-bars--inline .shell-metric-bar-label {
+    font-size: 9px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.shell-metric-bars--inline .shell-metric-bar-value {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.shell-metric-bars--inline .shell-metric-bar-track {
+    width: 100%;
+    height: 4px;
+}
+
+.shell-metric-bar-delta--inline {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.tab-page-scroll {
+    flex: 1;
+    min-height: 0;
+}
+
+.home-shell {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+}
+
+.shell-home-plan-card--link {
+    cursor: pointer;
+
+    .shell-home-plan-head {
+        justify-content: space-between;
+        margin-bottom: 0;
+    }
+}
+
+/* Home — combined hero + score overview */
+.shell-home-score-card {
+    padding-bottom: 18px;
+}
+
+.shell-home-hero-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 4px;
+}
+
+.shell-overall-ring {
+    position: relative;
+    width: 108px;
+    height: 108px;
+    flex: none;
+}
+
+.shell-overall-ring-svg {
+    width: 108px;
+    height: 108px;
+    transform: rotate(-90deg);
+    display: block;
+
+    .shell-ring-track-stroke,
+    .shell-ring-fg-stroke {
+        stroke-width: 8;
+    }
+}
+
+.shell-overall-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.shell-overall-ring-num {
+    font-family: $shell-font-display;
+    font-size: 32px;
+    font-weight: 600;
+    color: $shell-text;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.shell-overall-ring-sub {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $shell-muted;
+    margin-top: 3px;
+}
+
+.shell-home-hero-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.shell-home-hero-title {
+    font-family: $shell-font-display;
+    font-size: 17px;
+    font-weight: 600;
+    color: $shell-text;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+.shell-home-hero-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.shell-score-delta-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.shell-score-delta-chip--up {
+    background: $shell-green-bg;
+    color: $shell-green;
+}
+
+.shell-score-delta-chip--down {
+    background: $shell-warn-bg;
+    color: $shell-warn;
+}
+
+.shell-score-delta-chip--flat {
+    background: $shell-bg2;
+    color: $shell-muted;
+}
+
+.shell-home-situation-note {
+    display: block;
+    font-size: 12px;
+    line-height: 1.55;
+    color: $shell-muted;
+    margin-bottom: 14px;
+}
+
+.shell-ring-delta {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
+}
+
+.shell-ring-delta--up {
+    color: $shell-green;
+}
+
+.shell-ring-delta--down {
+    color: $shell-warn;
+}
+
+.shell-ring-delta--flat {
+    color: $shell-muted;
+}
+
+.shell-finding-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shell-finding-listcard {
+    border: 1px solid $shell-border;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(20, 18, 45, 0.04), 0 6px 16px rgba(20, 18, 45, 0.05);
+}
+
+.shell-finding-row {
+    border-bottom: 1px solid $shell-border;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.shell-finding-row-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 14px 12px;
+}
+
+.shell-finding-row-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: $shell-bg2;
+    color: $shell-muted;
+
+    &--neutral {
+        background: #eff1f4;
+        color: #414956;
+    }
+
+    &--warn {
+        background: #faf3e2;
+        color: #7a540c;
+    }
+}
+
+.shell-finding-row-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.shell-finding-row-title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #16151e;
+}
+
+.shell-finding-row-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #8a8990;
+}
+
+.shell-finding-row-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 7px;
+}
+
+.shell-finding-chip--compact {
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
+.shell-finding-detail--row {
+    padding: 16px 14px 14px 60px;
+    margin-top: 8px;
+    border-top: 1px solid $shell-border;
+}
+
+.shell-finding-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.shell-finding-chip-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    cursor: pointer;
+}
+
+.shell-finding-detail {
+    display: block;
+    font-size: 12px;
+    line-height: 1.55;
+    color: $shell-muted;
+    padding: 0 2px 2px;
+}
+
+.shell-home-hero-meta {
+    font-size: 13px;
+    color: $shell-soft;
+    line-height: 1.45;
+}
+
+.shell-home-hero-selfie {
+    font-size: 12px;
+    font-weight: 600;
+    color: $shell-primary;
+    line-height: 1.4;
+}
+
+.shell-home-divider {
+    height: 1px;
+    background: $shell-border;
+    margin: 14px 0 12px;
+}
+
+.shell-home-findings {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid $shell-border;
+}
+
+.shell-home-findings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.shell-home-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: $shell-primary;
+}
+
+.shell-finding-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.shell-finding-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: $shell-bg2;
+    color: $shell-soft;
+    border: 1px solid $shell-border;
+}
+
+.shell-finding-chip--neutral {
+    background: #eff1f4;
+    color: #5c6472;
+    border-color: #e2e4e8;
+}
+
+.shell-finding-chip--warn {
+    background: $shell-warn-bg;
+    color: $shell-warn;
+    border-color: transparent;
+}
+
+.shell-finding-chip--ok {
+    background: $shell-green-bg;
+    color: $shell-green;
+    border-color: transparent;
+}
+
+.shell-home-plan-card {
+    padding: 16px 18px;
+}
+
+.shell-home-plan-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: $shell-font-display;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $shell-text;
+    margin-bottom: 10px;
+
+    &--toggle {
+        justify-content: space-between;
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+}
+
+.shell-home-plan-head-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.shell-home-plan-head-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.shell-home-plan-summary {
+    font-size: 11px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: $shell-muted;
+    font-weight: 500;
+}
+
+.shell-home-plan-preview {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shell-home-plan-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.shell-home-plan-preview-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d8d2ea;
+    flex-shrink: 0;
+
+    &.done {
+        background: #6b21c8;
+    }
+}
+
+.shell-home-plan-preview-name {
+    font-size: 13px;
+    color: #1a1228;
+
+    &.done {
+        color: #8a82a0;
+        text-decoration: line-through;
+    }
+}
+
+.shell-home-plan-preview-more {
+    font-size: 12px;
+    color: #6b21c8;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.shell-home-plan-loading {
+    font-size: 13px;
+    color: $shell-muted;
+    line-height: 1.5;
+}
+
+.shell-home-plan-body {
+    font-size: 13px;
+    color: $shell-soft;
+    line-height: 1.55;
+    white-space: pre-wrap;
 }
 
 /* Weekly highlights — single horizontal row, swipe/drag to scroll */
@@ -403,6 +1044,213 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     }
 }
 
+.shell-ask-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: 100%;
+    margin-top: 16px;
+    padding: 15px 16px;
+    border: 1px solid #ececf1;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(20, 18, 45, 0.04), 0 6px 16px rgba(20, 18, 45, 0.05);
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.shell-ask-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #f3eefc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.shell-ask-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.shell-ask-card-title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #16151e;
+    letter-spacing: -0.01em;
+}
+
+.shell-ask-card-desc {
+    display: block;
+    margin-top: 3px;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #8a8990;
+}
+
+.shell-home-action-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-top: 16px;
+    padding: 15px 16px;
+    text-align: left;
+}
+
+.shell-home-action-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.shell-home-action-title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #16151e;
+    letter-spacing: -0.01em;
+}
+
+.shell-home-action-title--accent {
+    color: #5b21b6;
+}
+
+.shell-home-action-desc {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #8a8990;
+}
+
+.shell-home-progress-spark {
+    width: 80px;
+    height: 40px;
+    flex: none;
+}
+
+.shell-home-progress-fallback {
+    width: 80px;
+    height: 40px;
+    border-radius: 10px;
+    background: #f6f3fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+.shell-card-confidence {
+    background: #f6f3fd;
+    border-color: #eae3fa;
+    box-shadow: none;
+}
+
+.shell-home-confidence-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+.shell-bottom-sheet-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(18, 16, 34, 0.42);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: flex-end;
+}
+
+.shell-bottom-sheet {
+    width: 100%;
+    background: #fff;
+    border-radius: 24px 24px 0 0;
+    padding: 10px 22px calc(24px + env(safe-area-inset-bottom));
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+    box-sizing: border-box;
+}
+
+.shell-bottom-sheet-grab {
+    width: 38px;
+    height: 5px;
+    border-radius: 3px;
+    background: #e2e2e8;
+    margin: 0 auto 16px;
+}
+
+.shell-bottom-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.shell-bottom-sheet-title {
+    font-family: $shell-font-display;
+    font-size: 17px;
+    font-weight: 650;
+    color: #16151e;
+    letter-spacing: -0.01em;
+}
+
+.shell-bottom-sheet-close {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shell-bottom-sheet-body {
+    display: block;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #5b5a66;
+}
+
+.shell-device-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.shell-device-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: #f7f7fa;
+    color: #5b5a66;
+    border: 1px solid #ececf1;
+}
+
+.shell-bottom-sheet-primary {
+    margin-top: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    font-size: 13px;
+}
+
+.shell-bottom-sheet-secondary {
+    margin-top: 8px;
+    border: none;
+    background: transparent;
+    color: #8a8990;
+    font-size: 14px;
+}
+
 .shell-btn-home-scan {
     display: flex;
     align-items: center;
@@ -412,8 +1260,9 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     text-transform: uppercase;
 }
 
-.home-shell {
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+.routine-page {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
 }
 
 /* Trend stat grid (Your Hair) */
@@ -808,6 +1657,18 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
 }
 
 /* Scan */
+.scan-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.scan-shell {
+    box-sizing: border-box;
+}
+
 .shell-cambox {
     background: $shell-bg2;
     border: 1.5px dashed $shell-border2;
@@ -818,6 +1679,14 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     align-items: center;
     justify-content: center;
     margin-bottom: 12px;
+
+    &--preview {
+        min-height: 240px;
+        height: 240px;
+        padding: 0;
+        display: block;
+        border-style: solid;
+    }
 }
 
 .shell-scan-types {
@@ -852,7 +1721,7 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     flex: 1;
     min-height: 0;
     height: 100%;
-    padding: 0 16px 0;
+    padding: 0;
     box-sizing: border-box;
 }
 
@@ -909,12 +1778,43 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     gap: 10px;
     align-items: center;
     flex-shrink: 0;
-    padding: 12px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 12px 16px calc(10px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid $shell-border;
     background: $shell-bg;
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
+    z-index: 20;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.consult-page {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.consult-page__header {
+    flex-shrink: 0;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.consult-page .shell-chat-feed {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 16px;
+    box-sizing: border-box;
+}
+
+.consult-page .shell-chat-input {
+    margin-top: auto;
+    box-shadow: 0 -4px 20px rgba(80, 40, 160, 0.08);
 }
 
 .shell-chat-field {
@@ -1067,7 +1967,7 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
 /* Account sub-pages (details, forms) */
 .account-sub-page {
     min-height: 100vh;
-    background: $shell-page-bg;
+    background: $shell-bg2;
     font-family: $shell-font-body;
     color: $shell-soft;
 }
@@ -1078,57 +1978,36 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     z-index: 20;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 0 16px 12px;
-    background: $shell-bg;
-    border-bottom: 1px solid $shell-border;
+    background: $shell-bg2;
 }
 
-.account-sub-back {
+.account-sub-back,
+.account-sub-spacer {
     width: 36px;
     height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
-    line-height: 1;
-    color: $shell-primary;
-    font-weight: 300;
 }
 
 .account-sub-title {
     flex: 1;
     text-align: center;
     font-family: $shell-font-display;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
     color: $shell-text;
-}
-
-.account-sub-spacer {
-    width: 36px;
-}
-
-.account-sub-home {
-    min-width: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    cursor: pointer;
-}
-
-.account-sub-home text {
-    font-size: 11px;
-    font-weight: 600;
-    color: $shell-primary;
-    letter-spacing: 0.04em;
+    letter-spacing: -0.01em;
 }
 
 .account-sub-body {
-    padding: 16px 16px 24px;
+    padding: 8px 16px 24px;
     box-sizing: border-box;
+}
+
+.account-sub-body--footer {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .account-sub-footer {
@@ -1141,6 +2020,81 @@ $shell-shadow-lg: 0 2px 8px rgba(80, 40, 160, 0.08), 0 8px 32px rgba(80, 40, 160
     border-top: 1px solid $shell-border;
     backdrop-filter: blur(8px);
     box-sizing: border-box;
+
+    .shell-btn {
+        text-transform: none;
+        letter-spacing: normal;
+        font-size: 14px;
+        margin-top: 0;
+    }
+}
+
+.account-form-intro {
+    display: block;
+    font-size: 13px;
+    line-height: 1.55;
+    color: $shell-muted;
+    margin-bottom: 14px;
+}
+
+.account-form-card {
+    padding: 16px 18px;
+}
+
+.account-form-card .shell-form-label {
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 12px;
+    font-weight: 600;
+    color: $shell-soft;
+}
+
+.account-form-card .shell-form-field:last-child {
+    margin-bottom: 0;
+}
+
+.account-form-card .shell-form-hint {
+    margin-bottom: 14px;
+    color: $shell-muted;
+    font-size: 13px;
+}
+
+.account-step-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.account-step-pill {
+    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: #e8e4f4;
+
+    &.active {
+        background: rgba(107, 33, 200, 0.35);
+    }
+
+    &.current {
+        background: $shell-primary;
+    }
+}
+
+.account-form-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: $shell-primary;
+}
+
+.account-password-hint {
+    display: block;
+    margin-top: -8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: $shell-muted;
 }
 
 .account-menu-card {

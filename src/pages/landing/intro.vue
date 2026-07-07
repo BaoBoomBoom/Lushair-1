@@ -35,6 +35,7 @@ onMounted(() => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="intro-page auth-flow-page">
         <view class="intro-top">
             <swiper class="swiper-content" :current="activeIndex" @change="onChange" circular>
@@ -133,8 +134,9 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .intro-page {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 

@@ -1009,23 +1009,20 @@ const getSummaryText = () => {
 };
 
 onMounted(async () => {
-  // 获取URL参数
   getQueryParams();
-  
-  // 获取趋势数据
-  await fetchTrendData();
-  
-  // 获取产品推荐数据
-  await fetchProductRecommendations();
-  
-  // 获取自拍图像摘要数据
-  await fetchSelfieImageSummary();
-  
-  // 根据参数更新UI
-  // setTimeout用于确保DOM已经渲染完成
-  setTimeout(() => {
-    updateUIBasedOnParams();
-  }, 100);
+
+  const p = questionnaireParams.value;
+  const extInfo = JSON.stringify({
+    oil: p.oil,
+    scurfOrKeratin: p.scurfOrKeratin,
+    hairLoss: p.hairLoss,
+    discomfort: p.discomfort,
+    overall: p.overall,
+  });
+
+  uni.redirectTo({
+    url: `/pages/Selfie/results?position=${encodeURIComponent(p.position)}&stage=${p.stage}&image=${encodeURIComponent(p.image)}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(p.userId || userStore.userInfo?.userId || '')}`,
+  });
 });
 </script>
 

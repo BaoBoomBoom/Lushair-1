@@ -44,11 +44,13 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
 
 /** Lushair One — single-spectral scan (iOS detectionType 200). */
 export function runLushairOneScan(): boolean {
+    uni.setStorageSync('lastTrichoScanType', 'lushairOne');
     return postNativeBridge('advanced', { data: 'advanced' });
 }
 
 /** Lushair Pro — tri-spectral scan (iOS detectionType 302). */
 export function runLushairProScan(): boolean {
+    uni.setStorageSync('lastTrichoScanType', 'lushairPro');
     return postNativeBridge('lushairPro', { data: 'lushairPro' });
 }
 

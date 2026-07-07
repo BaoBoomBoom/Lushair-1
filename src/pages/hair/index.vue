@@ -7,6 +7,7 @@ import { post } from '@/utils/request';
 import { getSelfieReports } from '@/utils/clerk';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
@@ -104,6 +105,7 @@ const trichoThumbCache = ref<Record<number, string>>({});
 const dateChip = ref<'all' | 'last90'>('all');
 const baSplit = ref(50);
 const baDragging = ref(false);
+const baSliderRef = ref<HTMLElement | null>(null);
 
 const tabs = [
     { key: 'analysis', label: t('hair.analysis') || 'Analysis' },
@@ -389,6 +391,7 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         });
         
         historyRecords.value = allRecords;
+        scanStreak.value = calculateScanStreak(allRecords);
         
         // 获取雷达图数据 Fetch radar data
         const advancedScans = allRecords.filter(r => r.type === 'advancedScan');
@@ -557,7 +560,7 @@ const viewRecordDetail = (record: HistoryRecord) => {
         const data = record.originalData as SelfieResult;
         const reportIdParam = data.reportId ? `&reportId=${encodeURIComponent(data.reportId)}` : '';
         uni.navigateTo({
-            url: `/pages/selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}`
+            url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}`
         });
     } else {
         // Navigate to trichoscan results page for advanced scan records
@@ -588,6 +591,43 @@ const latestScalpScore = ref<string>('--');
 
 // 添加响应式的登录连续天数
 const loginStreak = ref<number>(0);
+const scanStreak = ref<number>(0);
+
+const calculateScanStreak = (records: HistoryRecord[]): number => {
+    if (!records.length) return 0;
+
+    const dayTimestamps = records
+        .map((record) => {
+            const raw =
+                record.type === 'advancedScan'
+                    ? (record.originalData as DetectionRecord).createTime
+                    : (record.originalData as SelfieResult).createTime ||
+                      (record.originalData as SelfieResult).createdTime ||
+                      '';
+            if (!raw) return null;
+            const date = new Date(raw);
+            date.setHours(0, 0, 0, 0);
+            return date.getTime();
+        })
+        .filter((value): value is number => value !== null);
+
+    const uniqueDays = [...new Set(dayTimestamps)].sort((a, b) => b - a);
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < uniqueDays.length; i++) {
+        const expected = new Date(today);
+        expected.setDate(today.getDate() - i);
+        if (uniqueDays[i] === expected.getTime()) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+};
 
 // 计算登录连续天数
 const calculateLoginStreak = (): number => {
@@ -729,9 +769,9 @@ const fetchLatestScalpScore = async (detectionRecords?: DetectionRecord[], selfi
 };
 
 const summaryCards = computed(() => [
-    { label: 'Scans Taken', value: historyRecords.value.length > 0 ? String(historyRecords.value.length) : '--', icon: 'qrcode' },
-    { label: 'Latest Score', value: latestScalpScore.value, icon: 'battery-2' },
-    { label: 'Login Streak', value: String(loginStreak.value), icon: 'calendar' },
+    { label: t('hair.scansTaken'), value: historyRecords.value.length > 0 ? String(historyRecords.value.length) : '--', icon: 'qrcode' },
+    { label: t('hair.latestScore'), value: latestScalpScore.value, icon: 'battery-2' },
+    { label: t('hair.scanStreak'), value: String(scanStreak.value), icon: 'calendar' },
 ]);
 
 // 响应式时间序列数据
@@ -830,9 +870,9 @@ const processTimeSeriesData = (records: DetectionRecord[], metric: ScoreMetricKe
     }).reverse();
     
     if (monthRecords.length > 0) {
-        monthData = buildSampledSeries(monthRecords, metric, CHART_POINT_LIMITS.Month);
+        monthData = buildSampledSeries(monthRecords, metric, CHART_POINT_LIMITS.Month, formatMonthLabel);
     } else {
-        monthData = buildSampledSeries(chronologicalRecords, metric, CHART_POINT_LIMITS.Month);
+        monthData = buildSampledSeries(chronologicalRecords, metric, CHART_POINT_LIMITS.Month, formatMonthLabel);
     }
     
     console.log('Month data:', monthData);
@@ -846,9 +886,9 @@ const processTimeSeriesData = (records: DetectionRecord[], metric: ScoreMetricKe
     }).reverse();
     
     if (yearRecords.length > 0) {
-        yearData = buildSampledSeries(yearRecords, metric, CHART_POINT_LIMITS.Year, formatMonthYearLabel);
+        yearData = buildSampledSeries(yearRecords, metric, CHART_POINT_LIMITS.Year, formatYearLabel);
     } else {
-        yearData = buildSampledSeries(chronologicalRecords, metric, CHART_POINT_LIMITS.Year, formatMonthYearLabel);
+        yearData = buildSampledSeries(chronologicalRecords, metric, CHART_POINT_LIMITS.Year, formatYearLabel);
     }
     
     console.log('Year data:', yearData);
@@ -945,6 +985,8 @@ const formatMonthLabel = (date: Date): string => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[date.getMonth()];
 };
+
+const formatYearLabel = (date: Date): string => String(date.getFullYear());
 
 // 默认数据（当没有真实数据时显示）
 const getDefaultWeekData = (): { label: string; value: number }[] => [
@@ -1167,7 +1209,12 @@ type ChartCircle = {
     y: number;
     projection: boolean;
     key: string;
+    value: number;
+    label: string;
+    index: number;
 };
+
+const selectedChartIndex = ref<number | null>(null);
 
 const chartCircles = computed<ChartCircle[]>(() => {
     const base: ChartCircle[] = chartDrawingPoints.value.map((point: ChartDrawingPoint, index: number) => ({
@@ -1175,6 +1222,9 @@ const chartCircles = computed<ChartCircle[]>(() => {
         y: point.y,
         projection: false,
         key: `data-${point.label}-${index}`,
+        value: point.value,
+        label: point.label,
+        index,
     }));
 
     const projection = projectionDrawingPoint.value;
@@ -1184,11 +1234,42 @@ const chartCircles = computed<ChartCircle[]>(() => {
             y: projection.y,
             projection: true,
             key: 'projection-point',
+            value: projection.value,
+            label: 'projection',
+            index: base.length,
         });
     }
 
     return base;
 });
+
+const yAxisLabels = computed(() => [100, 75, 50, 25, 0]);
+
+const selectedChartPoint = computed(() => {
+    if (selectedChartIndex.value === null) return null;
+    return chartCircles.value.find((circle) => circle.index === selectedChartIndex.value && !circle.projection) || null;
+});
+
+const chartTrendComment = computed(() => {
+    const points = chartSeries.value;
+    if (points.length < 2) {
+        return t('hair.scanEveryThreeDays');
+    }
+    const first = points[0].value;
+    const last = points[points.length - 1].value;
+    const delta = last - first;
+    if (delta > 5) {
+        return `Your ${activeRange.value.toLowerCase()} score improved by ${Math.round(delta)} points. Keep your current routine and scan every 3 days.`;
+    }
+    if (delta < -5) {
+        return `Your ${activeRange.value.toLowerCase()} score dropped by ${Math.abs(Math.round(delta))} points. Review your routine and consider a fresh scan.`;
+    }
+    return `Your score has stayed relatively stable this ${activeRange.value.toLowerCase()}. Scan every 3 days to catch changes earlier.`;
+});
+
+const selectChartPoint = (index: number) => {
+    selectedChartIndex.value = selectedChartIndex.value === index ? null : index;
+};
 
 const chartCalloutStyle = computed(() => ({
     top: '24rpx',
@@ -1947,26 +2028,30 @@ const setDateChip = (chip: 'all' | 'last90') => {
     if (chip === 'all') clearDateFilter();
 };
 
-const onBaStart = (e: TouchEvent) => {
+const onBaStart = (e: TouchEvent | PointerEvent) => {
     baDragging.value = true;
-    updateBaFromTouch(e);
+    updateBaFromClientX(getClientX(e));
 };
 
-const onBaMove = (e: TouchEvent) => {
-    if (baDragging.value) updateBaFromTouch(e);
+const onBaMove = (e: TouchEvent | PointerEvent) => {
+    if (baDragging.value) updateBaFromClientX(getClientX(e));
 };
 
 const onBaEnd = () => {
     baDragging.value = false;
 };
 
-const updateBaFromTouch = (e: TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch || typeof document === 'undefined') return;
-    const el = document.querySelector('.shell-ba') as HTMLElement | null;
+const getClientX = (e: TouchEvent | PointerEvent) => {
+    if ('touches' in e && e.touches[0]) return e.touches[0].clientX;
+    return (e as PointerEvent).clientX;
+};
+
+const updateBaFromClientX = (clientX: number) => {
+    if (typeof document === 'undefined') return;
+    const el = baSliderRef.value || (document.querySelector('.shell-ba') as HTMLElement | null);
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    baSplit.value = Math.max(0, Math.min(100, ((touch.clientX - rect.left) / rect.width) * 100));
+    baSplit.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
 };
 
 const baBeforeStyle = computed(() => ({
@@ -2197,12 +2282,111 @@ const getCalendarDays = () => {
         };
     });
 };
+
+const shareProgressLabel = computed(() => '3-Month');
+
+const buildQuarterSeries = (metric: ScoreMetricKey) => {
+    const records = chartDetectionRecords.value;
+    if (!records.length) return [] as { label: string; value: number }[];
+
+    const now = new Date();
+    const threeMonthsAgo = new Date(now);
+    threeMonthsAgo.setDate(now.getDate() - 90);
+
+    const filtered = [...records]
+        .filter((record) => new Date(record.createTime) >= threeMonthsAgo)
+        .sort((a, b) => new Date(a.createTime).getTime() - new Date(b.createTime).getTime());
+
+    if (!filtered.length) return [] as { label: string; value: number }[];
+    if (filtered.length <= 5) {
+        return filtered.map((record) => ({
+            label: formatMonthLabel(new Date(record.createTime)),
+            value: getScoreFromRecord(record, metric),
+        }));
+    }
+    return buildSampledSeries(filtered, metric, 5, formatMonthLabel);
+};
+
+const pctChange = (before: number, after: number) => {
+    if (!before && !after) return 0;
+    if (!before) return after > 0 ? 100 : 0;
+    return Math.round(((after - before) / before) * 100);
+};
+
+const shareQuarterMetrics = computed(() => {
+    const follicleSeries = buildQuarterSeries('follicle');
+    const scalpSeries = buildQuarterSeries('scalp');
+    const hairSeries = buildQuarterSeries('hair');
+
+    const follicleFirst = follicleSeries[0]?.value ?? 0;
+    const follicleLast = follicleSeries[follicleSeries.length - 1]?.value ?? follicleFirst;
+    const scalpFirst = scalpSeries[0]?.value ?? 0;
+    const scalpLast = scalpSeries[scalpSeries.length - 1]?.value ?? scalpFirst;
+    const hairFirst = hairSeries[0]?.value ?? 0;
+    const hairLast = hairSeries[hairSeries.length - 1]?.value ?? hairFirst;
+
+    return {
+        follicleDelta: pctChange(follicleFirst, follicleLast),
+        healthDelta: pctChange(scalpFirst, scalpLast),
+        comfortDelta: pctChange(hairFirst, hairLast),
+        healthScore: scalpLast || latestScalpScore.value !== '--' ? Number(latestScalpScore.value) || scalpLast : 0,
+    };
+});
+
+const shareQuarterSummary = computed(() => {
+    const { follicleDelta, healthDelta, comfortDelta } = shareQuarterMetrics.value;
+    const parts: string[] = [];
+    if (follicleDelta > 0) parts.push(`follicle density up ${follicleDelta}%`);
+    if (healthDelta > 0) parts.push(`health score up ${healthDelta}%`);
+    if (comfortDelta > 0) parts.push(`hair comfort up ${comfortDelta}%`);
+    if (!parts.length) {
+        return t('hair.shareQuarterStable');
+    }
+    return t('hair.shareQuarterSummary', [parts.join(', ')]);
+});
+
+const shareRoutineLabel = computed(() => {
+    const using = itemsFromPlan.value;
+    return using || t('hair.shareQuarterRoutineFallback');
+});
+
+const itemsFromPlan = computed(() => {
+    try {
+        const stored = uni.getStorageSync('care_routine_plan');
+        if (!stored) return '';
+        const parsed = JSON.parse(stored) as Array<{ name: string; done?: boolean }>;
+        const names = parsed.slice(0, 2).map((item) => item.name).filter(Boolean);
+        return names.length ? names.join(' + ') : '';
+    } catch {
+        return '';
+    }
+});
+
+const shareProgress = async () => {
+    try {
+        uni.showLoading({ title: t('common.loading') });
+        const dataUrl = await captureShareCard('.hair-share-card');
+        await shareCapturedImage(dataUrl, t('hair.shareProgressTitle'), t('hair.shareProgressSubtitle'));
+    } catch (error) {
+        console.error('Share progress failed', error);
+        uni.showToast({ title: 'Share failed', icon: 'none' });
+    } finally {
+        uni.hideLoading();
+    }
+};
 </script>
 
 <template>
-    <MainTabLayout>
+    <MainTabLayout fixed-header>
+        <view class="tab-page-scroll">
         <view class="your-hair-container">
-            <text class="shell-ptitle">{{ t('tabbar.hair') }}</text>
+            <view class="hair-page-head">
+                <text class="shell-ptitle">{{ t('tabbar.hair') }}</text>
+                <view class="hair-share-btn" @tap="shareProgress">
+                    <image src="/static/icons/share.svg" class="hair-share-icon" mode="aspectFit" />
+                </view>
+            </view>
+            <text class="hair-scan-reminder">{{ t('hair.scanEveryThreeDays') }}</text>
             <view class="shell-tabs">
                 <view class="shell-tab" :class="{ on: activeTab === 0 }" @tap="switchTab(0)">{{ t('hair.analysis') }}</view>
                 <view class="shell-tab" :class="{ on: activeTab === 1 }" @tap="switchTab(1)">{{ t('hair.historyLog') }}</view>
@@ -2275,7 +2459,13 @@ const getCalendarDays = () => {
                     </view>
 
                     <view class="shell-card chart-card">
-                        <view class="shell-chart-box">
+                        <view v-if="selectedChartPoint" class="chart-point-callout">
+                            <text>{{ selectedChartPoint.label }} · {{ t('hair.chartPointScore', [selectedChartPoint.value]) }}</text>
+                        </view>
+                        <view class="shell-chart-box hair-chart-with-axis">
+                            <view class="chart-y-axis">
+                                <text v-for="tick in yAxisLabels" :key="tick" class="chart-y-axis-label">{{ tick }}</text>
+                            </view>
                             <scroll-view class="hair-chart-scroll" scroll-x :scroll-left="scrollLeft" :show-scrollbar="false">
                                 <view class="chart-wrapper" :style="{ width: chartWidth + 'rpx' }">
                                     <svg class="hair-line-svg" :viewBox="`0 0 ${chartWidth} ${chartSvgHeight}`" preserveAspectRatio="none">
@@ -2288,10 +2478,11 @@ const getCalendarDays = () => {
                                                 :key="circle.key"
                                                 :cx="circle.x"
                                                 :cy="circle.y"
-                                                :r="chartConfig.pointRadius"
+                                                :r="selectedChartIndex === circle.index ? chartConfig.pointRadius + 2 : chartConfig.pointRadius"
                                                 :fill="circle.projection ? '#9ca3af' : '#6B21C8'"
                                                 stroke="#ffffff"
                                                 stroke-width="4"
+                                                @click="!circle.projection && selectChartPoint(circle.index)"
                                             />
                                         </g>
                                     </svg>
@@ -2303,6 +2494,7 @@ const getCalendarDays = () => {
                                 </view>
                             </scroll-view>
                         </view>
+                        <text class="chart-trend-comment">{{ chartTrendComment }}</text>
                     </view>
 
                     <text class="shell-section-h">Your Metrics</text>
@@ -2346,11 +2538,16 @@ const getCalendarDays = () => {
                         <text class="shell-section-sub">Drag to compare your baseline and latest scan</text>
                         <view class="shell-card ba-card">
                             <view
+                                ref="baSliderRef"
                                 class="shell-ba"
                                 @touchstart.stop.prevent="onBaStart"
                                 @touchmove.stop.prevent="onBaMove"
                                 @touchend.stop="onBaEnd"
                                 @touchcancel.stop="onBaEnd"
+                                @pointerdown.stop.prevent="onBaStart"
+                                @pointermove.stop.prevent="onBaMove"
+                                @pointerup.stop="onBaEnd"
+                                @pointercancel.stop="onBaEnd"
                             >
                                 <view
                                     class="shell-ba-layer shell-ba-after shell-ba-photo"
@@ -2606,6 +2803,37 @@ const getCalendarDays = () => {
                     </view>
                 </view>
             </view>
+        </view>
+        </view>
+
+        <view class="hair-share-card">
+            <text class="hair-share-kicker">SCALP HEALTH REPORT</text>
+            <text class="hair-share-title">{{ t('hair.shareProgressTitle', [shareProgressLabel]) }}</text>
+            <text class="hair-share-sub">{{ shareQuarterSummary }}</text>
+            <view class="hair-share-metric">
+                <text class="hair-share-metric-label">{{ t('hair.shareMetricFollicle') }}</text>
+                <text class="hair-share-metric-value">{{ shareQuarterMetrics.follicleDelta >= 0 ? '+' : '' }}{{ shareQuarterMetrics.follicleDelta }}%</text>
+            </view>
+            <view class="hair-share-metric">
+                <text class="hair-share-metric-label">{{ t('hair.shareMetricHealth') }}</text>
+                <text class="hair-share-metric-value">{{ shareQuarterMetrics.healthDelta >= 0 ? '+' : '' }}{{ shareQuarterMetrics.healthDelta }}%</text>
+            </view>
+            <view class="hair-share-metric">
+                <text class="hair-share-metric-label">{{ t('hair.shareMetricComfort') }}</text>
+                <text class="hair-share-metric-value">{{ shareQuarterMetrics.comfortDelta >= 0 ? '+' : '' }}{{ shareQuarterMetrics.comfortDelta }}%</text>
+            </view>
+            <view v-if="shareRoutineLabel" class="hair-share-using">
+                <text class="hair-share-using-label">{{ t('hair.shareUsing') }}</text>
+                <text class="hair-share-using-value">{{ shareRoutineLabel }}</text>
+            </view>
+            <view class="hair-share-footer">
+                <view>
+                    <text class="hair-share-footer-cta">Download Lushair</text>
+                    <text class="hair-share-footer-sub">Start your AI hair care journey</text>
+                </view>
+                <image class="hair-share-qr" src="/static/images/qrcode-download.png" mode="aspectFit" />
+            </view>
+            <text class="hair-share-url">Lushair.ai</text>
         </view>
     </MainTabLayout>
 </template>

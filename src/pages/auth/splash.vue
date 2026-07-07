@@ -54,6 +54,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <page-meta page-style="height: 100%; overflow: hidden;" />
   <view class="splash-container auth-flow-page">
     <view class="auth-content splash-layout">
       <view class="auth-back" @click="goBack">
@@ -90,13 +91,13 @@ onMounted(() => {
 <style scoped lang="scss">
 .splash-container {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   background: #ffffff;
   overflow: hidden;
 }
 
 .splash-layout {
-  min-height: 100vh;
+  height: 100%;
 }
 
 .splash-header {

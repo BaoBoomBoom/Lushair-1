@@ -63,9 +63,7 @@ function confirmDelete() {
 </script>
 
 <template>
-    <AccountSubLayout :title="t('profile.accountDetails')">
-        <text class="page-intro">{{ t('profile.accountDetailsSub') }}</text>
-
+    <AccountSubLayout :title="t('profile.accountDetails')" :subtitle="t('profile.accountDetailsSub')">
         <view class="shell-card details-card">
             <view
                 v-for="(item, index) in accountOptions"
