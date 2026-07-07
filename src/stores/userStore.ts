@@ -6,6 +6,7 @@ export interface UserInfo {
   userId: string
   name: string
   avatar: string // 用户头像链接
+  type?: number // 0=consumer, 1=merchant
   gender: number
   age: number 
   dob: string // 生日日期

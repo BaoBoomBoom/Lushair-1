@@ -66,6 +66,7 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ShellDisclaimer from '@/components/layout/ShellDisclaimer.vue';
 import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
 import { useStatusBar } from '@/composables/useStatusBar';
+import { getMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
 
 const { t } = useI18n();
 const userStore = useUserStore();
@@ -137,8 +138,11 @@ const submitSelfieData = async () => {
   try {
     isSubmitting.value = true;
 
-    const data = {
-      userId: userStore.userInfo.userId,
+    const merchantCustomer = getMerchantScanCustomer();
+    const scanUserId = merchantCustomer?.userId || userStore.userInfo.userId;
+
+    const data: Record<string, unknown> = {
+      userId: scanUserId,
       oil: answers.value[1] ?? 0,
       scurfOrKeratin: answers.value[2] ?? 0,
       hairLoss: answers.value[3] ?? 0,
@@ -156,6 +160,13 @@ const submitSelfieData = async () => {
       },
     };
 
+    if (merchantCustomer) {
+      data.merchantId = merchantCustomer.merchantId;
+      data.name = merchantCustomer.name;
+      if (merchantCustomer.phone) data.phone = merchantCustomer.phone;
+      if (merchantCustomer.email) data.email = merchantCustomer.email;
+    }
+
     const response = await post('/user/addSelfie', data);
     isSubmitting.value = false;
 
@@ -163,7 +174,7 @@ const submitSelfieData = async () => {
       const recordId = (response as any)?.id || (response as any)?.data?.id || '';
       const extInfo = JSON.stringify(data.extInfo);
       uni.redirectTo({
-        url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(data.userId)}${recordId ? `&id=${encodeURIComponent(recordId)}` : ''}`,
+        url: `/pages/Selfie/results?position=${encodeURIComponent(String(data.position))}&stage=${data.stage}&image=${encodeURIComponent(String(data.image))}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(String(data.userId))}${recordId ? `&id=${encodeURIComponent(recordId)}` : ''}`,
       });
     } else {
       uni.showToast({ title: t('questionnaire.submitError'), icon: 'none' });

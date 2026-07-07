@@ -1,0 +1,1 @@
+import{d as s,u as a,a as t,b as o,i as n,o as e,B as r}from"./index-h2wKW16n.js";const u=s({__name:"login",setup(s){const{t:u}=a();return(s,a)=>{const u=n;return e(),t(u,null,{default:o(()=>[r(" todo ")]),_:1})}}});export{u as default};

@@ -6,11 +6,26 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
 import { analyzeSelfieImage } from '@/composables/useSelfieScanAnalysis';
+import { useMerchantScanCustomer, type MerchantContactType } from '@/composables/useMerchantScanCustomer';
 import { useUserStore } from '@/stores/userStore';
 import { getApiUrl } from '@/utils/apiHelper';
 
 const { t } = useI18n();
 const userStore = useUserStore();
+const {
+    isMerchant,
+    hasActiveCustomer,
+    activeCustomer,
+    isSaving: isSavingCustomer,
+    registerCustomer,
+    clearCustomer,
+    getScanUserId,
+} = useMerchantScanCustomer();
+
+const customerName = ref('');
+const customerContactType = ref<MerchantContactType>('phone');
+const customerPhone = ref('');
+const customerEmail = ref('');
 
 type ScanOptionId = 'phone' | 'lushairOne' | 'advanced';
 type SelfieAngleId = 'front' | 'crown' | 'back' | 'sideFront';
@@ -49,16 +64,68 @@ const currentAnglePreview = computed(() => angleImages.value[activeAngle.value].
 const currentAngleUrl = computed(() => angleImages.value[activeAngle.value].url);
 const hasCurrentPreview = computed(() => !!currentAnglePreview.value);
 const allAnglesUploaded = computed(() => angleOptions.every((angle) => !!angleImages.value[angle.id].url));
+const isAnyUploading = computed(() => angleOptions.some((angle) => uploadingAngles.value[angle.id]));
 const isCurrentUploading = computed(() => uploadingAngles.value[activeAngle.value]);
-const captureLabel = computed(() =>
-    selected.value === 'phone' && allAnglesUploaded.value ? t('scan.analyze') : t('scan.capture'),
+const isCurrentUploadPending = computed(
+    () => !!angleImages.value[activeAngle.value].preview && !angleImages.value[activeAngle.value].url,
 );
+const captureLabel = computed(() => {
+    if (selected.value !== 'phone') return t('scan.capture');
+    if (isAnyUploading.value) return t('scan.uploadingWait');
+    if (allAnglesUploaded.value) return t('scan.analyze');
+    return t('scan.capture');
+});
+const isCaptureDisabled = computed(() => isAnalyzing.value || isAnyUploading.value || isSavingCustomer.value);
+const merchantBlocksScan = computed(() => isMerchant.value && !hasActiveCustomer.value);
+
+function ensureMerchantCustomerReady(): boolean {
+    if (!merchantBlocksScan.value) return true;
+    uni.showToast({ title: t('scan.merchantCustomerRequired'), icon: 'none' });
+    return false;
+}
+
+async function saveMerchantCustomer() {
+    if (!customerName.value.trim()) {
+        uni.showToast({ title: t('scan.merchantCustomerNameRequired'), icon: 'none' });
+        return;
+    }
+    if (customerContactType.value === 'phone' && !customerPhone.value.trim()) {
+        uni.showToast({ title: t('scan.merchantCustomerContactRequired'), icon: 'none' });
+        return;
+    }
+    if (customerContactType.value === 'email' && !customerEmail.value.trim()) {
+        uni.showToast({ title: t('scan.merchantCustomerContactRequired'), icon: 'none' });
+        return;
+    }
+
+    try {
+        await registerCustomer({
+            name: customerName.value,
+            contactType: customerContactType.value,
+            phone: customerPhone.value,
+            email: customerEmail.value,
+        });
+        uni.showToast({ title: t('scan.merchantCustomerSaved'), icon: 'success' });
+    } catch (error) {
+        console.error('[scan] merchant customer save failed', error);
+        uni.showToast({ title: t('scan.merchantCustomerSaveFailed'), icon: 'none' });
+    }
+}
+
+function resetMerchantCustomerForm() {
+    clearCustomer();
+    customerName.value = '';
+    customerPhone.value = '';
+    customerEmail.value = '';
+    customerContactType.value = 'phone';
+}
 
 function selectOption(id: ScanOptionId) {
     selected.value = id;
 }
 
 function launchNativeScan(action: ScanActionType) {
+    if (!ensureMerchantCustomerReady()) return;
     if (!runScanAction(action)) {
         uni.showToast({
             title: t('scan.nativeAppRequired'),
@@ -83,7 +150,7 @@ function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
         filePath: tempFilePath,
         name: 'file',
         formData: {
-            userId: userStore.userInfo.userId || '',
+            userId: getScanUserId() || '',
             type: userStore.userInfo.type || '0',
         },
         success: (uploadRes) => {
@@ -110,6 +177,7 @@ function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
 }
 
 function choosePhoneImage(angleId: SelfieAngleId = activeAngle.value) {
+    if (!ensureMerchantCustomerReady()) return;
     activeAngle.value = angleId;
     uni.chooseImage({
         count: 1,
@@ -147,31 +215,34 @@ async function runPhoneAnalysis(imageUrl: string) {
 }
 
 async function captureScan() {
+    if (!ensureMerchantCustomerReady()) return;
+
     if (selected.value !== 'phone') {
         launchNativeScan(selected.value);
         return;
     }
 
-    const nextMissing = angleOptions.find((angle) => !angleImages.value[angle.id].url);
+    if (isAnyUploading.value) {
+        uni.showToast({ title: t('scan.uploadingWait'), icon: 'none' });
+        return;
+    }
+
+    if (allAnglesUploaded.value) {
+        await runPhoneAnalysis(angleImages.value.front.url);
+        return;
+    }
+
+    const nextMissing = angleOptions.find((angle) => !angleImages.value[angle.id].preview);
     if (nextMissing) {
         choosePhoneImage(nextMissing.id);
         return;
     }
 
-    if (angleOptions.some((angle) => uploadingAngles.value[angle.id])) {
-        uni.showToast({ title: t('scan.uploading'), icon: 'none' });
-        return;
-    }
-
-    if (!allAnglesUploaded.value) {
-        uni.showToast({ title: t('scan.angleRequired'), icon: 'none' });
-        return;
-    }
-
-    await runPhoneAnalysis(angleImages.value.front.url);
+    uni.showToast({ title: t('scan.angleRequired'), icon: 'none' });
 }
 
 function clearAngle(angleId: SelfieAngleId) {
+    uploadingAngles.value[angleId] = false;
     angleImages.value[angleId] = { preview: '', url: '' };
 }
 
@@ -186,6 +257,75 @@ function selectAngle(angleId: SelfieAngleId) {
         <view class="scan-scroll">
             <view class="scan-shell">
                 <text class="shell-ptitle">{{ t('scan.title') }}</text>
+
+                <view v-if="isMerchant" class="shell-card shell-card-compact merchant-customer-card">
+                    <text class="shell-label">{{ t('scan.merchantCustomerTitle') }}</text>
+                    <text class="scan-desc">{{ t('scan.merchantCustomerSubtitle') }}</text>
+
+                    <template v-if="!hasActiveCustomer">
+                        <view class="shell-form-field">
+                            <text class="shell-form-label">{{ t('scan.merchantCustomerName') }}</text>
+                            <input
+                                v-model="customerName"
+                                class="shell-input"
+                                type="text"
+                                :placeholder="t('scan.merchantCustomerNamePlaceholder')"
+                            />
+                        </view>
+
+                        <view class="merchant-contact-toggle">
+                            <view
+                                class="merchant-contact-chip"
+                                :class="{ on: customerContactType === 'phone' }"
+                                @click="customerContactType = 'phone'"
+                            >
+                                {{ t('scan.merchantCustomerContactPhone') }}
+                            </view>
+                            <view
+                                class="merchant-contact-chip"
+                                :class="{ on: customerContactType === 'email' }"
+                                @click="customerContactType = 'email'"
+                            >
+                                {{ t('scan.merchantCustomerContactEmail') }}
+                            </view>
+                        </view>
+
+                        <view class="shell-form-field">
+                            <text class="shell-form-label">
+                                {{ customerContactType === 'phone' ? t('scan.merchantCustomerPhone') : t('scan.merchantCustomerEmail') }}
+                            </text>
+                            <input
+                                v-if="customerContactType === 'phone'"
+                                v-model="customerPhone"
+                                class="shell-input"
+                                type="tel"
+                                inputmode="tel"
+                            />
+                            <input
+                                v-else
+                                v-model="customerEmail"
+                                class="shell-input"
+                                type="email"
+                                inputmode="email"
+                            />
+                        </view>
+
+                        <button class="shell-btn merchant-customer-btn" :disabled="isSavingCustomer" @click="saveMerchantCustomer">
+                            {{ t('scan.merchantCustomerSave') }}
+                        </button>
+                    </template>
+
+                    <view v-else class="merchant-customer-active">
+                        <text class="merchant-customer-active-label">
+                            {{ t('scan.merchantCustomerActive', { name: activeCustomer?.name || '' }) }}
+                        </text>
+                        <text v-if="activeCustomer?.phone" class="merchant-customer-active-meta">{{ activeCustomer.phone }}</text>
+                        <text v-else-if="activeCustomer?.email" class="merchant-customer-active-meta">{{ activeCustomer.email }}</text>
+                        <text class="merchant-customer-change" @click="resetMerchantCustomerForm">
+                            {{ t('scan.merchantCustomerChange') }}
+                        </text>
+                    </view>
+                </view>
 
                 <view class="shell-card shell-card-compact">
                     <text class="shell-label">{{ t('scan.scanType') }}</text>
@@ -211,7 +351,11 @@ function selectAngle(angleId: SelfieAngleId) {
                             v-for="angle in angleOptions"
                             :key="angle.id"
                             class="scan-angle-tile"
-                            :class="{ on: activeAngle === angle.id, done: !!angleImages[angle.id].url }"
+                            :class="{
+                                on: activeAngle === angle.id,
+                                done: !!angleImages[angle.id].url,
+                                uploading: uploadingAngles[angle.id],
+                            }"
                             @click="selectAngle(angle.id)"
                         >
                             <image
@@ -221,9 +365,13 @@ function selectAngle(angleId: SelfieAngleId) {
                                 mode="aspectFill"
                             />
                             <text v-else class="scan-angle-label">{{ t(angle.labelKey) }}</text>
+                            <view v-if="uploadingAngles[angle.id]" class="scan-angle-uploading">
+                                <text>{{ t('scan.uploading') }}</text>
+                            </view>
                         </view>
                     </view>
-                    <text v-if="allAnglesUploaded" class="scan-all-ready">{{ t('scan.allAnglesReady') }}</text>
+                    <text v-if="isAnyUploading" class="scan-upload-hint">{{ t('scan.uploadingHint') }}</text>
+                    <text v-else-if="allAnglesUploaded" class="scan-all-ready">{{ t('scan.allAnglesReady') }}</text>
                 </view>
 
                 <view
@@ -241,7 +389,9 @@ function selectAngle(angleId: SelfieAngleId) {
                         <view class="scan-preview-badge" @click.stop="clearAngle(activeAngle)">
                             <TablerIcon name="x" :size="12" color="#1A1228" />
                         </view>
-                        <text v-if="isCurrentUploading" class="scan-preview-status">{{ t('scan.uploading') }}</text>
+                        <text v-if="isCurrentUploading || isCurrentUploadPending" class="scan-preview-status">
+                            {{ t('scan.uploading') }}
+                        </text>
                         <text v-else-if="currentAngleUrl" class="scan-preview-status scan-preview-status--ready">
                             {{ t('scan.previewReady') }}
                         </text>
@@ -262,13 +412,24 @@ function selectAngle(angleId: SelfieAngleId) {
                         <TablerIcon name="check" :size="11" color="#0e9e62" />
                         <text>{{ t('scan.lighting') }}</text>
                     </view>
-                    <view class="shell-pill" :class="allAnglesUploaded ? 'shell-pill-g' : 'shell-pill-w'">
-                        <TablerIcon :name="allAnglesUploaded ? 'check' : 'x'" :size="11" :color="allAnglesUploaded ? '#0e9e62' : '#c2610a'" />
-                        <text>{{ t('scan.angle') }}</text>
+                    <view class="shell-pill" :class="allAnglesUploaded ? 'shell-pill-g' : isAnyUploading ? 'shell-pill-w' : 'shell-pill-w'">
+                        <TablerIcon
+                            :name="allAnglesUploaded ? 'check' : isAnyUploading ? 'clock' : 'x'"
+                            :size="11"
+                            :color="allAnglesUploaded ? '#0e9e62' : '#c2610a'"
+                        />
+                        <text>{{ isAnyUploading ? t('scan.uploading') : t('scan.angle') }}</text>
                     </view>
                 </view>
 
-                <button class="shell-btn" :disabled="isAnalyzing" @click="captureScan">{{ captureLabel }}</button>
+                <button
+                    class="shell-btn"
+                    :class="{ 'shell-btn--muted': (isCaptureDisabled || merchantBlocksScan) && selected === 'phone' }"
+                    :disabled="isCaptureDisabled || merchantBlocksScan"
+                    @click="captureScan"
+                >
+                    {{ captureLabel }}
+                </button>
 
                 <view class="extra-actions">
                     <text class="extra-link" @click="runScanAction('device')">{{ t('home.getDevice') }}</text>
@@ -308,6 +469,7 @@ function selectAngle(angleId: SelfieAngleId) {
 }
 
 .scan-angle-tile {
+    position: relative;
     aspect-ratio: 1;
     border-radius: 12px;
     border: 1.5px dashed #d8d2ea;
@@ -324,6 +486,38 @@ function selectAngle(angleId: SelfieAngleId) {
     &.done {
         border-style: solid;
     }
+
+    &.uploading {
+        border-color: #c2610a;
+        border-style: solid;
+    }
+}
+
+.scan-angle-uploading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 18, 40, 0.48);
+    padding: 4px;
+
+    text {
+        font-size: 9px;
+        font-weight: 600;
+        color: #fff;
+        text-align: center;
+        line-height: 1.2;
+    }
+}
+
+.scan-upload-hint {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #c2610a;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 .scan-angle-thumb {
@@ -429,8 +623,73 @@ function selectAngle(angleId: SelfieAngleId) {
     font-weight: 600;
 }
 
+.shell-btn--muted {
+    opacity: 0.72;
+}
+
 .shell-cambox {
     position: relative;
     overflow: hidden;
+}
+
+.merchant-customer-card {
+    margin-bottom: 12px;
+}
+
+.merchant-contact-toggle {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.merchant-contact-chip {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: 12px;
+    border: 1.5px solid #e8e4f4;
+    background: #faf8ff;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b21c8;
+
+    &.on {
+        border-color: #6b21c8;
+        background: rgba(107, 33, 200, 0.08);
+    }
+}
+
+.merchant-customer-btn {
+    margin-top: 4px;
+}
+
+.merchant-customer-active {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(14, 158, 98, 0.08);
+    border: 1px solid rgba(14, 158, 98, 0.18);
+}
+
+.merchant-customer-active-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0e6b49;
+}
+
+.merchant-customer-active-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #4a4060;
+}
+
+.merchant-customer-change {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b21c8;
 }
 </style>

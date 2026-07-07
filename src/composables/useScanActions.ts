@@ -5,6 +5,8 @@
  * - Android: https://github.com/Han111/Lushair-android.git
  *   WebView JavascriptInterface "quick" (same payload as legacy H5)
  */
+import { getMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
+import { setUserIdToApp } from '@/composables/useAuthFlow';
 export type ScanActionType =
     | 'phone'
     | 'quick'
@@ -42,14 +44,23 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
     return false;
 }
 
+function syncNativeScanUserId() {
+    const merchantCustomer = getMerchantScanCustomer();
+    if (merchantCustomer?.userId) {
+        setUserIdToApp(merchantCustomer.userId);
+    }
+}
+
 /** Lushair One — single-spectral scan (iOS detectionType 200). */
 export function runLushairOneScan(): boolean {
+    syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairOne');
     return postNativeBridge('advanced', { data: 'advanced' });
 }
 
 /** Lushair Pro — tri-spectral scan (iOS detectionType 302). */
 export function runLushairProScan(): boolean {
+    syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairPro');
     return postNativeBridge('lushairPro', { data: 'lushairPro' });
 }
