@@ -185,6 +185,15 @@ export const post = (url: string, data: any = {}, options: Omit<RequestOptions, 
   });
 };
 
+export const put = (url: string, data: any = {}, options: Omit<RequestOptions, 'url' | 'method' | 'data'> = {}) => {
+  return request({
+    url,
+    method: 'PUT',
+    data,
+    ...options
+  });
+};
+
 // 新增：Siyuejia brand dedicated methodology
 export const siyuejiaRequest = (options: RequestOptions) => {
   return request({
@@ -204,6 +213,7 @@ export default {
   request,
   get,
   post,
+  put,
   siyuejiaRequest,
   siyuejiaPost,
   ProjectBrand

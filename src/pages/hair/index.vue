@@ -3,8 +3,9 @@ import { computed, ref, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
 import { useUserStore } from '@/stores/userStore';
-import { post } from '@/utils/request';
+import { get, post } from '@/utils/request';
 import { getSelfieReports } from '@/utils/clerk';
+import { decompressBase64Gzip } from '@/utils/decompress';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
@@ -42,6 +43,7 @@ interface SelfieResult {
     loseHair: number;
     position: string;
     reportId: string | null;
+    aiReportId: string | null;  // AI分析报告ID
     scalp: string | null;
     scurf: number;
     sleep: number;
@@ -175,14 +177,16 @@ const calculateLevel = (scalpScore: number): number => {
 
 const calculateSelfieScore = (stage: number, extInfo: string | null): number => {
     let baseScore = 100 - (stage - 1) * 10; // stage 1=100, 2=90, etc.
-    
+
     if (extInfo) {
         try {
             const info = JSON.parse(extInfo);
+            console.log('calculateSelfieScore - parsed extInfo:', info);
             const factors = ['oil', 'discomfort', 'scurfOrKeratin', 'overall', 'hairLoss'];
-            
+
             factors.forEach(factor => {
                 const value = info[factor];
+                console.log(`calculateSelfieScore - factor: ${factor}, value: ${value}`);
                 if (value === 1) baseScore -= 5;
                 else if (value === 2) baseScore -= 10;
                 else if (value === 3) baseScore -= 15;
@@ -190,9 +194,13 @@ const calculateSelfieScore = (stage: number, extInfo: string | null): number => 
         } catch (error) {
             console.error('ExtInfo parsing error:', error);
         }
+    } else {
+        console.log('calculateSelfieScore - extInfo is null or empty');
     }
-    
-    return Math.max(0, Math.min(100, baseScore));
+
+    const finalScore = Math.max(0, Math.min(100, baseScore));
+    console.log('calculateSelfieScore - final score:', finalScore);
+    return finalScore;
 };
 
 const loadLocalClockInRecords = (): Record<string, string[]> => {
@@ -346,6 +354,20 @@ const fetchDetectionRecords = async (userId: string): Promise<DetectionRecord[]>
     }
 };
 
+// Fetch report detail from hair_reports_detail table
+const fetchReportDetail = async (reportId: string): Promise<any> => {
+    try {
+        console.log('Fetching report detail for reportId:', reportId);
+        const REPORT_DETAIL_PATH = `/report/detail/${reportId}`;
+        const response = await get(REPORT_DETAIL_PATH, {}, { brand: 'lushair-new' });
+        console.log('Report detail response:', response);
+        return response;
+    } catch (error) {
+        console.error('Failed to fetch report detail:', error);
+        return null;
+    }
+};
+
 const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Promise<SelfieResult[]> => {
     try {
         console.log('Fetching selfie results for userId:', userId, 'page:', page);
@@ -365,14 +387,68 @@ const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Prom
         const reports = result.reports || [];
 
         // 处理数据格式，确保与原有 SelfieResult 接口兼容
-        return reports.map((report: any) => {
-            // 从 extInfo 解析额外信息（如果有的话）
+        const processedReports = await Promise.all(reports.map(async (report: any, index: number) => {
+            console.log(`Processing report ${index}:`, report);
+
+            let detailData = null;
             let extInfo = null;
-            if (report.extInfo) {
+
+            // 如果报告有 detail 字段，直接使用
+            if (report.detail) {
+                console.log(`Report ${index} has detail field:`, report.detail.substring(0, 100) + '...');
                 try {
-                    extInfo = typeof report.extInfo === 'string' ? JSON.parse(report.extInfo) : report.extInfo;
+                    detailData = await decompressBase64Gzip(report.detail);
+                    console.log(`Report ${index} decompressed detail:`, detailData);
+                    if (detailData?.input?.ext_info) {
+                        extInfo = detailData.input.ext_info;
+                        console.log(`Report ${index} extracted ext_info:`, extInfo);
+                    }
                 } catch (e) {
-                    console.error('ExtInfo parsing error:', e);
+                    console.error(`Report ${index} detail decompression error:`, e);
+                }
+            }
+
+            // 如果没有 detail 字段，尝试从 API 获取
+            if (!detailData && report.id) {
+                console.log(`Report ${index} fetching detail from API for reportId:`, report.id);
+                try {
+                    const detailResponse = await fetchReportDetail(report.id);
+                    if (detailResponse && detailResponse.detail) {
+                        console.log(`Report ${index} got detail from API:`, detailResponse.detail.substring(0, 100) + '...');
+                        detailData = await decompressBase64Gzip(detailResponse.detail);
+                        console.log(`Report ${index} decompressed detail from API:`, detailData);
+                        if (detailData?.input?.ext_info) {
+                            extInfo = detailData.input.ext_info;
+                            console.log(`Report ${index} extracted ext_info from API:`, extInfo);
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Report ${index} failed to fetch detail from API:`, e);
+                }
+            }
+
+            // 如果还是没有，尝试从 extInfo 字段获取（兼容旧数据）
+            if (!extInfo && report.extInfo) {
+                console.log(`Report ${index} trying extInfo field:`, report.extInfo);
+                try {
+                    const parsedExtInfo = typeof report.extInfo === 'string' ? JSON.parse(report.extInfo) : report.extInfo;
+                    if (parsedExtInfo?.input?.ext_info) {
+                        extInfo = parsedExtInfo.input.ext_info;
+                    } else {
+                        extInfo = parsedExtInfo;
+                    }
+                    console.log(`Report ${index} parsed extInfo:`, extInfo);
+                } catch (e) {
+                    console.error(`Report ${index} extInfo parsing error:`, e);
+                    try {
+                        const decompressed = await decompressBase64Gzip(report.extInfo);
+                        if (decompressed?.input?.ext_info) {
+                            extInfo = decompressed.input.ext_info;
+                            console.log(`Report ${index} decompressed extInfo:`, extInfo);
+                        }
+                    } catch (e2) {
+                        console.error(`Report ${index} extInfo decompression error:`, e2);
+                    }
                 }
             }
 
@@ -382,26 +458,27 @@ const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Prom
                 stage: report.stage || 1,
                 position: report.position || 'none',
                 image: report.coverImage || '',
-                reportId: report.id || null,  // hair_reports 的 id 就是 reportId
+                reportId: report.id || null,
+                aiReportId: report.aiReportId || report.ai_report_id || null,
                 createTime: report.generatedAt || report.created_at || null,
                 createdTime: report.generatedAt || report.created_at || null,
                 generatedAt: report.generatedAt || report.created_at || null,
-                extInfo: JSON.stringify(extInfo) || null,
-                // 新增字段
+                extInfo: extInfo ? JSON.stringify(extInfo) : null,
                 hair: report.hair || null,
                 scalp: report.scalp || null,
                 follicle: report.follicle || null,
                 overallScore: report.overallScore || null,
-                // 保持兼容性，设置默认值
-                approximateAge: extInfo?.approximateAge || 0,
-                breakHair: extInfo?.breakHair || 0,
-                drink: extInfo?.drink || 0,
-                loseHair: extInfo?.loseHair || 0,
-                scurf: extInfo?.scurf || 0,
-                sleep: extInfo?.sleep || 0,
-                gender: extInfo?.gender || null,
+                approximateAge: detailData?.input?.approximateAge || extInfo?.approximateAge || 0,
+                breakHair: detailData?.input?.break_hair || extInfo?.breakHair || 0,
+                drink: detailData?.input?.drink || extInfo?.drink || 0,
+                loseHair: detailData?.input?.lose_hair || extInfo?.loseHair || 0,
+                scurf: detailData?.input?.scurf || extInfo?.scurf || 0,
+                sleep: detailData?.input?.sleep || extInfo?.sleep || 0,
+                gender: detailData?.input?.gender || extInfo?.gender || null,
             } as SelfieResult;
-        });
+        }));
+
+        return processedReports;
     } catch (error) {
         console.error('Failed to fetch selfie results:', error);
         selfiePagination.value.isLoadingMore = false;
@@ -591,17 +668,24 @@ onMounted(async () => {
         loadError.value = 'User not logged in';
     }
 
-    // 监听自拍照reportId更新事件
-    uni.$on('selfieReportIdUpdated', (data: { selfieId: string; reportId: string }) => {
-        console.log('Received selfieReportIdUpdated event:', data);
-        // 更新historyRecords中对应的记录
-        const recordIndex = historyRecords.value.findIndex((r: HistoryRecord) =>
-            r.type === 'phoneCamera' && (r.originalData as SelfieResult).id === parseInt(data.selfieId)
-        );
-        if (recordIndex !== -1) {
-            const selfieData = historyRecords.value[recordIndex].originalData as SelfieResult;
-            selfieData.reportId = data.reportId;
-            console.log('Updated reportId for selfie:', data.selfieId, data.reportId);
+    // 监听刷新数据事件（用于AI分析完成后刷新列表）
+    uni.$on('refreshHairListData', async () => {
+        console.log('Received refreshHairListData event, refreshing data...');
+        try {
+            let refreshUserId = userStore.userInfo.userId;
+            if (!refreshUserId) {
+                const localUserInfo = uni.getStorageSync('userInfo');
+                const storedUserId = uni.getStorageSync('userId');
+                refreshUserId = localUserInfo?.userId || storedUserId;
+            }
+
+            if (refreshUserId) {
+                const { detectionRecords, selfieResults } = await processHistoryData();
+                await fetchLatestScalpScore(detectionRecords, selfieResults);
+                console.log('Hair list data refreshed successfully');
+            }
+        } catch (error) {
+            console.error('Failed to refresh hair list data:', error);
         }
     });
 
@@ -696,8 +780,9 @@ const viewRecordDetail = (record: HistoryRecord) => {
         // Navigate to selfie results page for phone camera records
         const data = record.originalData as SelfieResult;
         const reportIdParam = data.reportId ? `&reportId=${encodeURIComponent(data.reportId)}` : '';
+        const aiReportIdParam = data.aiReportId ? `&aiReportId=${encodeURIComponent(data.aiReportId)}` : '';
         uni.navigateTo({
-            url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}`
+            url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}${aiReportIdParam}`
         });
     } else {
         // Navigate to trichoscan results page for advanced scan records

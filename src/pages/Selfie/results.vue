@@ -224,8 +224,10 @@
 import { useI18n } from 'vue-i18n';
 import { ref, onMounted, computed } from 'vue';
 import { useUserStore } from '@/stores/userStore';
-import { post } from '@/utils/request';
+import { get, post, put, ProjectBrand } from '@/utils/request';
 import { getLocale } from '@/i18n.js';
+import { getClerkToken } from '@/utils/clerk';
+import { extractExtInfo } from '@/utils/decompress';
 
 // i18n
 const { t } = useI18n();
@@ -268,7 +270,8 @@ const fromSource = ref('');
 const extInfo = ref<string>('');
 const userId = ref<string>('');
 const createTime = ref<string>('');
-const reportIdFromList = ref<string>('');
+const reportIdFromList = ref<string>('');  // AI Report ID (from AI analysis)
+const hairReportId = ref<string>('');     // HairReport ID (from hair_reports table)
 const selfieId = ref<string>('');
 
 // 新版API相关
@@ -377,70 +380,44 @@ const readPageOptions = (): Record<string, string> => {
     return Object.keys(optionsFromPage).length > 0 ? optionsFromPage : optionsFromHash;
 };
 
-onMounted(async () => {
-    const options = readPageOptions();
-
-    // 修复：uni-app 页面参数直接存储在 options 中，不是 options.data 中
-    position.value = decodeURIComponent(options.position || '');
-    stage.value = options.stage || '1';
-    imageUrl.value = decodeURIComponent(options.image || '');
-    fromSource.value = options.from || '';
-    extInfo.value = decodeURIComponent(options.extInfo || '');
-    userId.value = options.userId || userStore.userInfo?.userId || '';
-    createTime.value = decodeURIComponent(options.createTime || '');
-    reportIdFromList.value = options.reportId || '';
-    selfieId.value = options.id || '';
-
-    console.log('Results data:', {
-        position: position.value,
-        stage: stage.value,
-        imageUrl: imageUrl.value,
-        from: fromSource.value,
-        extInfo: extInfo.value,
-        userId: userId.value,
-        reportId: reportIdFromList.value,
-        selfieId: selfieId.value
-    });
-
-    console.log('nuserId ===', userId.value);
-    console.log('extInfo ===', extInfo.value);
-
-    // 解析 extInfo 获取指标值
-    if (extInfo.value) {
-        try {
-            const parsedExtInfo = JSON.parse(extInfo.value);
-            oilValue.value = parsedExtInfo.oil || 0;
-            scurfOrKeratinValue.value = parsedExtInfo.scurfOrKeratin || 0;
-            overallValue.value = parsedExtInfo.overall || 0;
-            hairLossValue.value = parsedExtInfo.hairLoss || 0;
-            discomfortValue.value = parsedExtInfo.discomfort || 0;
-        } catch (e) {
-            console.error('Failed to parse extInfo for metrics:', e);
-        }
+// Fetch report detail from hair_reports_detail table
+const fetchReportDetail = async (reportId: string): Promise<any> => {
+    try {
+        console.log('Fetching report detail for reportId:', reportId);
+        const REPORT_DETAIL_PATH = `/report/detail/${reportId}`;
+        const response = await get(REPORT_DETAIL_PATH, {}, { brand: ProjectBrand.LUSHAIR_NEW });
+        console.log('Report detail response:', response);
+        return response;
+    } catch (error) {
+        console.error('Failed to fetch report detail:', error);
+        return null;
     }
+};
 
-    // 如果有reportId，调用GET report接口；否则如果有extInfo和userId，调用新API
-    if (reportIdFromList.value) {
-        console.log('Fetch existing report by reportId:', reportIdFromList.value);
-        await fetchExistingReport();
-    } else if (extInfo.value && userId.value) {
-        console.log('new api');
-        await fetchAnalysis();
-    }
-
-    loadPlan();
-    if (!reportIdFromList.value && !(extInfo.value && userId.value)) {
+const syncRoutineFromReport = () => {
+    const plan = analysisReport.value?.actionable_plan;
+    if (plan) {
+        applyActionablePlan(plan);
+    } else {
         applyFallbackRoutine();
     }
-});
+};
 
-// 获取已存在的报告（通过reportId）
+const applyFallbackRoutine = () => {
+    if (groupedSections.value.length) return;
+    const lines = getBaseSuggestions(hairLossLevel.value);
+    if (lines.length) {
+        applyActionablePlan({ advice: lines });
+    }
+};
+
+// 获取已存在的报告（通过aiReportId）
 const fetchExistingReport = async () => {
     try {
         loadingAnalysis.value = true;
 
         const REPORT_PATH = `/api/v1/hair/report/${reportIdFromList.value}`;
-        const REPORT_API_URL = _isLocalBundle 
+        const REPORT_API_URL = _isLocalBundle
             ? AI_SERVER_BASE + REPORT_PATH
             : '/ai-api' + REPORT_PATH;
 
@@ -507,6 +484,110 @@ const fetchExistingReport = async () => {
     }
 };
 
+onMounted(async () => {
+    const options = readPageOptions();
+
+    // 修复：uni-app 页面参数直接存储在 options 中，不是 options.data 中
+    position.value = decodeURIComponent(options.position || '');
+    stage.value = options.stage || '1';
+    imageUrl.value = decodeURIComponent(options.image || '');
+    fromSource.value = options.from || '';
+    extInfo.value = decodeURIComponent(options.extInfo || '');
+    userId.value = options.userId || userStore.userInfo?.userId || '';
+    createTime.value = decodeURIComponent(options.createTime || '');
+    reportIdFromList.value = options.aiReportId || '';  // AI分析报告ID
+    hairReportId.value = options.reportId || '';        // HairReport ID (用于更新数据库)
+    selfieId.value = options.id || '';
+
+    console.log('Results data:', {
+        position: position.value,
+        stage: stage.value,
+        imageUrl: imageUrl.value,
+        from: fromSource.value,
+        extInfo: extInfo.value,
+        userId: userId.value,
+        aiReportId: reportIdFromList.value,
+        hairReportId: hairReportId.value,
+        selfieId: selfieId.value
+    });
+
+    console.log('nuserId ===', userId.value);
+    console.log('extInfo ===', extInfo.value);
+
+    // 如果有hairReportId，从hair_reports_detail表获取detail字段并解压缩
+    if (hairReportId.value) {
+        console.log('Fetching report detail for hairReportId:', hairReportId.value);
+        const detailData = await fetchReportDetail(hairReportId.value);
+
+        if (detailData && detailData.detail) {
+            console.log('Got detail field:', detailData.detail.substring(0, 100) + '...');
+            try {
+                const decompressedData = await extractExtInfo(detailData.detail);
+                console.log('Decompressed ext_info:', decompressedData);
+
+                if (decompressedData && typeof decompressedData === 'object') {
+                    oilValue.value = decompressedData.oil || 0;
+                    scurfOrKeratinValue.value = decompressedData.scurfOrKeratin || 0;
+                    overallValue.value = decompressedData.overall || 0;
+                    hairLossValue.value = decompressedData.hairLoss || 0;
+                    discomfortValue.value = decompressedData.discomfort || 0;
+                    console.log('Extracted metric values:', {
+                        oil: oilValue.value,
+                        scurfOrKeratin: scurfOrKeratinValue.value,
+                        overall: overallValue.value,
+                        hairLoss: hairLossValue.value,
+                        discomfort: discomfortValue.value
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to decompress detail for metrics:', e);
+            }
+        }
+    }
+
+    // 如果没有hairReportId但有extInfo，尝试解析extInfo（兼容旧数据）
+    if (!hairReportId.value && extInfo.value) {
+        try {
+            // 首先尝试直接解析（兼容旧数据）
+            let parsedExtInfo: any = null;
+            try {
+                parsedExtInfo = JSON.parse(extInfo.value);
+            } catch {
+                // 如果直接解析失败，尝试解压缩
+                parsedExtInfo = await extractExtInfo(extInfo.value);
+            }
+
+            // 从解压后的数据中提取指标
+            // 数据结构可能是 {input: {ext_info: {...}}} 或直接是 ext_info 对象
+            const extInfoData = parsedExtInfo?.input?.ext_info || parsedExtInfo;
+            if (extInfoData && typeof extInfoData === 'object') {
+                oilValue.value = extInfoData.oil || 0;
+                scurfOrKeratinValue.value = extInfoData.scurfOrKeratin || 0;
+                overallValue.value = extInfoData.overall || 0;
+                hairLossValue.value = extInfoData.hairLoss || 0;
+                discomfortValue.value = extInfoData.discomfort || 0;
+            }
+        } catch (e) {
+            console.error('Failed to parse extInfo for metrics:', e);
+        }
+    }
+
+    // 如果有aiReportId，调用GET report接口获取已有AI报告；否则如果有extInfo和userId，调用新API分析
+    if (reportIdFromList.value) {
+        console.log('Fetch existing AI report by aiReportId:', reportIdFromList.value);
+        await fetchExistingReport();
+    } else if (extInfo.value && userId.value) {
+        console.log('new api');
+        await fetchAnalysis();
+    }
+
+    loadPlan();
+    // 如果没有aiReportId也没有extInfo+userId，使用fallback方案
+    if (!reportIdFromList.value && !(extInfo.value && userId.value)) {
+        applyFallbackRoutine();
+    }
+});
+
 // 更新自拍照的reportId
 const updateSelfieReportId = async (reportId: string) => {
     try {
@@ -530,7 +611,17 @@ const fetchAnalysis = async () => {
         // 解析extInfo
         let parsedExtInfo: any = {};
         try {
-            parsedExtInfo = JSON.parse(extInfo.value);
+            // 首先尝试直接解析（兼容旧数据）
+            try {
+                parsedExtInfo = JSON.parse(extInfo.value);
+            } catch {
+                // 如果直接解析失败，尝试解压缩
+                parsedExtInfo = extractExtInfo(extInfo.value) || {};
+            }
+            // 如果解析结果是null，使用空对象
+            if (!parsedExtInfo || typeof parsedExtInfo !== 'object') {
+                parsedExtInfo = {};
+            }
             console.log('Parsed extInfo:', parsedExtInfo);
         } catch (e) {
             console.error('Failed to parse extInfo:', e);
@@ -630,38 +721,32 @@ const fetchAnalysis = async () => {
 
             // 获取report_id并更新到数据库
             if (response.reportId) {
-                const reportId = response.reportId;
-                console.log('Got report_id from API:', reportId);
+                const aiReportId = response.reportId;
+                console.log('Got ai_report_id from API:', aiReportId);
 
-                // 调用user/updateSelfie接口保存reportId
-                if (selfieId.value) {
-                    await updateSelfieReportId(reportId);
-                    // 检查本地存储是否已有reportId，没有才保存
+                // 检查是否有Clerk token
+                // const clerkToken = getClerkToken();
+                // if (!clerkToken) {
+                //     console.warn('No Clerk token found, skipping database update');
+                // }
+
+                // 如果有hairReportId，调用PUT接口更新ai_report_id
+                if (hairReportId.value) {
                     try {
-                        const existingReportId = uni.getStorageSync('ai_analysis_reportId');
-                        if (!existingReportId) {
-                            uni.setStorageSync('ai_analysis_reportId', reportId);
-                            console.log('已保存reportId到本地存储: Saved reportId to local storage:', reportId);
-                        } else {
-                            console.log('本地存储已有reportId，不覆盖: Existing reportId in storage:', existingReportId);
-                        }
+                        await put(`/report/${hairReportId.value}`, {
+                            aiReportId: aiReportId
+                        }, { brand: ProjectBrand.LUSHAIR_NEW });
+                        console.log('已更新aiReportId到数据库: Updated aiReportId to database:', aiReportId);
+                        // 通知列表页刷新数据
+                        uni.$emit('refreshHairListData');
                     } catch (e) {
-                        console.error('保存reportId到本地存储失败: Failed to save reportId to local storage:', e);
+                        console.error('更新aiReportId到数据库失败: Failed to update aiReportId to database:', e);
                     }
-                    // 通过事件通知列表页更新对应的item
-                    uni.$emit('selfieReportIdUpdated', {
-                        selfieId: selfieId.value,
-                        reportId: reportId
-                    });
-                    console.log('Emitted selfieReportIdUpdated event');
-                } else {
-                    // 保存到本地存储 Save to local storage
-                    try {
-                        uni.setStorageSync('ai_analysis_reportId', reportId);
-                        console.log('已保存reportId到本地存储: Saved reportId to local storage:', reportId);
-                    } catch (e) {
-                        console.error('保存reportId到本地存储失败: Failed to save reportId to local storage:', e);
-                    }
+                } else if (selfieId.value) {
+                    // 兼容旧逻辑：如果没有hairReportId但有selfieId，调用updateSelfie接口
+                    await updateSelfieReportId(aiReportId);
+                    // 通知列表页刷新数据
+                    uni.$emit('refreshHairListData');
                 }
             }
 
@@ -677,23 +762,6 @@ const fetchAnalysis = async () => {
     } finally {
         loadingAnalysis.value = false;
         applyFallbackRoutine();
-    }
-};
-
-const syncRoutineFromReport = () => {
-    const plan = analysisReport.value?.actionable_plan;
-    if (plan) {
-        applyActionablePlan(plan);
-    } else {
-        applyFallbackRoutine();
-    }
-};
-
-const applyFallbackRoutine = () => {
-    if (groupedSections.value.length) return;
-    const lines = getBaseSuggestions(hairLossLevel.value);
-    if (lines.length) {
-        applyActionablePlan({ advice: lines });
     }
 };
 
@@ -767,19 +835,22 @@ const previewHexPath = computed(() => {
 const calculateOverallScore = (): number => {
     const level = hairLossLevel.value;
     let baseScore = 100 - (level - 1) * (70 / 6);
-    if (extInfo.value) {
-        try {
-            const info = JSON.parse(extInfo.value);
-            ['oil', 'discomfort', 'scurfOrKeratin', 'overall', 'hairLoss'].forEach((factor) => {
-                const value = info[factor];
-                if (value === 1) baseScore -= 5;
-                else if (value === 2) baseScore -= 10;
-                else if (value === 3) baseScore -= 15;
-            });
-        } catch {
-            // ignore parse errors
-        }
-    }
+
+    // 使用已解析的指标值而非重新解析 extInfo
+    const factors = [
+        oilValue.value,
+        discomfortValue.value,
+        scurfOrKeratinValue.value,
+        overallValue.value,
+        hairLossValue.value
+    ];
+
+    factors.forEach((value) => {
+        if (value === 1) baseScore -= 5;
+        else if (value === 2) baseScore -= 10;
+        else if (value === 3) baseScore -= 15;
+    });
+
     return Math.max(0, Math.min(100, Math.round(baseScore)));
 };
 
