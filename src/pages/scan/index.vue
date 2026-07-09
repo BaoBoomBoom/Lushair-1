@@ -142,16 +142,17 @@ function advanceToNextAngle(afterAngleId: SelfieAngleId) {
     }
 }
 
-function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
+async function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
     uploadingAngles.value[angleId] = true;
     angleImages.value[angleId].url = '';
     uni.uploadFile({
-        url: getApiUrl('file/uploadHairLoss'),
+        url: getApiUrl('file/uploadSelfieNet'),
         filePath: tempFilePath,
         name: 'file',
         formData: {
             userId: getScanUserId() || '',
             type: userStore.userInfo.type || '0',
+            pos: angleId,
         },
         success: (uploadRes) => {
             try {

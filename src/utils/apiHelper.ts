@@ -3,14 +3,14 @@
  * 提供简化的API调用方法，避免硬编码URL
  */
 
-import { getApiUrl as getApiUrlFromConfig, ProjectBrand } from './apiConfig';
+import { getApiUrl as getApiUrlFromConfig, getCurrentProjectBrand, ProjectBrand } from './apiConfig';
 
 /**
  * 获取当前项目品牌的所有接口URL
  * @param endpoint 接口端点
  */
 export function getApiUrl(endpoint: string): string {
-  return getApiUrlFromConfig(endpoint, ProjectBrand.SIYUEJIA);
+  return getApiUrlFromConfig(endpoint, getCurrentProjectBrand());
 }
 
 /**

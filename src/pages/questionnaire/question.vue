@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { post } from '@/utils/request';
+import { post, ProjectBrand } from '@/utils/request';
 import { useUserStore } from '@/stores/userStore';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ShellDisclaimer from '@/components/layout/ShellDisclaimer.vue';
@@ -165,6 +165,35 @@ const submitSelfieData = async () => {
       data.name = merchantCustomer.name;
       if (merchantCustomer.phone) data.phone = merchantCustomer.phone;
       if (merchantCustomer.email) data.email = merchantCustomer.email;
+    }
+
+    // 先调用新接口存储数据到 Vercel 数据库（静默模式，失败不影响原有流程）
+    try {
+      const stageNum = typeof stageParam.value === 'string' ? parseInt(stageParam.value, 10) : stageParam.value;
+      const overseasData = {
+        userId: scanUserId,
+        merchantId: merchantCustomer?.merchantId,
+        position: positionParam.value,
+        stage: stageNum,
+        imageUrl: imageParam.value,
+        coverImageUrl: null, // 分析后的图片URL，如果有的话可以传入
+        oil: answers.value[1] ?? 0,
+        scurfOrKeratin: answers.value[2] ?? 0,
+        hairLoss: answers.value[3] ?? 0,
+        discomfort: answers.value[4] ?? 0,
+        overall: answers.value[5] ?? 0,
+        extInfo: data.extInfo,
+      };
+
+      await post('/hair/selfie-analyze', overseasData, {
+        brand: ProjectBrand.LUSHAIR_NEW,
+        silent: true,
+        timeout: 15000,
+      });
+      console.log('[Hair Scan] Data saved to Vercel database successfully');
+    } catch (overseasError) {
+      console.error('[Hair Scan] Failed to save data to Vercel database:', overseasError);
+      // 失败不影响原有流程，静默处理
     }
 
     const response = await post('/user/addSelfie', data);

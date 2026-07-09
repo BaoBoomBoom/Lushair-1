@@ -1,5 +1,5 @@
 <template>
-    <view class="rp-page">
+    <view class="rp-page" style="height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
         <ScanAnalyzingOverlay :visible="loadingAnalysis" />
 
         <view class="rp-topbar" :style="headerPaddingStyle(0)">
