@@ -55,12 +55,28 @@ interface SelfieResult {
     overallScore?: number | null;
 }
 
+interface ProductUsageData {
+    dateKey: string;
+    productIds: string[];
+    productNames: string[];
+}
+
+interface TrendItem {
+    date: string;
+    score: number;
+}
+
+interface RecommendedProduct {
+    productId: number;
+    productTitle: string;
+}
+
 // 统一的历史记录接口
 interface HistoryRecord {
     id: number;
     userId: string;
     date: string;
-    type: 'advancedScan' | 'phoneCamera';
+    type: 'advancedScan' | 'phoneCamera' | 'productUsage';
     typeLabel: string;
     typeIcon: string;
     hairLossPattern: {
@@ -73,7 +89,7 @@ interface HistoryRecord {
         total: number;
         improvement: number;
     };
-    originalData: DetectionRecord | SelfieResult;
+    originalData: DetectionRecord | SelfieResult | ProductUsageData;
 }
 
 type ScoreMetricKey = 'hair' | 'follicle' | 'scalp';
@@ -96,7 +112,8 @@ const selectedDateFilter = ref<string | null>(null); // null表示"全部"，具
 const showDatePicker = ref(false);
 const datePickerMonth = ref(new Date());
 const selectedFilterDate = ref<Date | null>(null);
-const historyTab = ref<'selfie' | 'trichoscan'>('selfie');
+const historyTab = ref<'all' | 'selfie' | 'trichoscan' | 'products'>('all');
+const productNameMap = ref<Record<string, string>>({});
 const scoreMetric = ref<ScoreMetricKey>('hair');
 const showScoreMenu = ref(false);
 const chartDetectionRecords = ref<DetectionRecord[]>([]);
@@ -178,6 +195,141 @@ const calculateSelfieScore = (stage: number, extInfo: string | null): number => 
     return Math.max(0, Math.min(100, baseScore));
 };
 
+const loadLocalClockInRecords = (): Record<string, string[]> => {
+    const merged: Record<string, string[]> = {};
+    for (const key of ['clock_in_records', 'clockInRecords']) {
+        try {
+            const raw = uni.getStorageSync(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw) as Record<string, string[]>;
+            for (const [dateKey, ids] of Object.entries(parsed)) {
+                if (!ids?.length) continue;
+                merged[dateKey] = [...new Set([...(merged[dateKey] || []), ...ids.map(String)])];
+            }
+        } catch (error) {
+            console.warn('[hair] failed to parse clock-in storage', key, error);
+        }
+    }
+    return merged;
+};
+
+const trendDateToKey = (dateStr: string): string => {
+    if (!dateStr || dateStr.length !== 8) return '';
+    const year = dateStr.slice(0, 4);
+    const month = parseInt(dateStr.slice(4, 6), 10);
+    const day = parseInt(dateStr.slice(6, 8), 10);
+    return `${year}-${month}-${day}`;
+};
+
+const formatProductDateLabel = (dateKey: string): string => {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    if (!year || !month || !day) return dateKey;
+    return formatDate(new Date(year, month - 1, day).toISOString());
+};
+
+const fetchProductNameMap = async (userId: string): Promise<Record<string, string>> => {
+    const map: Record<string, string> = {};
+    try {
+        const response = (await post('/product/recommend', { userId })) as RecommendedProduct[];
+        if (Array.isArray(response)) {
+            response.forEach((product) => {
+                map[String(product.productId)] = product.productTitle;
+            });
+        }
+    } catch (error) {
+        console.warn('[hair] failed to fetch product names', error);
+    }
+    return map;
+};
+
+const fetchServerClockInRecords = async (
+    userId: string,
+    localRecords: Record<string, string[]>,
+): Promise<Record<string, string[]>> => {
+    const merged = { ...localRecords };
+    try {
+        const trend = (await post('/encr/clockIn/trend', { userId })) as TrendItem[];
+        if (!Array.isArray(trend)) return merged;
+
+        const missingDates = trend
+            .map((item) => trendDateToKey(item.date))
+            .filter((dateKey) => dateKey && (!merged[dateKey] || merged[dateKey].length === 0))
+            .slice(-30);
+
+        if (!missingDates.length) return merged;
+
+        const results = await Promise.all(
+            missingDates.map(async (dateKey) => {
+                try {
+                    const dateStr = dateKey.replace(/-/g, '');
+                    const response = (await post('encr/clockIn/product/query', {
+                        userId,
+                        dateStr,
+                    })) as Array<{ productId: number; clockIn?: boolean; productTitle?: string }>;
+                    if (!Array.isArray(response)) return { dateKey, productIds: [] as string[] };
+
+                    const productIds = response
+                        .filter((product) => product.clockIn)
+                        .map((product) => String(product.productId));
+
+                    response.forEach((product) => {
+                        if (product.productTitle) {
+                            productNameMap.value[String(product.productId)] = product.productTitle;
+                        }
+                    });
+
+                    return { dateKey, productIds };
+                } catch {
+                    return { dateKey, productIds: [] as string[] };
+                }
+            }),
+        );
+
+        results.forEach(({ dateKey, productIds }) => {
+            if (!productIds.length) return;
+            merged[dateKey] = [...new Set([...(merged[dateKey] || []), ...productIds])];
+        });
+    } catch (error) {
+        console.warn('[hair] failed to fetch server clock-in history', error);
+    }
+    return merged;
+};
+
+const buildProductUsageRecords = (
+    recordsMap: Record<string, string[]>,
+    userId: string,
+): HistoryRecord[] => {
+    return Object.entries(recordsMap)
+        .filter(([, productIds]) => productIds?.length)
+        .map(([dateKey, productIds]) => {
+            const uniqueIds = [...new Set(productIds.map(String))];
+            const productNames = uniqueIds.map(
+                (id) => productNameMap.value[id] || t('hair.productFallback', [id]),
+            );
+            const [year, month, day] = dateKey.split('-').map(Number);
+            const numericId = year && month && day ? -(year * 10000 + month * 100 + day) : -Date.now();
+
+            return {
+                id: numericId,
+                userId,
+                date: formatProductDateLabel(dateKey),
+                type: 'productUsage' as const,
+                typeLabel: t('hair.productUsage'),
+                typeIcon: '/static/trichoscan/shampoo.png',
+                hairLossPattern: { level: 0, total: 7, improvement: 0 },
+                hairScore: {
+                    score: uniqueIds.length,
+                    total: uniqueIds.length,
+                    improvement: 0,
+                },
+                originalData: {
+                    dateKey,
+                    productIds: uniqueIds,
+                    productNames,
+                },
+            };
+        });
+};
 
 // API调用函数
 const fetchDetectionRecords = async (userId: string): Promise<DetectionRecord[]> => {
@@ -280,6 +432,11 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
             fetchSelfieResults(userId)
         ]);
 
+        productNameMap.value = await fetchProductNameMap(userId);
+        const localClockIn = loadLocalClockInRecords();
+        const clockInRecords = await fetchServerClockInRecords(userId, localClockIn);
+        const productRecords = buildProductUsageRecords(clockInRecords, userId);
+
         // 保存原始顺序的数据（用于计算删除索引）
         originalDetectionRecords.value = [...detectionRecords];
         originalSelfieResults.value = [...selfieResults];
@@ -358,40 +515,14 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
                 originalData: result
             });
         });
+
+        allRecords.push(...productRecords);
         
-        // 按createTime倒序排列，createTime为null的放到末尾
-        allRecords.sort((a, b) => {
-            const getOriginalTime = (record: HistoryRecord) => {
-                if (record.type === 'advancedScan') {
-                    return (record.originalData as DetectionRecord).createTime;
-                } else {
-                    const selfieData = record.originalData as SelfieResult;
-                    return selfieData.createTime || selfieData.createdTime || '';
-                }
-            };
-            
-            const timeA = getOriginalTime(a);
-            const timeB = getOriginalTime(b);
-            const hasTimeA = timeA !== '';
-            const hasTimeB = timeB !== '';
-            
-            // 如果一个有时间一个没时间，有时间的排前面
-            if (hasTimeA && !hasTimeB) return -1;
-            if (!hasTimeA && hasTimeB) return 1;
-            
-            // 如果都有时间，按时间倒序
-            if (hasTimeA && hasTimeB) {
-                const timestampA = new Date(timeA).getTime();
-                const timestampB = new Date(timeB).getTime();
-                return timestampB - timestampA;
-            }
-            
-            // 如果都没时间，保持原顺序
-            return 0;
-        });
+        // 按时间倒序排列
+        allRecords.sort((a, b) => getRecordTimestamp(b) - getRecordTimestamp(a));
         
         historyRecords.value = allRecords;
-        scanStreak.value = calculateScanStreak(allRecords);
+        scanStreak.value = calculateScanStreak(allRecords.filter((r) => r.type !== 'productUsage'));
         
         // 获取雷达图数据 Fetch radar data
         const advancedScans = allRecords.filter(r => r.type === 'advancedScan');
@@ -523,7 +654,8 @@ onPullDownRefresh(async () => {
 // 滚动到底部时自动加载更多自拍记录
 onReachBottom(async () => {
     // 只有在历史记录标签页、自拍 tab、且还有更多数据时才加载
-    if (activeTab.value === 1 && historyTab.value === 'selfie' &&
+    if (activeTab.value === 1 &&
+        (historyTab.value === 'selfie' || historyTab.value === 'all') &&
         selfiePagination.value.hasMore && !selfiePagination.value.isLoadingMore) {
 
         await loadMoreSelfieResults();
@@ -553,6 +685,11 @@ const switchTab = async (idx: number) => {
 
 const viewRecordDetail = (record: HistoryRecord) => {
     console.log('View record detail:', record);
+
+    if (record.type === 'productUsage') {
+        uni.navigateTo({ url: '/pages/analysis/index' });
+        return;
+    }
 
     // Check if it's a phone camera record
     if (record.type === 'phoneCamera') {
@@ -1457,24 +1594,27 @@ const formatDisplayDate = (date: Date): string => {
 };
 
 // 获取每个日期的记录数量
+const getRecordDateKey = (record: HistoryRecord): string => {
+    if (record.type === 'productUsage') {
+        return (record.originalData as ProductUsageData).dateKey;
+    }
+    const recordData = record.originalData as DetectionRecord | SelfieResult;
+    const timeString = recordData.createTime || (recordData as SelfieResult).createdTime || '';
+    if (!timeString) return '';
+    return formatDateKey(new Date(timeString));
+};
+
 const getRecordsCountByDate = (date: Date): number => {
     const dateKey = formatDateKey(date);
-    return historyRecords.value.filter((record: HistoryRecord) => {
-        const recordData = record.originalData;
-        const timeString = recordData.createTime || (recordData as SelfieResult).createdTime || '';
-        const recordDate = new Date(timeString);
-        return formatDateKey(recordDate) === dateKey;
-    }).length;
+    return historyRecords.value.filter((record: HistoryRecord) => getRecordDateKey(record) === dateKey).length;
 };
 
 // 获取有数据的日期列表
 const getDatesWithData = (): Date[] => {
     const datesWithData = new Set<string>();
     historyRecords.value.forEach((record: HistoryRecord) => {
-        const recordData = record.originalData;
-        const timeString = recordData.createTime || (recordData as SelfieResult).createdTime || '';
-        const recordDate = new Date(timeString);
-        datesWithData.add(formatDateKey(recordDate));
+        const key = getRecordDateKey(record);
+        if (key) datesWithData.add(key);
     });
     
     return Array.from(datesWithData).map(dateStr => {
@@ -1489,21 +1629,21 @@ const filteredHistoryRecords = computed(() => {
         return historyRecords.value;
     }
     
-    return historyRecords.value.filter((record: HistoryRecord) => {
-        const recordData = record.originalData;
-        const timeString = recordData.createTime || (recordData as SelfieResult).createdTime || '';
-        const recordDate = new Date(timeString);
-        return formatDateKey(recordDate) === selectedDateFilter.value;
-    });
+    return historyRecords.value.filter((record: HistoryRecord) => getRecordDateKey(record) === selectedDateFilter.value);
 });
 
 const displayedHistoryRecords = computed(() => {
     let records = filteredHistoryRecords.value;
     if (historyTab.value === 'selfie') {
         return records.filter((r: HistoryRecord) => r.type === 'phoneCamera');
-    } else {
+    }
+    if (historyTab.value === 'trichoscan') {
         return records.filter((r: HistoryRecord) => r.type === 'advancedScan');
     }
+    if (historyTab.value === 'products') {
+        return records.filter((r: HistoryRecord) => r.type === 'productUsage');
+    }
+    return records;
 });
 
 // 原始检测记录列表（保持服务器返回的顺序）
@@ -1655,6 +1795,10 @@ watch(scoreMetric, (key) => {
     }
 });
 
+watch(historyTab, (tab) => {
+    if (tab === 'products') historyView.value = 'timeline';
+});
+
 const averageScore = computed(() => {
     const vals = chartSeries.value.map((p) => p.value);
     if (!vals.length) return 0;
@@ -1688,6 +1832,14 @@ const formatCompactDate = (dateString: string): string => {
 };
 
 const getRecordTimestamp = (record: HistoryRecord): number => {
+    if (record.type === 'productUsage') {
+        const { dateKey } = record.originalData as ProductUsageData;
+        const [year, month, day] = dateKey.split('-').map(Number);
+        if (year && month && day) {
+            return new Date(year, month - 1, day, 23, 59).getTime();
+        }
+        return 0;
+    }
     const data = record.originalData;
     const timeString =
         (data as DetectionRecord).createTime ||
@@ -1706,7 +1858,47 @@ const chipFilteredRecords = computed(() => {
     return records;
 });
 
-const histCountText = computed(() => `${chipFilteredRecords.value.length} scans`);
+interface TimelineGroup {
+    dateKey: string;
+    label: string;
+    records: HistoryRecord[];
+}
+
+const groupedTimeline = computed((): TimelineGroup[] => {
+    const groups: TimelineGroup[] = [];
+    let currentKey = '';
+
+    chipFilteredRecords.value.forEach((record) => {
+        const key = getRecordDateKey(record) || 'unknown';
+        if (key !== currentKey) {
+            const [year, month, day] = key.split('-').map(Number);
+            const label =
+                year && month && day
+                    ? formatCompactDate(new Date(year, month - 1, day).toISOString())
+                    : key;
+            groups.push({ dateKey: key, label, records: [record] });
+            currentKey = key;
+        } else {
+            groups[groups.length - 1].records.push(record);
+        }
+    });
+
+    return groups;
+});
+
+const getGlobalRecordIndex = (record: HistoryRecord): number =>
+    chipFilteredRecords.value.findIndex((r) => r.id === record.id && r.type === record.type);
+
+const galleryHistoryRecords = computed(() =>
+    chipFilteredRecords.value.filter((record) => record.type !== 'productUsage'),
+);
+
+const histCountText = computed(() => {
+    const count = chipFilteredRecords.value.length;
+    if (historyTab.value === 'products') return t('hair.productDaysCount', [count]);
+    if (historyTab.value === 'all') return t('hair.eventsCount', [count]);
+    return t('hair.scansCount', [count]);
+});
 
 const histRangeText = computed(() => {
     const records = chipFilteredRecords.value;
@@ -1721,10 +1913,22 @@ const histRangeText = computed(() => {
 const getTimelineWhen = (record: HistoryRecord, index: number, total: number): string => {
     const ts = getRecordTimestamp(record);
     const short = ts ? formatCompactDate(new Date(ts).toISOString()) : record.date;
-    if (index === 0) return `Latest · ${short}`;
-    if (index === total - 1) return `${short} · Baseline`;
+    if (record.type === 'productUsage') {
+        return t('hair.productRoutine');
+    }
+    if (index === 0) return `${t('hair.latest')} · ${short}`;
+    if (index === total - 1) return `${short} · ${t('hair.baseline')}`;
     return short;
 };
+
+const getTimelineBadgeIcon = (record: HistoryRecord): string => {
+    if (record.type === 'productUsage') return 'flask';
+    if (record.type === 'phoneCamera') return 'device-mobile';
+    return 'scan';
+};
+
+const getProductUsageData = (record: HistoryRecord): ProductUsageData =>
+    record.originalData as ProductUsageData;
 
 const formatDeltaPill = (delta: number): string => {
     if (!delta) return '— 0';
@@ -2228,35 +2432,7 @@ const loadMoreSelfieResults = async () => {
 
             // 合并到现有记录并重新排序
             const allRecords = [...historyRecords.value, ...newHistoryRecords];
-
-            // 按时间倒序排列
-            allRecords.sort((a, b) => {
-                const getOriginalTime = (record: HistoryRecord) => {
-                    if (record.type === 'advancedScan') {
-                        return (record.originalData as DetectionRecord).createTime;
-                    } else {
-                        const selfieData = record.originalData as SelfieResult;
-                        return selfieData.createTime || selfieData.createdTime || selfieData.generatedAt || '';
-                    }
-                };
-
-                const timeA = getOriginalTime(a);
-                const timeB = getOriginalTime(b);
-                const hasTimeA = timeA !== '';
-                const hasTimeB = timeB !== '';
-
-                if (hasTimeA && !hasTimeB) return -1;
-                if (!hasTimeA && hasTimeB) return 1;
-
-                if (hasTimeA && hasTimeB) {
-                    const timestampA = new Date(timeA).getTime();
-                    const timestampB = new Date(timeB).getTime();
-                    return timestampB - timestampA;
-                }
-
-                return 0;
-            });
-
+            allRecords.sort((a, b) => getRecordTimestamp(b) - getRecordTimestamp(a));
             historyRecords.value = allRecords;
         }
     } catch (error) {
@@ -2598,9 +2774,11 @@ const shareProgress = async () => {
 
             <!-- HISTORY LOG -->
             <view v-if="activeTab === 1" class="history-panel">
-                <view class="shell-subtog">
+                <view class="shell-subtog hist-type-tog">
+                    <view class="shell-subtog-btn" :class="{ on: historyTab === 'all' }" @tap="historyTab = 'all'">{{ t('hair.allTab') }}</view>
                     <view class="shell-subtog-btn" :class="{ on: historyTab === 'selfie' }" @tap="historyTab = 'selfie'">{{ t('hair.selfieTab') }}</view>
                     <view class="shell-subtog-btn" :class="{ on: historyTab === 'trichoscan' }" @tap="historyTab = 'trichoscan'">{{ t('hair.trichoscanTab') }}</view>
+                    <view class="shell-subtog-btn" :class="{ on: historyTab === 'products' }" @tap="historyTab = 'products'">{{ t('hair.productsTab') }}</view>
                 </view>
 
                 <view class="shell-hist-bar">
@@ -2609,10 +2787,20 @@ const shareProgress = async () => {
                         <text v-if="histRangeText" class="shell-hist-range">{{ histRangeText }}</text>
                     </view>
                     <view class="shell-vswitch">
-                        <view class="shell-vswitch-btn" :class="{ on: historyView === 'timeline' }" @tap="historyView = 'timeline'">
+                        <view
+                            v-if="historyTab !== 'products'"
+                            class="shell-vswitch-btn"
+                            :class="{ on: historyView === 'timeline' }"
+                            @tap="historyView = 'timeline'"
+                        >
                             <TablerIcon name="timeline-event" :size="17" :color="historyView === 'timeline' ? '#fff' : '#8A82A0'" />
                         </view>
-                        <view class="shell-vswitch-btn" :class="{ on: historyView === 'gallery' }" @tap="historyView = 'gallery'">
+                        <view
+                            v-if="historyTab !== 'products'"
+                            class="shell-vswitch-btn"
+                            :class="{ on: historyView === 'gallery' }"
+                            @tap="historyView = 'gallery'"
+                        >
                             <TablerIcon name="layout-grid" :size="17" :color="historyView === 'gallery' ? '#fff' : '#8A82A0'" />
                         </view>
                     </view>
@@ -2676,96 +2864,136 @@ const shareProgress = async () => {
                     <text class="empty-text">{{ t('hair.noRecordsFound') }}</text>
                 </view>
 
-                <view v-else-if="historyView === 'timeline'" class="shell-tl">
-                    <view
-                        v-for="(record, index) in chipFilteredRecords"
-                        :key="record.id"
-                        class="shell-tl-item"
-                        @tap="viewRecordDetail(record)"
-                    >
-                        <view class="shell-tl-dot" :class="{ now: index === 0 }" />
-                        <view class="shell-tl-card">
-                            <TablerIcon name="chevron-right" :size="18" color="#8A82A0" class="shell-tl-go" />
-                            <view v-if="record.type === 'advancedScan'" class="delete-fab" @tap.stop="deleteRecord(record)">
-                                <TablerIcon name="x" :size="14" color="#E0556B" />
-                            </view>
-                            <view class="shell-tl-top">
-                                <text class="shell-tl-when">{{ getTimelineWhen(record, index, chipFilteredRecords.length) }}</text>
-                                <view class="shell-src-badge">
-                                    <TablerIcon name="device-mobile" :size="11" color="#fff" />
-                                    <text>{{ record.typeLabel }}</text>
+                <view v-else-if="historyView === 'timeline' || historyTab === 'products'" class="shell-tl">
+                    <template v-for="group in groupedTimeline" :key="group.dateKey">
+                        <text class="shell-tl-day">{{ group.label }}</text>
+                        <view
+                            v-for="record in group.records"
+                            :key="`${record.type}-${record.id}`"
+                            class="shell-tl-item"
+                            @tap="viewRecordDetail(record)"
+                        >
+                            <view
+                                class="shell-tl-dot"
+                                :class="{
+                                    now: getGlobalRecordIndex(record) === 0,
+                                    product: record.type === 'productUsage',
+                                }"
+                            />
+                            <view class="shell-tl-card" :class="{ 'shell-tl-card--product': record.type === 'productUsage' }">
+                                <TablerIcon
+                                    v-if="record.type !== 'productUsage'"
+                                    name="chevron-right"
+                                    :size="18"
+                                    color="#8A82A0"
+                                    class="shell-tl-go"
+                                />
+                                <view v-if="record.type === 'advancedScan'" class="delete-fab" @tap.stop="deleteRecord(record)">
+                                    <TablerIcon name="x" :size="14" color="#E0556B" />
                                 </view>
-                            </view>
-                            <!-- Selfie: stage only, no /100 score -->
-                            <template v-if="record.type === 'phoneCamera'">
-                                <view class="shell-tl-hero-row">
-                                    <view class="shell-tl-hero-stage">
-                                        <text class="shell-tl-lvl-hero">{{ t('hair.level') }} {{ record.hairLossPattern.level }}</text>
-                                        <text class="shell-tl-lvl-of">/ {{ record.hairLossPattern.total }}</text>
+                                <view class="shell-tl-top">
+                                    <text class="shell-tl-when">{{
+                                        getTimelineWhen(
+                                            record,
+                                            getGlobalRecordIndex(record),
+                                            chipFilteredRecords.length,
+                                        )
+                                    }}</text>
+                                    <view class="shell-src-badge" :class="{ 'shell-src-badge--product': record.type === 'productUsage' }">
+                                        <TablerIcon :name="getTimelineBadgeIcon(record)" :size="11" color="#fff" />
+                                        <text>{{ record.typeLabel }}</text>
                                     </view>
-                                    <text
-                                        v-if="index === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)"
-                                        class="shell-pill shell-pill-p"
-                                    >{{ t('hair.firstScan') }}</text>
-                                    <text
-                                        v-else-if="getRecordStageChange(record, index, chipFilteredRecords)"
-                                        :class="getRecordStageChange(record, index, chipFilteredRecords)!.pillClass"
-                                    >
-                                        {{ getRecordStageChange(record, index, chipFilteredRecords)!.status }}
-                                        · {{ getRecordStageChange(record, index, chipFilteredRecords)!.detail }}
-                                    </text>
                                 </view>
-                                <view class="shell-tl-type-row">
-                                    <text class="shell-tl-type">{{ getSelfieTypeLabel(record) }} · {{ t('hair.hairLossStage') }}</text>
-                                </view>
-                                <view class="shell-stage-meter">
-                                    <view
-                                        v-for="i in record.hairLossPattern.total"
-                                        :key="i"
-                                        class="stage-seg"
-                                        :class="{ on: i <= record.hairLossPattern.level }"
-                                    />
-                                </view>
-                            </template>
 
-                            <!-- Trichoscan: overall /100 + sub-scores -->
-                            <template v-else>
-                                <view class="shell-tl-score shell-tl-score--tricho">
-                                    <text class="shell-tl-num">{{ getTrichoscanScores(record).overall }}</text>
-                                    <text class="shell-tl-of">/100</text>
-                                    <text v-if="index === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)" class="shell-pill shell-pill-p">{{ t('hair.firstScan') }}</text>
-                                    <text
-                                        v-else-if="getTrichoscanOverallDelta(record, index, chipFilteredRecords) !== 0"
-                                        :class="getScoreDeltaClass(getTrichoscanOverallDelta(record, index, chipFilteredRecords))"
-                                    >
-                                        {{ formatMetricDelta(getTrichoscanOverallDelta(record, index, chipFilteredRecords)) }}
-                                    </text>
-                                </view>
-                                <text class="shell-tl-subtitle">{{ t('hair.overallScore') }}</text>
-                                <view class="shell-tl-metrics">
-                                    <view
-                                        v-for="metric in getTrichoscanMetricRows(record, index, chipFilteredRecords)"
-                                        :key="metric.key"
-                                        class="shell-tl-metric-chip"
-                                    >
-                                        <text class="shell-tl-metric-label">{{ metric.label }}</text>
-                                        <view class="shell-tl-metric-valrow">
-                                            <text class="shell-tl-metric-value">{{ metric.value }}</text>
-                                            <text
-                                                v-if="index < chipFilteredRecords.length - 1"
-                                                :class="getMetricDeltaClass(metric.delta)"
-                                            >{{ formatMetricDelta(metric.delta) }}</text>
+                                <template v-if="record.type === 'productUsage'">
+                                    <view class="shell-tl-product-head">
+                                        <text class="shell-tl-product-count">{{
+                                            t('hair.productsUsedCount', [getProductUsageData(record).productNames.length])
+                                        }}</text>
+                                    </view>
+                                    <view class="shell-tl-product-list">
+                                        <text
+                                            v-for="(name, pi) in getProductUsageData(record).productNames"
+                                            :key="`${record.id}-${pi}`"
+                                            class="shell-tl-product-chip"
+                                        >{{ name }}</text>
+                                    </view>
+                                </template>
+
+                                <!-- Selfie: stage only, no /100 score -->
+                                <template v-else-if="record.type === 'phoneCamera'">
+                                    <view class="shell-tl-hero-row">
+                                        <view class="shell-tl-hero-stage">
+                                            <text class="shell-tl-lvl-hero">{{ t('hair.level') }} {{ record.hairLossPattern.level }}</text>
+                                            <text class="shell-tl-lvl-of">/ {{ record.hairLossPattern.total }}</text>
+                                        </view>
+                                        <text
+                                            v-if="getGlobalRecordIndex(record) === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)"
+                                            class="shell-pill shell-pill-p"
+                                        >{{ t('hair.firstScan') }}</text>
+                                        <text
+                                            v-else-if="getRecordStageChange(record, getGlobalRecordIndex(record), chipFilteredRecords)"
+                                            :class="getRecordStageChange(record, getGlobalRecordIndex(record), chipFilteredRecords)!.pillClass"
+                                        >
+                                            {{ getRecordStageChange(record, getGlobalRecordIndex(record), chipFilteredRecords)!.status }}
+                                            · {{ getRecordStageChange(record, getGlobalRecordIndex(record), chipFilteredRecords)!.detail }}
+                                        </text>
+                                    </view>
+                                    <view class="shell-tl-type-row">
+                                        <text class="shell-tl-type">{{ getSelfieTypeLabel(record) }} · {{ t('hair.hairLossStage') }}</text>
+                                    </view>
+                                    <view class="shell-stage-meter">
+                                        <view
+                                            v-for="i in record.hairLossPattern.total"
+                                            :key="i"
+                                            class="stage-seg"
+                                            :class="{ on: i <= record.hairLossPattern.level }"
+                                        />
+                                    </view>
+                                </template>
+
+                                <!-- Trichoscan: overall /100 + sub-scores -->
+                                <template v-else-if="record.type === 'advancedScan'">
+                                    <view class="shell-tl-score shell-tl-score--tricho">
+                                        <text class="shell-tl-num">{{ getTrichoscanScores(record).overall }}</text>
+                                        <text class="shell-tl-of">/100</text>
+                                        <text
+                                            v-if="getGlobalRecordIndex(record) === chipFilteredRecords.length - 1 && isRealFirstRecord(record, chipFilteredRecords)"
+                                            class="shell-pill shell-pill-p"
+                                        >{{ t('hair.firstScan') }}</text>
+                                        <text
+                                            v-else-if="getTrichoscanOverallDelta(record, getGlobalRecordIndex(record), chipFilteredRecords) !== 0"
+                                            :class="getScoreDeltaClass(getTrichoscanOverallDelta(record, getGlobalRecordIndex(record), chipFilteredRecords))"
+                                        >
+                                            {{ formatMetricDelta(getTrichoscanOverallDelta(record, getGlobalRecordIndex(record), chipFilteredRecords)) }}
+                                        </text>
+                                    </view>
+                                    <text class="shell-tl-subtitle">{{ t('hair.overallScore') }}</text>
+                                    <view class="shell-tl-metrics">
+                                        <view
+                                            v-for="metric in getTrichoscanMetricRows(record, getGlobalRecordIndex(record), chipFilteredRecords)"
+                                            :key="metric.key"
+                                            class="shell-tl-metric-chip"
+                                        >
+                                            <text class="shell-tl-metric-label">{{ metric.label }}</text>
+                                            <view class="shell-tl-metric-valrow">
+                                                <text class="shell-tl-metric-value">{{ metric.value }}</text>
+                                                <text
+                                                    v-if="getGlobalRecordIndex(record) < chipFilteredRecords.length - 1"
+                                                    :class="getMetricDeltaClass(metric.delta)"
+                                                >{{ formatMetricDelta(metric.delta) }}</text>
+                                            </view>
                                         </view>
                                     </view>
-                                </view>
-                            </template>
+                                </template>
+                            </view>
                         </view>
-                    </view>
+                    </template>
                 </view>
 
                 <view v-else class="shell-gal">
                     <view
-                        v-for="(record, index) in chipFilteredRecords"
+                        v-for="(record, index) in galleryHistoryRecords"
                         :key="`gal-${record.id}`"
                         class="shell-gal-item"
                         @tap="viewRecordDetail(record)"
@@ -2784,7 +3012,7 @@ const shareProgress = async () => {
                                 color="rgba(255,255,255,0.85)"
                             />
                         </view>
-                        <text class="shell-gal-score">{{ getGalleryPrimaryText(record, index, chipFilteredRecords.length) }}</text>
+                        <text class="shell-gal-score">{{ getGalleryPrimaryText(record, index, galleryHistoryRecords.length) }}</text>
                         <view class="shell-gal-meta">
                             <text class="shell-gal-date">{{ getGalDate(record) }}</text>
                             <text class="shell-gal-tag">
