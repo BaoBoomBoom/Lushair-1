@@ -41,8 +41,9 @@ export default defineConfig(({ mode }) => {
             // 5175 is often taken by genpulse-site on localhost (IPv6); use 5176 for Lushair preview
             port: 5176,
             strictPort: true,
+            // Bind IPv4 explicitly — avoids macOS browsers failing on localhost (::1) while curl still works
+            host: '127.0.0.1',
             open: '/#/pages/landing/intro',
-            host: true,
             allowedHosts: [
                 'localhost',
                 '127.0.0.1',

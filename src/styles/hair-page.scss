@@ -671,3 +671,62 @@
     color: #1a1228;
     font-weight: 600;
 }
+
+.hist-type-tog {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .shell-subtog-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+}
+
+.shell-tl-day {
+    display: block;
+    font-family: $shell-font-display;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $shell-muted;
+    margin: 4px 0 10px 24px;
+}
+
+.shell-tl-dot.product {
+    background: #0e9e62;
+}
+
+.shell-tl-card--product {
+    border-color: rgba(14, 158, 98, 0.18);
+}
+
+.shell-src-badge--product {
+    background: #0e9e62;
+}
+
+.shell-tl-product-head {
+    margin-bottom: 8px;
+}
+
+.shell-tl-product-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: $shell-text;
+}
+
+.shell-tl-product-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.shell-tl-product-chip {
+    font-size: 11px;
+    line-height: 1.35;
+    color: #0e7a4d;
+    background: rgba(14, 158, 98, 0.1);
+    border-radius: 999px;
+    padding: 5px 10px;
+    max-width: 100%;
+}
