@@ -78,6 +78,8 @@ const answers = ref<Record<number, number>>({});
 const stageParam = ref('1');
 const positionParam = ref('前额');
 const imageParam = ref('');
+const originalImageUrl = ref(''); // 原始图片 URL
+const anglesParam = ref(''); // 存储 angles 参数用于页面跳转
 const isSubmitting = ref(false);
 const isAdvancing = ref(false);
 
@@ -125,7 +127,7 @@ const advanceQuestion = () => {
   saveQuestionnaireResults();
   const newId = questionId.value + 1;
   uni.redirectTo({
-    url: `/pages/questionnaire/question?id=${newId}&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}`,
+    url: `/pages/questionnaire/question?id=${newId}&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
   });
 };
 
@@ -175,8 +177,8 @@ const submitSelfieData = async () => {
         merchantId: merchantCustomer?.merchantId,
         position: positionParam.value,
         stage: stageNum,
-        imageUrl: imageParam.value,
-        coverImageUrl: null, // 分析后的图片URL，如果有的话可以传入
+        imageUrl: originalImageUrl.value || imageParam.value, // 使用原始图片 URL
+        coverImageUrl: imageParam.value, // 分析后的图片URL
         oil: answers.value[1] ?? 0,
         scurfOrKeratin: answers.value[2] ?? 0,
         hairLoss: answers.value[3] ?? 0,
@@ -230,7 +232,7 @@ const goBack = () => {
   if (questionId.value > 1) {
     saveQuestionnaireResults();
     uni.redirectTo({
-      url: `/pages/questionnaire/question?id=${questionId.value - 1}&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}`,
+      url: `/pages/questionnaire/question?id=${questionId.value - 1}&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
     });
   } else {
     uni.navigateBack();
@@ -255,6 +257,19 @@ onMounted(() => {
   if (options.stage) stageParam.value = options.stage;
   if (options.position) positionParam.value = options.position;
   if (options.image) imageParam.value = decodeURIComponent(options.image);
+
+  // 接收 angles 参数，解析出原始图片 URL
+  if (options.angles) {
+    anglesParam.value = options.angles; // 存储 angles 参数用于页面跳转
+    try {
+      const angles = JSON.parse(decodeURIComponent(options.angles));
+      if (angles.front) {
+        originalImageUrl.value = angles.front;
+      }
+    } catch (e) {
+      console.error('Failed to parse angles:', e);
+    }
+  }
 
   const savedAnswers = uni.getStorageSync('questionnaire_results');
   if (questionId.value === 1 && !savedAnswers) {
