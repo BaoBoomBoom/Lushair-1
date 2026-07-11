@@ -80,7 +80,8 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onShow } from '@dcloudio/uni-app';
+import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/userStore';
 
