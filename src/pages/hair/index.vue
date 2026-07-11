@@ -883,22 +883,60 @@ const viewRecordDetail = async (record: HistoryRecord) => {
         console.log('aiReportIdParam:', aiReportIdParam);
 
         let dataParam = '';
-        // 如果有 reportId，尝试从 hair_reports_detail 获取详情
+        // 如果有 reportId，尝试从 hair_reports_detail 获取详情 (If reportId exists, try fetching detail from hair_reports_detail)
         if (trichoscanData.reportId) {
+            uni.showLoading({
+                title: 'Loading...',
+                mask: true
+            });
             try {
                 const detailResponse = await fetchReportDetail(trichoscanData.reportId);
                 if (detailResponse && detailResponse.detail) {
+                    const hasRawAiData = !!detailResponse.rawAiData;
+                    console.log('detailResponse.rawAiData exists:', hasRawAiData);
+
                     const decompressed = await decompressBase64Gzip(detailResponse.detail);
                     console.log('Decompressed detail from hair_reports_detail:', decompressed);
                     console.log('decompressed.output:', decompressed?.output);
-                    // 如果解压后的数据中有 output，取 output 字段作为 data 传入
-                    if (decompressed?.output) {
+
+                    // 如果存在 rawAiData 且解压数据包含 output，则直接使用 (If rawAiData exists and decompressed output is valid, use it directly)
+                    if (hasRawAiData && decompressed?.output) {
                         dataParam = '&data=' + encodeURIComponent(JSON.stringify(decompressed.output));
                         console.log('Using output as data param:', decompressed.output);
+                    } else if (decompressed) {
+                        // 缺少 rawAiData 时，说明是老数据，需请求后端免保存分析接口 (When rawAiData is missing, it is old data, parse via backend without saving)
+                        console.log('rawAiData is missing, parsing through backend...');
+                        const bodyMap: Record<string, string> = {};
+                        const VALID_POSITIONS = ['1', '2', '3', '4', '5', '6', '7'];
+                        let hasData = false;
+                        for (const pos of VALID_POSITIONS) {
+                            if (decompressed[pos]) {
+                                hasData = true;
+                                bodyMap[pos] = typeof decompressed[pos] === 'string'
+                                    ? decompressed[pos]
+                                    : JSON.stringify(decompressed[pos]);
+                            }
+                        }
+                        if (hasData) {
+                            const parseResponse = await post('analyse/parse', {
+                                body: bodyMap,
+                                userId: record.userId,
+                                merchantId: trichoscanData.merchantId || '',
+                                detectionType: trichoscanData.detectionType || null,
+                                packageName: trichoscanData.packageName || '',
+                                language: uni.getLocale ? uni.getLocale() : 'zh-Hans'
+                            }) as any;
+                            if (parseResponse) {
+                                dataParam = '&data=' + encodeURIComponent(JSON.stringify(parseResponse));
+                                console.log('Parsed through backend successfully:', parseResponse);
+                            }
+                        }
                     }
                 }
             } catch (error) {
                 console.error('Failed to fetch/report detail for navigation:', error);
+            } finally {
+                uni.hideLoading();
             }
         }
 

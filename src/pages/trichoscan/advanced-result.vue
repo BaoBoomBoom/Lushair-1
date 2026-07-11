@@ -2359,13 +2359,18 @@ onMounted(async () => {
   } else if (options.id) {
     recordId.value = parseInt(options.id, 10);
     isQuickScan.value = resolveQuickScan(options, null);
-    await fetchAnalysisHistory(userId);
+    // 从历史列表页跳转过来时不调用 goHis 接口获取主数据 (Do not call goHis API to fetch main data when navigating from history list page)
+    if (options.from !== 'hair') {
+      await fetchAnalysisHistory(userId);
+    }
     if (userId) {
       fetchHealthData(userId);
       fetchProductRecommendations(userId);
     }
   } else if (userId) {
-    await fetchAnalysisHistory(userId);
+    if (options.from !== 'hair') {
+      await fetchAnalysisHistory(userId);
+    }
     fetchHealthData(userId);
     fetchProductRecommendations(userId);
   }
