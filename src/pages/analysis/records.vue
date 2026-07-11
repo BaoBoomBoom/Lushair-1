@@ -33,7 +33,7 @@
     </view>
 
     <!-- 可滚动部分：记录列表 -->
-    <scroll-view scroll-y class="records-list">
+    <scroll-view scroll-y class="records-list" :scroll-top="scrollPosition" @scroll="onScroll">
       <template v-for="(group, month) in groupedRecords" :key="month">
         <view class="month-header">
           <text>{{ month }}</text>
@@ -80,7 +80,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onShow } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/userStore';
 
@@ -92,6 +92,12 @@ export default {
     const searchText = ref('');
     const currentTab = ref('all');
     const loading = ref(false);
+    const scrollPosition = ref(0);
+
+    // 处理滚动事件，保存滚动位置
+    const onScroll = (e) => {
+      scrollPosition.value = e.detail.scrollTop;
+    };
 
     // Custom post function to handle the specific API response structure
     const customPost = async (url, data) => {

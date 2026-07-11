@@ -3,8 +3,8 @@ import { computed, ref, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
 import { useUserStore } from '@/stores/userStore';
-import { get, post } from '@/utils/request';
-import { getSelfieReports } from '@/utils/clerk';
+import { get, post, request, ProjectBrand } from '@/utils/request';
+import { getSelfieReports, getTrichoReports } from '@/utils/clerk';
 import { decompressBase64Gzip } from '@/utils/decompress';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
@@ -25,9 +25,11 @@ interface DetectionRecord {
     phone: number;
     recordId: number;
     reportId?: string;  // 添加reportId字段
+    aiReportId?: string | null;  // AI分析报告ID
     scalp: string;
     scalpScore: string;
     userId: string;
+    deviceModel?: string;  // 设备型号：lushairPro 或其他
 }
 
 interface SelfieResult {
@@ -103,6 +105,13 @@ const loadError = ref('');
 
 // 分页状态
 const selfiePagination = ref({
+    page: 1,
+    pageSize: 10,
+    hasMore: true,
+    isLoadingMore: false
+});
+
+const trichoPagination = ref({
     page: 1,
     pageSize: 10,
     hasMore: true,
@@ -339,7 +348,7 @@ const buildProductUsageRecords = (
         });
 };
 
-// API调用函数
+// API调用函数 - 获取毛囊镜记录（用于 ANALYSIS 标签页，需要老系统的 recordId）
 const fetchDetectionRecords = async (userId: string): Promise<DetectionRecord[]> => {
     try {
         console.log('Fetching detection records for userId:', userId);
@@ -354,12 +363,58 @@ const fetchDetectionRecords = async (userId: string): Promise<DetectionRecord[]>
     }
 };
 
+// API调用函数 - 获取毛囊镜报告列表（用于 HISTORY LOG 标签页的分页展示）
+const fetchTrichoReportsForHistory = async (userId: string, page = 1, pageSize = 10): Promise<DetectionRecord[]> => {
+    try {
+        console.log('Fetching tricho reports for history, userId:', userId, 'page:', page);
+        const result = await getTrichoReports(userId, page, pageSize);
+        console.log('Tricho reports response:', result);
+
+        // 更新分页状态
+        trichoPagination.value = {
+            page: result.page,
+            pageSize: result.pageSize,
+            hasMore: result.hasMore,
+            isLoadingMore: false
+        };
+
+        // 转换 hair_reports 数据为 DetectionRecord 格式（用于展示，不需要 recordId）
+        const reports = result.reports || [];
+        const processedReports = reports.map((report: any) => {
+            return {
+                recordId: 0, // 不需要老系统的 recordId，用于展示即可
+                userId: report.userId || userId,
+                name: '',
+                nickName: '',
+                phone: 0,
+                age: 0,
+                createTime: report.generatedAt || report.created_at || new Date().toISOString(),
+                scalp: report.scalp?.toString() || '0',
+                follicle: report.follicle?.toString() || '0',
+                hair: report.hair?.toString() || '0',
+                scalpScore: report.overallScore?.toString() || '0',
+                avatar: '',
+                position: '',
+                reportId: report.id || undefined,
+                aiReportId: report.ai_report_id || report.aiReportId || null,  // AI分析报告ID
+                deviceModel: report.device_model || undefined  // 设备型号
+            } as DetectionRecord;
+        });
+
+        return processedReports;
+    } catch (error) {
+        console.error('Failed to fetch tricho reports:', error);
+        trichoPagination.value.isLoadingMore = false;
+        return [];
+    }
+};
+
 // Fetch report detail from hair_reports_detail table
 const fetchReportDetail = async (reportId: string): Promise<any> => {
     try {
         console.log('Fetching report detail for reportId:', reportId);
         const REPORT_DETAIL_PATH = `/report/detail/${reportId}`;
-        const response = await get(REPORT_DETAIL_PATH, {}, { brand: 'lushair-new' });
+        const response = await get(REPORT_DETAIL_PATH, {}, { brand: ProjectBrand.LUSHAIR_NEW });
         console.log('Report detail response:', response);
         return response;
     } catch (error) {
@@ -504,9 +559,13 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
             throw new Error('No userId available');
         }
         
-        const [detectionRecords, selfieResults] = await Promise.all([
-            fetchDetectionRecords(userId),
-            fetchSelfieResults(userId)
+        // 同时获取两套数据：
+        // - detectionRecords: 老系统数据，用于 ANALYSIS 标签页（需要 recordId 调用 goHis）
+        // - trichoReports: hair_reports 表数据，用于 HISTORY LOG 标签页（支持分页）
+        const [detectionRecords, selfieResults, trichoReports] = await Promise.all([
+            fetchDetectionRecords(userId),          // 老系统数据
+            fetchSelfieResults(userId),              // 自拍数据（已有分页）
+            fetchTrichoReportsForHistory(userId)    // hair_reports 表数据（分页）
         ]);
 
         productNameMap.value = await fetchProductNameMap(userId);
@@ -519,9 +578,9 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         originalSelfieResults.value = [...selfieResults];
 
         const allRecords: HistoryRecord[] = [];
-        
-        // 处理检测记录
-        detectionRecords.forEach((record, index) => {
+
+        // 处理检测记录（用于 HISTORY LOG，使用 hair_reports 表数据）
+        trichoReports.forEach((record, index) => {
             const scalpScore = parseFloat(record.scalpScore);
             const level = calculateLevel(scalpScore);
             
@@ -534,12 +593,15 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
             const scoreImprovement = prevScalpScore !== null ? scalpScore - prevScalpScore : 0;
             const levelImprovement = prevLevel !== null ? level - prevLevel : 0;
             
+            // 根据 deviceModel 设置 typeLabel
+            const deviceLabel = record.deviceModel === 'lushairPro' ? 'Lushair Pro' : 'Lushair One';
+
             allRecords.push({
-                id: record.recordId,
+                id: record.recordId || Date.now() + Math.random(),  // 使用 recordId 或生成唯一 ID
                 userId: record.userId,
                 date: formatDate(record.createTime),
                 type: 'advancedScan',
-                typeLabel: t('hair.advancedScan'),
+                typeLabel: deviceLabel,
                 typeIcon: '/static/icons/blur_on.svg',
                 hairLossPattern: {
                     level,
@@ -600,18 +662,17 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         
         historyRecords.value = allRecords;
         scanStreak.value = calculateScanStreak(allRecords.filter((r) => r.type !== 'productUsage'));
-        
-        // 获取雷达图数据 Fetch radar data
-        const advancedScans = allRecords.filter(r => r.type === 'advancedScan');
-        if (advancedScans.length > 0) {
+
+        // 获取雷达图数据 Fetch radar data（使用老系统的 detectionRecords，因为它有正确的 recordId）
+        if (detectionRecords.length > 0) {
             // 按时间排序是倒序的，所以最后一个是最早的，第一个是最新的
             // Sorted by time descending, so last is earliest, first is latest
-            const firstRecord = advancedScans[advancedScans.length - 1];
-            const currentRecord = advancedScans[0];
-            
-            const firstId = (firstRecord.originalData as DetectionRecord).recordId;
-            const currentId = (currentRecord.originalData as DetectionRecord).recordId;
-            
+            const firstRecord = detectionRecords[detectionRecords.length - 1];
+            const currentRecord = detectionRecords[0];
+
+            const firstId = firstRecord.recordId;
+            const currentId = currentRecord.recordId;
+
             if (firstId && currentId) {
                 fetchRadarData(firstId, currentId, userId);
             }
@@ -620,6 +681,9 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         chartDetectionRecords.value = [...detectionRecords];
         processTimeSeriesData(detectionRecords, scoreMetric.value);
         fetchWhatChangedRows();
+
+        // 更新扫描总数（老系统毛囊镜 + 自拍）
+        totalScansCount.value = detectionRecords.length + selfieResults.length;
         
         // 返回数据供其他函数使用
         return { detectionRecords, selfieResults };
@@ -702,6 +766,25 @@ onMounted(async () => {
             console.log('Updated reportId for trichoscan record:', data.recordId, data.reportId);
         }
     });
+
+    // 监听毛囊镜aiReportId更新事件
+    uni.$on('trichoscanAiReportIdUpdated', (data: { reportId: string; aiReportId: string }) => {
+        console.log('Received trichoscanAiReportIdUpdated event:', data);
+        // 更新historyRecords中对应的记录
+        const recordIndex = historyRecords.value.findIndex((r: HistoryRecord) =>
+            r.type === 'advancedScan' && (r.originalData as DetectionRecord).reportId === data.reportId
+        );
+        console.log('Found record index:', recordIndex, 'total records:', historyRecords.value.length);
+        if (recordIndex !== -1) {
+            const trichoscanData = historyRecords.value[recordIndex].originalData as DetectionRecord;
+            console.log('Before update - aiReportId:', trichoscanData.aiReportId);
+            trichoscanData.aiReportId = data.aiReportId;
+            console.log('After update - aiReportId:', trichoscanData.aiReportId);
+            console.log('Updated aiReportId for trichoscan record:', data.reportId, data.aiReportId);
+        } else {
+            console.log('Record not found for reportId:', data.reportId);
+        }
+    });
 });
 
 // 下拉刷新
@@ -735,13 +818,20 @@ onPullDownRefresh(async () => {
     }
 });
 
-// 滚动到底部时自动加载更多自拍记录
+// 滚动到底部时自动加载更多自拍记录或毛囊镜记录
 onReachBottom(async () => {
-    // 只有在历史记录标签页、自拍 tab、且还有更多数据时才加载
-    if (activeTab.value === 1 &&
-        (historyTab.value === 'selfie' || historyTab.value === 'all') &&
-        selfiePagination.value.hasMore && !selfiePagination.value.isLoadingMore) {
+    if (activeTab.value !== 1) return;
 
+    // 毛囊镜 tab 或 all tab 且还有更多毛囊镜数据时加载
+    if ((historyTab.value === 'trichoscan' || historyTab.value === 'all') &&
+        trichoPagination.value.hasMore && !trichoPagination.value.isLoadingMore) {
+        await loadMoreTrichoResults();
+        return;
+    }
+
+    // 自拍 tab 或 all tab 且还有更多自拍数据时加载
+    if ((historyTab.value === 'selfie' || historyTab.value === 'all') &&
+        selfiePagination.value.hasMore && !selfiePagination.value.isLoadingMore) {
         await loadMoreSelfieResults();
     }
 });
@@ -767,7 +857,7 @@ const switchTab = async (idx: number) => {
     }
 };
 
-const viewRecordDetail = (record: HistoryRecord) => {
+const viewRecordDetail = async (record: HistoryRecord) => {
     console.log('View record detail:', record);
 
     if (record.type === 'productUsage') {
@@ -787,9 +877,33 @@ const viewRecordDetail = (record: HistoryRecord) => {
     } else {
         // Navigate to trichoscan results page for advanced scan records
         const trichoscanData = record.originalData as DetectionRecord;
+        console.log('Clicking trichoscan record - reportId:', trichoscanData.reportId, 'aiReportId:', trichoscanData.aiReportId);
         const reportIdParam = trichoscanData.reportId ? `&reportId=${encodeURIComponent(trichoscanData.reportId)}` : '';
+        const aiReportIdParam = trichoscanData.aiReportId ? `&aiReportId=${encodeURIComponent(trichoscanData.aiReportId)}` : '';
+        console.log('aiReportIdParam:', aiReportIdParam);
+
+        let dataParam = '';
+        // 如果有 reportId，尝试从 hair_reports_detail 获取详情
+        if (trichoscanData.reportId) {
+            try {
+                const detailResponse = await fetchReportDetail(trichoscanData.reportId);
+                if (detailResponse && detailResponse.detail) {
+                    const decompressed = await decompressBase64Gzip(detailResponse.detail);
+                    console.log('Decompressed detail from hair_reports_detail:', decompressed);
+                    console.log('decompressed.output:', decompressed?.output);
+                    // 如果解压后的数据中有 output，取 output 字段作为 data 传入
+                    if (decompressed?.output) {
+                        dataParam = '&data=' + encodeURIComponent(JSON.stringify(decompressed.output));
+                        console.log('Using output as data param:', decompressed.output);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch/report detail for navigation:', error);
+            }
+        }
+
         uni.navigateTo({
-            url: '/pages/trichoscan/advanced-result?id=' + record.id + '&pushType=1' + '&userId=' + record.userId + reportIdParam + '&from=hair'
+            url: '/pages/trichoscan/advanced-result?id=' + record.id + '&pushType=1' + '&userId=' + record.userId + reportIdParam + aiReportIdParam + dataParam + '&from=hair'
         });
     }
 };
@@ -990,8 +1104,11 @@ const fetchLatestScalpScore = async (detectionRecords?: DetectionRecord[], selfi
     }
 };
 
+// 扫描总数（来自老系统数据 + 自拍数据，不受分页影响）
+const totalScansCount = ref(0);
+
 const summaryCards = computed(() => [
-    { label: t('hair.scansTaken'), value: historyRecords.value.length > 0 ? String(historyRecords.value.length) : '--', icon: 'qrcode' },
+    { label: t('hair.scansTaken'), value: totalScansCount.value > 0 ? String(totalScansCount.value) : '--', icon: 'qrcode' },
     { label: t('hair.latestScore'), value: latestScalpScore.value, icon: 'battery-2' },
     { label: t('hair.scanStreak'), value: String(scanStreak.value), icon: 'calendar' },
 ]);
@@ -1541,12 +1658,12 @@ const fetchRadarData = async (firstRecordId: number, currentRecordId: number, us
 
         firstScan.value = processResponse(firstRes);
         currentScan.value = processResponse(currentRes);
-        
+
         // 检查是否有有效数据（非全0） Check for valid data (not all 0)
         const hasValidFirst = firstScan.value.some((v: number) => v > 0);
         const hasValidCurrent = currentScan.value.some((v: number) => v > 0);
         hasRadarData.value = hasValidFirst || hasValidCurrent;
-        
+
         console.log('Radar data updated:', { first: firstScan.value, current: currentScan.value, hasData: hasRadarData.value });
     } catch (error) {
         console.error('Failed to fetch radar data:', error);
@@ -1764,13 +1881,6 @@ const deleteRecord = async (record: HistoryRecord) => {
             return;
         }
 
-        // 计算记录在原始列表中的索引
-        const index = getRecordIndex(record);
-        if (index < 0) {
-            uni.showToast({ title: t('analysis.deleteFailed') || 'Record not found', icon: 'none' });
-            return;
-        }
-
         // 显示确认对话框
         uni.showModal({
             title: t('analysis.deleteConfirmTitle') || 'Delete Record',
@@ -1779,34 +1889,59 @@ const deleteRecord = async (record: HistoryRecord) => {
             cancelText: t('profile.cancel') || 'Cancel',
             success: async (res) => {
                 if (res.confirm) {
-                    // 调用删除API
                     uni.showLoading({ title: t('common.loading') || 'Deleting...' });
                     try {
-                        console.log('Delete record - userId:', userId, 'index:', index, 'record type:', record.type);
+                        console.log('Delete record - record type:', record.type, 'record:', record);
 
-                        // post函数会自动解包响应，返回data字段
-                        const response = await post('user/deleteDetectionRecord', {
-                            userId: userId,
-                            index: index
-                        }) as boolean;
+                        let response = false;
 
-                        console.log('Delete response:', response);
+                        // 毛囊镜和自拍记录使用新的删除接口（从 hair_reports 表）
+                        if (record.type === 'advancedScan' || record.type === 'phoneCamera') {
+                            const reportId = (record.originalData as DetectionRecord | SelfieResult).reportId;
+                            if (reportId) {
+                                // 使用新的删除接口 DELETE /api/report/[id]
+                                response = await deleteReport(reportId);
+                                console.log('Delete report response:', response);
+                            } else {
+                                console.warn('No reportId found for record:', record);
+                            }
+                        } else {
+                            // 产品使用记录不需要删除
+                            console.log('Product usage records cannot be deleted');
+                            uni.hideLoading();
+                            uni.showToast({ title: 'Cannot delete product records', icon: 'none' });
+                            return;
+                        }
 
                         uni.hideLoading();
 
-                        // response是true表示成功
-                        if (response === true) {
+                        if (response) {
                             // 从本地数据源中移除记录
                             const recordIndex = historyRecords.value.findIndex((r: HistoryRecord) => r.id === record.id);
                             if (recordIndex !== -1) {
                                 historyRecords.value.splice(recordIndex, 1);
                             }
 
-                            uni.showToast({ title: t('analysis.deleteSuccess') || 'Deleted successfully', icon: 'success' });
+                            // 同时从原始数据中移除
+                            if (record.type === 'advancedScan') {
+                                const detIndex = originalDetectionRecords.value.findIndex((r: DetectionRecord) => r.recordId === (record.originalData as DetectionRecord).recordId);
+                                if (detIndex !== -1) {
+                                    originalDetectionRecords.value.splice(detIndex, 1);
+                                }
+                            } else if (record.type === 'phoneCamera') {
+                                const selfieIndex = originalSelfieResults.value.findIndex((r: SelfieResult) => r.id === (record.originalData as SelfieResult).id);
+                                if (selfieIndex !== -1) {
+                                    originalSelfieResults.value.splice(selfieIndex, 1);
+                                }
+                            }
 
-                            // 重新加载数据以更新图表
-                            const { detectionRecords, selfieResults } = await processHistoryData();
-                            await fetchLatestScalpScore(detectionRecords, selfieResults);
+                            // 更新扫描总数
+                            totalScansCount.value = originalDetectionRecords.value.length + originalSelfieResults.value.length;
+
+                            // 更新最新分数
+                            await fetchLatestScalpScore(originalDetectionRecords.value, originalSelfieResults.value);
+
+                            uni.showToast({ title: t('analysis.deleteSuccess') || 'Deleted successfully', icon: 'success' });
                         } else {
                             uni.showToast({ title: t('analysis.deleteFailed') || 'Delete failed', icon: 'none' });
                         }
@@ -1821,6 +1956,24 @@ const deleteRecord = async (record: HistoryRecord) => {
     } catch (error) {
         console.error('Delete record error:', error);
         uni.showToast({ title: t('analysis.deleteFailed') || 'Delete failed', icon: 'none' });
+    }
+};
+
+// 删除报告记录（从 hair_reports 表）
+const deleteReport = async (reportId: string): Promise<boolean> => {
+    try {
+        const REPORT_DELETE_PATH = `/report/${reportId}`;
+        const response = await request({
+            url: REPORT_DELETE_PATH,
+            method: 'DELETE',
+            data: {},
+            brand: ProjectBrand.LUSHAIR_NEW
+        });
+        console.log('Delete report response:', response);
+        return true;
+    } catch (error) {
+        console.error('Delete report error:', error);
+        return false;
     }
 };
 
@@ -1898,7 +2051,10 @@ const isRealFirstRecord = (record: HistoryRecord, records: HistoryRecord[]): boo
     if (record.type === 'phoneCamera') {
         return !selfiePagination.value.hasMore;
     }
-    // 如果是毛囊镜类型，暂时总是显示 First Scan（因为还没有分页）
+    // 如果是毛囊镜类型，检查是否还有更多毛囊镜数据
+    if (record.type === 'advancedScan') {
+        return !trichoPagination.value.hasMore;
+    }
     return true;
 };
 
@@ -2067,34 +2223,35 @@ const getTrichoThumbUrl = (record: HistoryRecord): string => {
     return trichoThumbCache.value[recordId] || '';
 };
 
+// prefetchTrichoThumbnails - 暂时注释，使用 goHis 接口
+// const prefetchTrichoThumbnails = async (records: HistoryRecord[]) => {
+//     const userId = userStore.userInfo.userId;
+//     if (!userId) return;
+//     const pending = records.filter((r) => {
+//         if (r.type !== 'advancedScan') return false;
+//         const recordId = (r.originalData as DetectionRecord).recordId;
+//         return !trichoThumbCache.value[recordId];
+//     });
+//     if (!pending.length) return;
+//     await Promise.all(
+//         pending.map(async (record) => {
+//             const recordId = (record.originalData as DetectionRecord).recordId;
+//             try {
+//                 const res = (await post('analyse/goHis', { userId, recordId }, { timeout: 15000 })) as Record<string, unknown>;
+//                 const url = extractFirstFollicleUrl(res);
+//                 if (url) {
+//                     trichoThumbCache.value = { ...trichoThumbCache.value, [recordId]: url };
+//                 }
+//             } catch (err) {
+//                 console.warn('Failed to fetch tricho thumbnail:', recordId, err);
+//             }
+//         }),
+//     );
+// };
+
+// 临时空函数，避免调用时报错
 const prefetchTrichoThumbnails = async (records: HistoryRecord[]) => {
-    const userId = userStore.userInfo.userId;
-    if (!userId) return;
-
-    const pending = records.filter((r) => {
-        if (r.type !== 'advancedScan') return false;
-        const recordId = (r.originalData as DetectionRecord).recordId;
-        return !trichoThumbCache.value[recordId];
-    });
-    if (!pending.length) return;
-
-    await Promise.all(
-        pending.map(async (record) => {
-            const recordId = (record.originalData as DetectionRecord).recordId;
-            try {
-                const res = (await post('analyse/goHis', { userId, recordId }, { timeout: 15000 })) as Record<
-                    string,
-                    unknown
-                >;
-                const url = extractFirstFollicleUrl(res);
-                if (url) {
-                    trichoThumbCache.value = { ...trichoThumbCache.value, [recordId]: url };
-                }
-            } catch (err) {
-                console.warn('Failed to fetch tricho thumbnail:', recordId, err);
-            }
-        }),
-    );
+    console.log('prefetchTrichoThumbnails disabled (goHis commented out)');
 };
 
 const getSelfieImage = (record: HistoryRecord): string => {
@@ -2298,15 +2455,16 @@ watch(
     },
 );
 
-watch(
-    () => [historyView.value, historyTab.value, chipFilteredRecords.value.map((r) => r.id).join(',')],
-    () => {
-        if (historyView.value === 'gallery' && historyTab.value === 'trichoscan') {
-            prefetchTrichoThumbnails(chipFilteredRecords.value);
-        }
-    },
-    { immediate: true },
-);
+// HISTORY LOG 中的预加载毛囊镜缩略图 - 暂时注释（使用 goHis 接口）
+// watch(
+//     () => [historyView.value, historyTab.value, chipFilteredRecords.value.map((r) => r.id).join(',')],
+//     () => {
+//         if (historyView.value === 'gallery' && historyTab.value === 'trichoscan') {
+//             prefetchTrichoThumbnails(chipFilteredRecords.value);
+//         }
+//     },
+//     { immediate: true },
+// );
 
 const goToScanTab = () => {
     uni.switchTab({ url: '/pages/scan/index' });
@@ -2524,6 +2682,87 @@ const loadMoreSelfieResults = async () => {
         console.error('Load more selfie results error:', error);
     } finally {
         selfiePagination.value.isLoadingMore = false;
+    }
+};
+
+// 加载更多毛囊镜记录
+const loadMoreTrichoResults = async () => {
+    if (trichoPagination.value.isLoadingMore || !trichoPagination.value.hasMore) {
+        return;
+    }
+
+    trichoPagination.value.isLoadingMore = true;
+
+    try {
+        // 获取当前userId
+        let userId = userStore.userInfo.userId;
+        if (!userId) {
+            const localUserInfo = uni.getStorageSync('userInfo');
+            const storedUserId = uni.getStorageSync('userId');
+            userId = localUserInfo?.userId || storedUserId;
+        }
+
+        if (!userId) {
+            console.warn('No userId available for loading more tricho results');
+            return;
+        }
+
+        const nextPage = trichoPagination.value.page + 1;
+        const moreResults = await fetchTrichoReportsForHistory(userId, nextPage, trichoPagination.value.pageSize);
+
+        // 合并数据
+        if (moreResults.length > 0) {
+            // 将新数据转换为 HistoryRecord 格式并添加到 existing records
+            const newHistoryRecords: HistoryRecord[] = [];
+            moreResults.forEach((record, index) => {
+                const scalpScore = parseFloat(record.scalpScore);
+                const level = calculateLevel(scalpScore);
+
+                // 获取当前所有毛囊镜记录中的上一条（用于计算 improvement）
+                const currentTrichoResults = historyRecords.value
+                    .filter((r: HistoryRecord) => r.type === 'advancedScan')
+                    .map((r: HistoryRecord) => r.originalData as DetectionRecord);
+
+                const prevRecord = currentTrichoResults[currentTrichoResults.length - 1];
+                const prevScalpScore = prevRecord ? parseFloat(prevRecord.scalpScore) : null;
+                const prevLevel = prevRecord ? calculateLevel(prevScalpScore!) : null;
+
+                const scoreImprovement = prevScalpScore !== null ? scalpScore - prevScalpScore : 0;
+                const levelImprovement = prevLevel !== null ? level - prevLevel : 0;
+
+                // 根据 deviceModel 设置 typeLabel
+                const deviceLabel = record.deviceModel === 'lushairPro' ? 'Lushair Pro' : 'Lushair One';
+
+                newHistoryRecords.push({
+                    id: record.recordId || Date.now() + Math.random(),  // 使用 recordId 或生成唯一 ID
+                    userId: record.userId,
+                    date: formatDate(record.createTime),
+                    type: 'advancedScan',
+                    typeLabel: deviceLabel,
+                    typeIcon: '/static/icons/blur_on.svg',
+                    hairLossPattern: {
+                        level,
+                        total: 7,
+                        improvement: levelImprovement > 0 ? Math.round(levelImprovement) : 0
+                    },
+                    hairScore: {
+                        score: Math.round(scalpScore),
+                        total: 100,
+                        improvement: scoreImprovement > 0 ? Math.round(scoreImprovement) : 0
+                    },
+                    originalData: record
+                });
+            });
+
+            // 合并到现有记录并重新排序
+            const allRecords = [...historyRecords.value, ...newHistoryRecords];
+            allRecords.sort((a, b) => getRecordTimestamp(b) - getRecordTimestamp(a));
+            historyRecords.value = allRecords;
+        }
+    } catch (error) {
+        console.error('Load more tricho results error:', error);
+    } finally {
+        trichoPagination.value.isLoadingMore = false;
     }
 };
 

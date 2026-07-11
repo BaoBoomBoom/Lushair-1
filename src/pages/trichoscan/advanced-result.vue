@@ -1,7 +1,7 @@
  <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useUserStore } from '../../stores/userStore';
-import { post } from '@/utils/request';
+import { post, request, ProjectBrand } from '@/utils/request';
 import { useI18n } from 'vue-i18n';
 
 declare var window: Window & { 
@@ -33,6 +33,7 @@ const pushType = ref('0');
 const recordId = ref(0);
 // reportId相关变量 reportId related variables
 const reportIdFromList = ref<string>(''); // 从列表传来的reportId reportId from list
+const aiReportIdFromList = ref<string>(''); // 从列表传来的aiReportId AI report ID from list
 const currentReportId = ref<string>(''); // 当前页面展示报告的reportId Current page report's reportId
 const currentUserId = ref<string>(''); // 当前用户ID current user ID
 const fromSource = ref(''); // 来源标识 Source identifier
@@ -89,6 +90,17 @@ const improvement = ref(0);
 const scanDate = ref('April 22, 2025 at 5:00 PM');
 const hairLossLevel = ref(3);
 const isQuickScan = ref(false); // 是否为快速扫描模式 Whether it is quick scan mode
+
+// 根据检测类型确定设备名称 Determine device name based on detection type
+// detectionType: 302 或 304 = Lushair Pro (三光谱), 其他 = Lushair One
+// detectionType: 302 or 304 = Lushair Pro (tri-spectral), others = Lushair One
+const deviceName = computed(() => {
+	const detectionType = analysisData.value?.detectionType;
+	if (detectionType === 302 || detectionType === 304) {
+		return 'Lushair Pro';
+	}
+	return 'Lushair One';
+});
 
 function resolveQuickScan(options: Record<string, unknown>, data: Record<string, unknown> | null): boolean {
   if (options.quick === 'true' || options.quick === true || options.quick === '1') return true;
@@ -1413,7 +1425,7 @@ const fetchAIAnalysis = async (userId: string) => {
     // Handle reportId: save to local storage, database, and notify list update
     if (reportId) {
         console.log('从AI分析接口获取到reportId: Got reportId from AI analysis API:', reportId);
-        
+
         // 保存到本地存储 Save to local storage
         try {
             uni.setStorageSync('ai_analysis_reportId', reportId);
@@ -1429,6 +1441,12 @@ const fetchAIAnalysis = async (userId: string) => {
         // Call user/updateDetectionRecord API to save reportId to database
         if (recordId.value && currentUserId.value) {
             await updateDetectionRecordReportId(reportId);
+        }
+
+        // 更新hair_reports表的ai_report_id字段（如果是从列表传来的reportId）
+        // Update ai_report_id in hair_reports table (if reportIdFromList exists)
+        if (reportIdFromList.value && reportIdFromList.value !== reportId) {
+            await updateHairReportsAiReportId(reportIdFromList.value, reportId);
         }
     }
 
@@ -1494,11 +1512,11 @@ const fetchExistingReport = async () => {
     try {
         loading.value = true;
 
-        // 同 AI_ANALYSIS_URL，根据环境变量决定使用绝对地址或相对路径
-        // Same as AI_ANALYSIS_URL: use absolute URL or relative path based on env var
+        // 使用 aiReportIdFromList 构建 URL（AI 报告的 ID）
+        // Use aiReportIdFromList to build URL (AI report ID)
         const REPORT_API_URL = _AI_API_BASE
-          ? `${_AI_API_BASE}/api/v1/hair/report/${reportIdFromList.value}`
-          : `/ai-api/api/v1/hair/report/${reportIdFromList.value}`;
+          ? `${_AI_API_BASE}/api/v1/hair/report/${aiReportIdFromList.value}`
+          : `/ai-api/api/v1/hair/report/${aiReportIdFromList.value}`;
 
         console.log('调用已有report API: Calling existing report API:', REPORT_API_URL);
 
@@ -1603,6 +1621,31 @@ const updateDetectionRecordReportId = async (reportId: string) => {
         console.log('已发送trichoscanReportIdUpdated事件: Emitted trichoscanReportIdUpdated event');
     } catch (error) {
         console.error('更新检测记录reportId失败: Failed to update detection record reportId:', error);
+    }
+}
+
+// 更新hair_reports表的ai_report_id字段 Update ai_report_id in hair_reports table
+const updateHairReportsAiReportId = async (hairReportId: string, aiReportId: string) => {
+    try {
+        console.log('更新hair_reports表的ai_report_id: Updating hair_reports ai_report_id:', hairReportId, aiReportId);
+        // 使用 PUT 方法调用后端的 /api/report/[id] 端点
+        // 注意：Prisma 模型使用 aiReportId（驼峰命名）
+        await request({
+            url: `/report/${hairReportId}`,
+            method: 'PUT',
+            data: { aiReportId: aiReportId },
+            brand: ProjectBrand.LUSHAIR_NEW
+        });
+        console.log('hair_reports表的ai_report_id更新成功: hair_reports ai_report_id updated successfully');
+
+        // 通过事件通知列表页更新本地数据 Notify list page to update local data via event
+        uni.$emit('trichoscanAiReportIdUpdated', {
+            reportId: hairReportId,
+            aiReportId: aiReportId
+        });
+        console.log('已发送trichoscanAiReportIdUpdated事件: Emitted trichoscanAiReportIdUpdated event');
+    } catch (error) {
+        console.error('更新hair_reports表的ai_report_id失败: Failed to update hair_reports ai_report_id:', error);
     }
 }
 
@@ -2283,11 +2326,14 @@ onMounted(async () => {
   if (options.pushType) {
     pushType.value = options.pushType;
   }
-  
-  // 获取reportId Get reportId
+
+  // 获取reportId Get reportId (hair_reports 的 id，用于更新数据库)
   reportIdFromList.value = options.reportId || '';
   currentReportId.value = options.reportId || '';
-  
+
+  // 获取aiReportId Get aiReportId (AI 报告的 id，用于获取已存在的报告)
+  aiReportIdFromList.value = options.aiReportId || '';
+
   // 检查是否启用新AI分析模式 (options覆盖默认)
   if (options.useNewApi === 'true' || options.useNewApi === true) {
     useNewAnalysisMode.value = true;
@@ -2324,14 +2370,17 @@ onMounted(async () => {
     fetchProductRecommendations(userId);
   }
 
-  // 判断是否有reportId，有则调用GET report接口；否则调用分析接口
+  // 判断是否有aiReportId，有则调用GET report接口获取已存在的AI报告；否则调用分析接口
+  // Check if there's aiReportId, if yes call GET report API for existing AI report; otherwise call analysis API
   if (analysisData.value) {
-    if (reportIdFromList.value) {
-      console.log('从列表获取到reportId，调用GET report接口:', reportIdFromList.value);
+    console.log('[DEBUG onMounted] aiReportIdFromList.value:', aiReportIdFromList.value, 'reportIdFromList.value:', reportIdFromList.value);
+    if (aiReportIdFromList.value) {
+      console.log('从列表获取到aiReportId，调用GET report接口:', aiReportIdFromList.value);
       await fetchExistingReport();
     } else if (useNewAnalysisMode.value) {
       const uId = resolveUserId(userId);
       if (uId) {
+        console.log('没有aiReportId，调用fetchAIAnalysis, userId:', uId);
         startAiLoadTimeout();
         await fetchAIAnalysis(uId);
       }
@@ -2375,9 +2424,12 @@ watch(analysisData, (newVal: any) => {
   const uId = resolveUserId(newVal.userId);
   if (!uId) return;
 
-  if (reportIdFromList.value && !isExistingReportCalled.value) {
+  console.log('[DEBUG watch analysisData] aiReportIdFromList.value:', aiReportIdFromList.value, 'isExistingReportCalled.value:', isExistingReportCalled.value);
+  if (aiReportIdFromList.value && !isExistingReportCalled.value) {
+    console.log('[DEBUG watch] calling fetchExistingReport with aiReportId:', aiReportIdFromList.value);
     fetchExistingReport();
   } else if (!isAIAnalysisCalled.value) {
+    console.log('[DEBUG watch] calling fetchAIAnalysis');
     startAiLoadTimeout();
     fetchAIAnalysis(uId);
   }
@@ -2408,7 +2460,7 @@ watch(analysisData, (newVal: any) => {
       <view class="rp-hero-meta">
         <view class="shell-src-badge">
           <TablerIcon name="scan" :size="11" color="#fff" />
-          <text>{{ isQuickScan ? t('quickResult.quickScan') : t('advancedResult.advancedScan') }}</text>
+          <text>{{ isQuickScan ? t('quickResult.quickScan') : deviceName }}</text>
         </view>
         <text class="rp-date">{{ formatDateTime(analysisData?.createTime) }}</text>
       </view>
