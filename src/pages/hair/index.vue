@@ -102,6 +102,7 @@ type ScoreMetricKey = 'hair' | 'follicle' | 'scalp';
 const historyRecords = ref<HistoryRecord[]>([]);
 const isLoading = ref(false);
 const loadError = ref('');
+const isDeletingRecord = ref(false); // 标记是否正在删除记录 Flag for deleting record
 
 // 分页状态
 const selfiePagination = ref({
@@ -900,15 +901,14 @@ const viewRecordDetail = async (record: HistoryRecord) => {
                     console.log('Decompressed detail from hair_reports_detail:', decompressed);
                     console.log('decompressed.output:', decompressed?.output);
 
-                    // 如果解压数据包含 output，则直接使用 (If decompressed output is valid, use it directly)
+                    // 检查 output 字段
                     if (decompressed?.output) {
                         dataParam = '&data=' + encodeURIComponent(JSON.stringify(decompressed.output));
-                        console.log('Using output as data param:', decompressed.output);
+                        console.log('Using output from decompressed');
                     } else if (decompressed) {
-                        // 缺少 rawAiData 时，说明是老数据，需请求后端免保存分析接口 (When rawAiData is missing, it is old data, parse via backend without saving)
-                        console.log('rawAiData is missing, parsing through backend...');
+                        // 使用老格式数据调用 parse 接口
                         const bodyMap: Record<string, string> = {};
-                        const VALID_POSITIONS = ['1', '2', '3', '4', '5', '6', '7'];
+                        const VALID_POSITIONS = ['0', '1', '2', '3', '4', '5', '6', '7'];
                         let hasData = false;
                         for (const pos of VALID_POSITIONS) {
                             if (decompressed[pos]) {
@@ -1929,6 +1929,7 @@ const deleteRecord = async (record: HistoryRecord) => {
             success: async (res) => {
                 if (res.confirm) {
                     uni.showLoading({ title: t('common.loading') || 'Deleting...' });
+                    isDeletingRecord.value = true; // 标记删除开始 Mark deletion start
                     try {
                         console.log('Delete record - record type:', record.type, 'record:', record);
 
@@ -1981,13 +1982,16 @@ const deleteRecord = async (record: HistoryRecord) => {
                             await fetchLatestScalpScore(originalDetectionRecords.value, originalSelfieResults.value);
 
                             uni.showToast({ title: t('analysis.deleteSuccess') || 'Deleted successfully', icon: 'success' });
+                            isDeletingRecord.value = false; // 删除完成 Deletion complete
                         } else {
                             uni.showToast({ title: t('analysis.deleteFailed') || 'Delete failed', icon: 'none' });
+                            isDeletingRecord.value = false; // 删除完成（失败）Deletion complete (failed)
                         }
                     } catch (error) {
                         uni.hideLoading();
                         console.error('Delete record error:', error);
                         uni.showToast({ title: t('analysis.deleteFailed') || 'Delete failed', icon: 'none' });
+                        isDeletingRecord.value = false; // 删除完成（错误）Deletion complete (error)
                     }
                 }
             }
@@ -1995,6 +1999,7 @@ const deleteRecord = async (record: HistoryRecord) => {
     } catch (error) {
         console.error('Delete record error:', error);
         uni.showToast({ title: t('analysis.deleteFailed') || 'Delete failed', icon: 'none' });
+        isDeletingRecord.value = false; // 删除完成（异常）Deletion complete (exception)
     }
 };
 
@@ -2490,6 +2495,8 @@ const fetchWhatChangedRows = async () => {
 watch(
     () => [beforeAfterPair.value?.baselineTs, beforeAfterPair.value?.latestTs, chartDetectionRecords.value.length],
     () => {
+        // 删除记录时跳过 Skip when deleting record
+        if (isDeletingRecord.value) return;
         fetchWhatChangedRows();
     },
 );
