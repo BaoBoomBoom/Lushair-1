@@ -16,7 +16,6 @@ import { navigateToLatestScanResult } from '@/utils/latestScanNavigation';
 import {
     buildScoreSituationNote,
     buildScoreTrendLine,
-    computeScoreDeltas,
     deltaTone,
     formatScoreDelta,
     type ScoreDeltas,
@@ -627,18 +626,32 @@ const fetchHealthData = async (userId: string) => {
     try {
         healthData.value.loading = true;
 
-        // 调用新后端获取最新分数
-        const response = await get('report/latest-score?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
+        // 并行获取最新分数和分数变化
+        const [scoreResponse, deltasResponse] = await Promise.all([
+            get('report/latest-score?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any,
+            get('report/score-deltas?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any,
+        ]);
 
-        console.log('最新分数响应:', response);
+        console.log('最新分数响应:', scoreResponse);
+        console.log('分数变化响应:', deltasResponse);
 
-        if (response && response.overallScore !== null && response.overallScore !== undefined) {
+        if (scoreResponse && scoreResponse.overallScore !== null && scoreResponse.overallScore !== undefined) {
             // 更新各项分数
-            healthData.value.totalScore = Math.round(response.overallScore);
-            healthData.value.scalpHealth = String(Math.round(response.scalp || 0));
-            healthData.value.hairHealth = String(Math.round(response.hair || 0));
-            healthData.value.follicleHealth = String(Math.round(response.follicle || 0));
+            healthData.value.totalScore = Math.round(scoreResponse.overallScore);
+            healthData.value.scalpHealth = String(Math.round(scoreResponse.scalp || 0));
+            healthData.value.hairHealth = String(Math.round(scoreResponse.hair || 0));
+            healthData.value.follicleHealth = String(Math.round(scoreResponse.follicle || 0));
+            healthData.value.hasData = true;
             healthData.value.loading = false;
+
+            // 更新分数变化
+            scoreDeltas.value = {
+                overall: deltasResponse?.overall ?? null,
+                scalp: deltasResponse?.scalp ?? null,
+                hair: deltasResponse?.hair ?? null,
+                follicle: deltasResponse?.follicle ?? null,
+                hasPrevious: deltasResponse?.hasPrevious || false,
+            };
         } else {
             setNoDataState();
         }

@@ -51,7 +51,8 @@ export function computeScoreDeltas(list: DetectionScoreRecord[]): ScoreDeltas {
 
 export function formatScoreDelta(delta: number | null): string {
     if (delta == null || delta === 0) return '';
-    return delta > 0 ? `+${delta}` : String(delta);
+    const rounded = Math.round(delta);
+    return rounded > 0 ? `+${rounded}` : String(rounded);
 }
 
 export function deltaTone(delta: number | null): 'up' | 'down' | 'flat' | 'none' {
