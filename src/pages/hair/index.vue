@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
+import { onPullDownRefresh, onReachBottom, onShow, onHide } from '@dcloudio/uni-app';
 import { useUserStore } from '@/stores/userStore';
 import { get, post, request, ProjectBrand } from '@/utils/request';
 import { getSelfieReports, getTrichoReports } from '@/utils/clerk';
@@ -103,6 +103,7 @@ const historyRecords = ref<HistoryRecord[]>([]);
 const isLoading = ref(false);
 const loadError = ref('');
 const isDeletingRecord = ref(false); // 标记是否正在删除记录 Flag for deleting record
+const savedScrollTop = ref(0); // 保存的滚动位置 Saved scroll position
 
 // 分页状态
 const selfiePagination = ref({
@@ -834,6 +835,34 @@ onReachBottom(async () => {
     if ((historyTab.value === 'selfie' || historyTab.value === 'all') &&
         selfiePagination.value.hasMore && !selfiePagination.value.isLoadingMore) {
         await loadMoreSelfieResults();
+    }
+});
+
+// 页面显示时恢复滚动位置
+onShow(() => {
+    if (savedScrollTop.value > 0) {
+        nextTick(() => {
+            // 查找 .shell-body 元素并恢复滚动位置
+            const query = uni.createSelectorQuery();
+            query.select('.shell-body').boundingClientRect();
+            query.exec((res) => {
+                if (res && res[0]) {
+                    // 设置滚动位置
+                    const shellBody = document.querySelector('.shell-body');
+                    if (shellBody) {
+                        shellBody.scrollTop = savedScrollTop.value;
+                    }
+                }
+            });
+        });
+    }
+});
+
+// 页面隐藏时保存滚动位置
+onHide(() => {
+    const shellBody = document.querySelector('.shell-body');
+    if (shellBody) {
+        savedScrollTop.value = shellBody.scrollTop;
     }
 });
 

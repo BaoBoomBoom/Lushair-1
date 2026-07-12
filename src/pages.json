@@ -113,7 +113,8 @@
                 "app-plus": {
                     "titleNView": false
                 },
-                "enablePullDownRefresh": true
+                "enablePullDownRefresh": true,
+                "scrollToTop": false
             }
         },
         {
