@@ -2,12 +2,15 @@ import { computed, ref } from 'vue';
 import type { TablerIconName } from '@/components/icons/tabler-icons';
 import { AI_HOME_CARE_RECOMMENDATIONS_KEY } from '@/composables/useHomeHealthInsights';
 import { post, ProjectBrand } from '@/utils/request';
+import { useUserStore } from '@/stores/userStore';
 import {
     parseCarePlanFromAiResponse,
     toStoredRoutineItems,
     type CarePlanPeriod,
     type StoredCareRoutineItem,
 } from '@/utils/carePlanParser';
+
+const userStore = useUserStore();
 
 export const CARE_ROUTINE_PLAN_KEY = 'care_routine_plan';
 export const CARE_ROUTINE_RAW_KEY = 'care_routine_raw_text';
@@ -76,17 +79,16 @@ export function useCareRoutinePlan() {
         // 如果任务被标记为完成，保存到数据库
         if (item.done) {
             try {
-                // 获取 userId
-                let userId = uni.getStorageSync('userId');
-                if (!userId) {
-                    const userInfo = uni.getStorageSync('userInfo');
-                    userId = userInfo?.userId;
-                }
+                // 从 userStore 获取 userId
+                const userId = userStore.userInfo?.userId;
 
                 if (userId) {
                     const logEntry = `${item.period}: ${item.name}`;
+                    console.log('[useCareRoutinePlan] Calling API with:', { userId, log: logEntry });
                     await post('/user/routine-log', { userId, log: logEntry }, { brand: ProjectBrand.LUSHAIR_NEW });
-                    console.log('[useCareRoutinePlan] Routine log saved:', logEntry);
+                    console.log('[useCareRoutinePlan] Routine log saved successfully:', logEntry);
+                } else {
+                    console.warn('[useCareRoutinePlan] No userId found in userStore, skipping API call');
                 }
             } catch (error) {
                 console.error('[useCareRoutinePlan] Failed to save routine log:', error);

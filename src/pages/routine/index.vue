@@ -80,6 +80,7 @@ const submitNewRoutine = () => {
 };
 
 onMounted(() => {
+    userStore.initUserInfo();
     loadPlan();
     fetchDailyTask();
     uni.$on('care-plan-updated', refreshPlan);
