@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import type { TablerIconName } from '@/components/icons/tabler-icons';
 import { AI_HOME_CARE_RECOMMENDATIONS_KEY } from '@/composables/useHomeHealthInsights';
+import { post, ProjectBrand } from '@/utils/request';
 import {
     parseCarePlanFromAiResponse,
     toStoredRoutineItems,
@@ -65,12 +66,32 @@ export function useCareRoutinePlan() {
         uni.$emit('care-plan-updated');
     };
 
-    const toggleItem = (id: string) => {
+    const toggleItem = async (id: string) => {
         const item = items.value.find((i) => i.id === id);
         if (!item) return;
         item.done = !item.done;
         persistPlan();
         uni.$emit('care-plan-updated');
+
+        // 如果任务被标记为完成，保存到数据库
+        if (item.done) {
+            try {
+                // 获取 userId
+                let userId = uni.getStorageSync('userId');
+                if (!userId) {
+                    const userInfo = uni.getStorageSync('userInfo');
+                    userId = userInfo?.userId;
+                }
+
+                if (userId) {
+                    const logEntry = `${item.period}: ${item.name}`;
+                    await post('/user/routine-log', { userId, log: logEntry }, { brand: ProjectBrand.LUSHAIR_NEW });
+                    console.log('[useCareRoutinePlan] Routine log saved:', logEntry);
+                }
+            } catch (error) {
+                console.error('[useCareRoutinePlan] Failed to save routine log:', error);
+            }
+        }
     };
 
     const removeItem = (id: string) => {

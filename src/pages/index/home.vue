@@ -7,7 +7,7 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 import DeviceConfidenceSheet from '@/components/scan/DeviceConfidenceSheet.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
 import { useUserStore } from '@/stores/userStore';
-import { post } from '@/utils/request';
+import { get, ProjectBrand } from '@/utils/request';
 import { useHomeHealthInsights } from '@/composables/useHomeHealthInsights';
 import { useHairCareRecommendations } from '@/composables/useHairCareRecommendations';
 import { useCareRoutinePlan } from '@/composables/useCareRoutinePlan';
@@ -626,48 +626,24 @@ const loadLatestScoreOverview = () => {
 const fetchHealthData = async (userId: string) => {
     try {
         healthData.value.loading = true;
-        let response: any;
-        
-        // 根据用户类型调用不同的API
-        if ((userStore.userInfo as any).type === 1) {
-            response = await post('user/getMerchantDetectionRecordList', { merchantId: userId });
-        } else {
-            response = await post('user/getDetectionRecordList', { userId });
-        }
-        
-        console.log('健康度数据响应:', response);
-        
-        // 检查响应状态
-        if (response) {
-            const { list } = response;
-            console.log('list数据响应:', list);
 
-            detectionRecords.value = list || [];
-            
-            // 计算本周内的检测次数
-            const weekCheckTimes = calculateWeekCheckTimes(list);
-            userStore.userInfo.checkTimes = weekCheckTimes;
-            thisWeekCheckTimes.value = weekCheckTimes;
-            
-            // 计算周环比差值
-            weekOverWeekDifference.value = calculateWeekOverWeekDifference(list);
-            scoreDeltas.value = computeScoreDeltas(list || []);
-            
-            const latestRecord = pickLatestDetectionRecord(list);
-            if (latestRecord) {
-                applyLatestScores(latestRecord);
-                await refreshHealthInsights(userId);
-            } else {
-                lastScanDisplay.value = formatLastScanRelative();
-                setNoDataState();
-            }
+        // 调用新后端获取最新分数
+        const response = await get('report/latest-score?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
+
+        console.log('最新分数响应:', response);
+
+        if (response && response.overallScore !== null && response.overallScore !== undefined) {
+            // 更新各项分数
+            healthData.value.totalScore = Math.round(response.overallScore);
+            healthData.value.scalpHealth = String(Math.round(response.scalp || 0));
+            healthData.value.hairHealth = String(Math.round(response.hair || 0));
+            healthData.value.follicleHealth = String(Math.round(response.follicle || 0));
+            healthData.value.loading = false;
         } else {
-            lastScanDisplay.value = formatLastScanRelative();
             setNoDataState();
         }
     } catch (error) {
-        console.error('获取健康度数据失败:', error);
-        lastScanDisplay.value = formatLastScanRelative();
+        console.error('获取最新分数失败:', error);
         setNoDataState();
     }
 };
