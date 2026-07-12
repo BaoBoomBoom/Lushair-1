@@ -871,8 +871,9 @@ const viewRecordDetail = async (record: HistoryRecord) => {
         const data = record.originalData as SelfieResult;
         const reportIdParam = data.reportId ? `&reportId=${encodeURIComponent(data.reportId)}` : '';
         const aiReportIdParam = data.aiReportId ? `&aiReportId=${encodeURIComponent(data.aiReportId)}` : '';
+        const overallScoreParam = `&overallScore=${record.hairScore.score}`;
         uni.navigateTo({
-            url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}${aiReportIdParam}`
+            url: `/pages/Selfie/results?position=${encodeURIComponent(data.position)}&stage=${data.stage}&image=${encodeURIComponent(data.image)}&extInfo=${encodeURIComponent(data.extInfo || '')}&userId=${record.userId}&from=history&createTime=${encodeURIComponent(data.createTime || '')}&id=${data.id}${reportIdParam}${aiReportIdParam}${overallScoreParam}`
         });
     } else {
         // Navigate to trichoscan results page for advanced scan records
@@ -899,8 +900,8 @@ const viewRecordDetail = async (record: HistoryRecord) => {
                     console.log('Decompressed detail from hair_reports_detail:', decompressed);
                     console.log('decompressed.output:', decompressed?.output);
 
-                    // 如果存在 rawAiData 且解压数据包含 output，则直接使用 (If rawAiData exists and decompressed output is valid, use it directly)
-                    if (hasRawAiData && decompressed?.output) {
+                    // 如果解压数据包含 output，则直接使用 (If decompressed output is valid, use it directly)
+                    if (decompressed?.output) {
                         dataParam = '&data=' + encodeURIComponent(JSON.stringify(decompressed.output));
                         console.log('Using output as data param:', decompressed.output);
                     } else if (decompressed) {
@@ -941,7 +942,7 @@ const viewRecordDetail = async (record: HistoryRecord) => {
         }
 
         uni.navigateTo({
-            url: '/pages/trichoscan/advanced-result?id=' + record.id + '&pushType=1' + '&userId=' + record.userId + reportIdParam + aiReportIdParam + dataParam + '&from=hair'
+            url: '/pages/trichoscan/advanced-result?id=' + record.id + '&pushType=1' + '&userId=' + record.userId + reportIdParam + aiReportIdParam + dataParam + '&from=hair&overallScore=' + record.hairScore.score
         });
     }
 };

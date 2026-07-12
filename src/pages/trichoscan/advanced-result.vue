@@ -90,6 +90,7 @@ const improvement = ref(0);
 const scanDate = ref('April 22, 2025 at 5:00 PM');
 const hairLossLevel = ref(3);
 const isQuickScan = ref(false); // 是否为快速扫描模式 Whether it is quick scan mode
+const overallScoreFromList = ref<number | null>(null); // 从列表传入的Overall Score Overall Score passed from list
 
 // 根据检测类型确定设备名称 Determine device name based on detection type
 // detectionType: 302 或 304 = Lushair Pro (三光谱), 其他 = Lushair One
@@ -2334,6 +2335,12 @@ onMounted(async () => {
   // 获取aiReportId Get aiReportId (AI 报告的 id，用于获取已存在的报告)
   aiReportIdFromList.value = options.aiReportId || '';
 
+  // 获取从列表传入的Overall Score Get overall score passed from list
+  if (options.overallScore != null) {
+    overallScoreFromList.value = parseFloat(options.overallScore);
+    console.log('Overall score from list:', overallScoreFromList.value);
+  }
+
   // 检查是否启用新AI分析模式 (options覆盖默认)
   if (options.useNewApi === 'true' || options.useNewApi === true) {
     useNewAnalysisMode.value = true;
@@ -2347,6 +2354,9 @@ onMounted(async () => {
       const data = JSON.parse(options.data);
       if (data) {
         analysisData.value = data;
+        if (overallScoreFromList.value !== null) {
+          analysisData.value.scalpScore = overallScoreFromList.value;
+        }
         isQuickScan.value = resolveQuickScan(options, data);
         if (userId) {
           fetchHealthData(userId);
@@ -2473,7 +2483,7 @@ watch(analysisData, (newVal: any) => {
       <view class="shell-card rp-score-block">
         <text class="shell-label">{{ t('advancedResult.yourHairScore') }}</text>
         <view class="rp-score-main">
-          <text class="rp-score-num">{{ Math.round(analysisData?.scalpScore || 0) }}</text>
+          <text class="rp-score-num">{{ Math.round(overallScoreFromList.value ?? analysisData?.scalpScore ?? 0) }}</text>
           <text class="rp-score-of">{{ t('advancedResult.outOf100') }}</text>
         </view>
         <text v-if="improvement > 0" class="rp-improve">{{ t('advancedResult.improvement', [improvement]) }}</text>
