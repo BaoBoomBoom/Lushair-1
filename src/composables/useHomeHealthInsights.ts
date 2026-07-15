@@ -1,6 +1,8 @@
 import { ref } from 'vue';
-import { post } from '@/utils/request';
+import { get, ProjectBrand } from '@/utils/request';
 import { useI18n } from 'vue-i18n';
+import { getSelfieReports, getTrichoReports } from '@/utils/clerk';
+import { decompressBase64Gzip } from '@/utils/decompress';
 import {
     buildCareRecommendationPrompt,
     deriveHomeHealthFindings,
@@ -107,24 +109,75 @@ export function useHomeHealthInsights() {
 
         loading.value = true;
         try {
-            const [detectionRes, selfieRes] = await Promise.all([
-                post('user/getDetectionRecordList', { userId }) as Promise<{ list?: DetectionRecordRow[] }>,
-                post('user/getSelfieResultList', { userId }) as Promise<SelfieRow[]>,
+            // 只需获取最新一条记录
+            const [trichoRes, selfieRes] = await Promise.all([
+                getTrichoReports(userId, 1, 1),
+                getSelfieReports(userId, 1, 1),
             ]);
 
-            const latestRecord = pickLatestRecord(detectionRes?.list || []);
-            const latestSelfie = pickLatestSelfie(Array.isArray(selfieRes) ? selfieRes : []);
+            // 新接口返回格式：{ reports: [...], total, page, pageSize, totalPages, hasMore }
+            const trichoReports = trichoRes?.reports || [];
+            const selfieReports = selfieRes?.reports || [];
+
+            // 转换毛囊镜报告为旧格式
+            const detectionList: DetectionRecordRow[] = trichoReports.map((report: any) => ({
+                recordId: 0, // 新接口没有 recordId
+                createTime: report.generatedAt || report.created_at || new Date().toISOString(),
+                scalp: report.scalp?.toString() || '0',
+                hair: report.hair?.toString() || '0',
+                follicle: report.follicle?.toString() || '0',
+                scalpScore: report.overallScore?.toString() || '0',
+                reportId: report.id || undefined,
+                aiReportId: report.ai_report_id || report.aiReportId || null,
+                userId: report.userId || userId,
+            }));
+
+            // 转换自拍报告为旧格式
+            const selfieList: SelfieRow[] = selfieReports.map((report: any) => ({
+                id: parseInt(report.id) || 0,
+                userId: report.userId || userId,
+                stage: report.stage || 1,
+                position: report.position || 'none',
+                image: report.coverImage || '',
+                reportId: report.id || null,
+                aiReportId: report.aiReportId || report.ai_report_id || null,
+                createTime: report.generatedAt || report.created_at || null,
+                createdTime: report.generatedAt || report.created_at || null,
+                extInfo: report.extInfo || null,
+                hair: report.hair || null,
+                scalp: report.scalp || null,
+                follicle: report.follicle || null,
+                overallScore: report.overallScore || null,
+            }));
+
+            const latestRecord = pickLatestRecord(detectionList);
+            const latestSelfie = pickLatestSelfie(selfieList);
+
+            console.log('[useHomeHealthInsights] trichoReports:', trichoReports);
+            console.log('[useHomeHealthInsights] selfieReports:', selfieReports);
+            console.log('[useHomeHealthInsights] detectionList:', detectionList);
+            console.log('[useHomeHealthInsights] selfieList:', selfieList);
+            console.log('[useHomeHealthInsights] latestRecord:', latestRecord);
+            console.log('[useHomeHealthInsights] latestSelfie:', latestSelfie);
 
             let metrics: TrichoscopyMetrics = {};
-            if (latestRecord?.recordId) {
+            // 新接口没有 recordId，如果 reportId 存在，尝试从 hair_reports_detail 获取详情
+            if (latestRecord?.reportId) {
                 try {
-                    const goHis = (await post('analyse/goHis', {
-                        userId,
-                        recordId: latestRecord.recordId,
-                    }, { timeout: 30000 })) as Record<string, any>;
-                    metrics = extractTrichoscopyMetrics(goHis);
+                    // 如果有 reportId，从 hair_reports_detail 获取完整数据
+                    const REPORT_DETAIL_PATH = `/report/detail/${latestRecord.reportId}`;
+                    const detailRes = await get(REPORT_DETAIL_PATH, {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
+                    if (detailRes?.detail) {
+                        // 解压 base64 gzip 数据
+                        const decompressed = await decompressBase64Gzip(detailRes.detail);
+                        console.log('[useHomeHealthInsights] decompressed detail:', decompressed);
+
+                        // 从解压后的数据中提取 metrics（从 output 字段）
+                        metrics = extractTrichoscopyMetrics(decompressed.output || decompressed);
+                        console.log('[useHomeHealthInsights] extracted metrics:', metrics);
+                    }
                 } catch (err) {
-                    console.warn('[useHomeHealthInsights] goHis failed:', err);
+                    console.warn('[useHomeHealthInsights] fetch/parse detail failed:', err);
                 }
             }
 
@@ -135,7 +188,12 @@ export function useHomeHealthInsights() {
                 overall: Math.round(parseFloat(latestRecord?.scalpScore || '0') || 0),
             };
 
+            console.log('[useHomeHealthInsights] metrics from detail:', metrics);
+            console.log('[useHomeHealthInsights] scores:', scores);
+
             const findings = deriveHomeHealthFindings(metrics);
+            console.log('[useHomeHealthInsights] metrics used for findings:', JSON.stringify(metrics, null, 2));
+            console.log('[useHomeHealthInsights] derived findings:', findings);
             const positionLabel = latestSelfie
                 ? localizeSelfiePosition(latestSelfie.position, t)
                 : '';

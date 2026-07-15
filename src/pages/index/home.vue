@@ -7,7 +7,7 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 import DeviceConfidenceSheet from '@/components/scan/DeviceConfidenceSheet.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
 import { useUserStore } from '@/stores/userStore';
-import { get, ProjectBrand } from '@/utils/request';
+import { get, post, ProjectBrand } from '@/utils/request';
 import { useHomeHealthInsights } from '@/composables/useHomeHealthInsights';
 import { useHairCareRecommendations } from '@/composables/useHairCareRecommendations';
 import { useCareRoutinePlan } from '@/composables/useCareRoutinePlan';
@@ -275,6 +275,8 @@ const findingRows = computed(() => {
         statusChip: string;
     }[] = [];
 
+    console.log('[findingRows] insight.value.findings:', insight.value.findings);
+
     const pushRow = (
         key: string,
         tone: 'neutral' | 'warn',
@@ -332,6 +334,7 @@ const findingRows = computed(() => {
         });
     });
 
+    console.log('[findingRows] final rows.length:', rows.length, 'rows:', rows);
     return rows;
 });
 
@@ -626,10 +629,11 @@ const fetchHealthData = async (userId: string) => {
     try {
         healthData.value.loading = true;
 
-        // 并行获取最新分数和分数变化
+        // 并行获取最新分数、分数变化和健康洞察
         const [scoreResponse, deltasResponse] = await Promise.all([
             get('report/latest-score?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any,
             get('report/score-deltas?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as any,
+            loadHomeHealthInsights(userId),
         ]);
 
         console.log('最新分数响应:', scoreResponse);
@@ -816,8 +820,8 @@ const resetDailyTasks = () => {
     console.log('每日任务已重置');
 };
 
-const goToLatestResult = () => {
-    const navigated = navigateToLatestScanResult(
+const goToLatestResult = async () => {
+    const navigated = await navigateToLatestScanResult(
         insight.value.latestDetectionRecord,
         insight.value.latestSelfieRecord,
         userStore.userInfo.userId,

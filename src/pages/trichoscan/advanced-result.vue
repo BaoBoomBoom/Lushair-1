@@ -1742,9 +1742,10 @@ const fetchProductRecommendations = async (userId: string) => {
 const handleBack = () => {
   if (fromSource.value === 'hair') {
     uni.navigateBack();
-  } else {
-    handleExit();
+    return;
   }
+  // 从首页或其他 H5 页面进入时，返回首页
+  uni.switchTab({ url: '/pages/index/home' });
 };
 
 const handleGenerateMore = () => {
@@ -1801,14 +1802,8 @@ const handleRetakeScan = () => {
     uni.navigateBack();
     return;
   }
-  const u = navigator.userAgent
-  const isiOS = /iPad|iPhone|iPod/.test(u) ||
-                (/Macintosh/.test(u) && 'ontouchend' in document)
-  if (isiOS) {
-    window.webkit.messageHandlers.advancedRetakeScan.postMessage({data: 'advancedRetakeScan'});
-  } else {
-    window.android.advancedRetakeScan(JSON.stringify({data: 'advancedRetakeScan'}));
-  }
+  // 从首页或其他 H5 页面进入时，跳转到扫描页
+  uni.switchTab({ url: '/pages/scan/index' });
 };
 
 const handleExit = () => {
@@ -1816,14 +1811,8 @@ const handleExit = () => {
     uni.navigateBack();
     return;
   }
-  const u = navigator.userAgent
-  const isiOS = /iPad|iPhone|iPod/.test(u) ||
-                (/Macintosh/.test(u) && 'ontouchend' in document)
-  if (isiOS) {
-    window.webkit.messageHandlers.advancedExit.postMessage({data: 'advancedExit'});
-  } else {
-    window.android.advancedExit(JSON.stringify({data: 'advancedExit'}));
-  }
+  // 从首页或其他 H5 页面进入时，返回首页
+  uni.switchTab({ url: '/pages/index/home' });
 };
 
 // 测试空数据状态（开发时使用）
@@ -2456,7 +2445,7 @@ watch(analysisData, (newVal: any) => {
     <ScanAnalyzingOverlay :visible="loading" />
 
     <view class="rp-topbar" :style="headerPaddingStyle(0)">
-      <view class="rp-back" @click="handleBack"><text>‹</text></view>
+      <view class="rp-back" hover-class="none" @click="handleBack"><text>‹</text></view>
       <text class="rp-topbar-title">{{ t('advancedResult.title') }}</text>
       <view class="rp-share" @click="shareResults">
         <image class="share-icon" src="/static/icons/share.svg" mode="aspectFit" style="width:18px;height:18px" />
@@ -2993,10 +2982,10 @@ watch(analysisData, (newVal: any) => {
       <ShellDisclaimer />
 
       <view class="rp-actions">
-        <view class="rp-btn rp-btn--ghost" @click="handleRetakeScan">
+        <view class="rp-btn rp-btn--ghost" hover-class="none" @click="handleRetakeScan">
           <text>{{ t('advancedResult.retakeScan') }}</text>
         </view>
-        <view class="rp-btn rp-btn--primary" @click="handleExit">
+        <view class="rp-btn rp-btn--primary" hover-class="none" @click="handleExit">
           <text>{{ t('advancedResult.exit') }}</text>
         </view>
       </view>
