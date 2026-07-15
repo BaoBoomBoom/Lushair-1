@@ -2510,7 +2510,7 @@ watch(analysisData, (newVal: any) => {
       <view class="shell-card rp-score-block">
         <text class="shell-label">{{ t('advancedResult.yourHairScore') }}</text>
         <view class="rp-score-main">
-          <text class="rp-score-num">{{ Math.round(overallScoreFromList.value ?? analysisData?.scalpScore ?? 0) }}</text>
+          <text class="rp-score-num">{{ Math.round(Number(overallScoreFromList ?? analysisData?.scalpScore ?? 0)) }}</text>
           <text class="rp-score-of">{{ t('advancedResult.outOf100') }}</text>
         </view>
         <text v-if="improvement > 0" class="rp-improve">{{ t('advancedResult.improvement', [improvement]) }}</text>
