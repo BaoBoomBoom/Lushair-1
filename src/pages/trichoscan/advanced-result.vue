@@ -213,6 +213,14 @@ const follicleMetrics: ScalpMetric[] = [
     standardRange: '15-40μm',
     icon: '/static/icons/icon_hair_radius.svg',
     displayIcon: '/static/icons/icon_hair_radius_black.svg'
+  },
+  {
+    id: 'follicleActivity',
+    nameKey: 'advancedResult.follicleActivity',
+    dataField: 'follicle_score_map',
+    standardRange: '1.0-2.0',
+    icon: '/static/icons/icon_follicle_density.svg',
+    displayIcon: '/static/icons/icon_follicle_density_black.svg'
   }
 ];
 
@@ -710,6 +718,8 @@ const getCurrentFollicleStatus = computed(() => {
       return t('advancedResult.follicleDensity');
     case 'follicleRadius':
       return t('advancedResult.follicleRadius');
+    case 'follicleActivity':
+      return t('advancedResult.follicleActivity');
     default:
       return '';
   }
@@ -723,6 +733,7 @@ const getCurrentFollicleDisplayValue = computed(() => {
 const getCurrentFollicleUnit = computed(() => {
   if (selectedFollicleMetric.value === 'follicleDensity') return 'fu/cm²';
   if (selectedFollicleMetric.value === 'follicleRadius') return 'μm';
+  if (selectedFollicleMetric.value === 'follicleActivity') return '';
   return '';
 });
 
@@ -761,7 +772,27 @@ const getCurrentFolliclePercentile = computed(() => {
         percentile = 90;
       }
       break;
-      
+
+    case 'follicleActivity':
+      // 毛囊活度分布：平均每个毛囊的毛发数量
+      // 0-0.5: 极低 (5-20百分位)
+      // 0.5-1.0: 偏低 (20-40百分位)
+      // 1.0-1.5: 正常 (40-70百分位)
+      // 1.5-2.0: 良好 (70-85百分位)
+      // 2.0+: 优秀 (85-95百分位)
+      if (score <= 0.5) {
+        percentile = 5 + (score / 0.5) * 15;
+      } else if (score <= 1.0) {
+        percentile = 20 + ((score - 0.5) / 0.5) * 20;
+      } else if (score <= 1.5) {
+        percentile = 40 + ((score - 1.0) / 0.5) * 30;
+      } else if (score <= 2.0) {
+        percentile = 70 + ((score - 1.5) / 0.5) * 15;
+      } else {
+        percentile = 85 + Math.min(10, (score - 2.0) / 1.0 * 10);
+      }
+      break;
+
     default:
       percentile = 50;
   }
@@ -2844,7 +2875,7 @@ watch(analysisData, (newVal: any) => {
               @click="selectFollicleMetric(metric.id)"
             >
               <image v-if="metric.icon.startsWith('/')" :src="metric.icon" mode="aspectFit" class="rp-chip-icon" />
-              <text class="rp-chip-label">{{ t(metric.nameKey) }}<text v-if="getMetricFieldScore(metric.dataField)" class="rp-chip-score">{{ getMetricFieldScore(metric.dataField) }}</text></text>
+              <text class="rp-chip-label">{{ t(metric.nameKey) }}</text>
             </view>
           </view>
         </view>
