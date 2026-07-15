@@ -178,7 +178,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                 ...reportPayload,
                 content: buildAgentMessageContent(content),
                 stream: true,
-                language: currentLanguage
+                language: currentLanguage,
+                source_app: 'lushair'
             };
 
             savedReportId.value = primaryReportId;
@@ -192,7 +193,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                 userId: userInfo.userId,
                 chatId: savedChatId.value,
                 content: content,
-                stream: true
+                stream: true,
+                source_app: 'lushair'
             };
             
             console.log('后续对话，请求参数:', requestData);
