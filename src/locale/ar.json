@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "نتائجك",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "درجة شعرك",
         "outOf100": "من أصل 100",
         "good": "جيد!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "نتائجك",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "درجة شعرك",
         "outOf100": "من أصل 100",
         "good": "جيد!",
@@ -367,8 +367,8 @@
         "vs": "الفحص الأول مقابل الفحص اليوم",
         "filterByDate": "التصفية حسب التاريخ",
         "records": "السجلات",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "كاميرا الهاتف",
         "hairLossPattern": "نمط تساقط الشعر",
         "hairScore": "درجة الشعر",

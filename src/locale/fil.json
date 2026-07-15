@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "Iyong mga Resulta",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "Iyong Iskor ng Buhok",
         "outOf100": "sa 100",
         "good": "magaling!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "Iyong mga Resulta",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "Iyong Iskor ng Buhok",
         "outOf100": "sa 100",
         "good": "magaling!",
@@ -367,8 +367,8 @@
         "vs": "First Scan vs. Today's Scan",
         "filterByDate": "I-filter ayon sa Petsa",
         "records": "Mga rekord",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "Camera ng Telepono",
         "hairLossPattern": "Pattern ng Pagkalagas ng Buhok",
         "hairScore": "Marka ng Buhok",

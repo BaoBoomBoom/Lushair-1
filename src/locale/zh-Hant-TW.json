@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "您的結果",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "你的頭髮得分",
         "outOf100": "滿分 100",
         "good": "好！",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "您的結果",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "你的頭髮得分",
         "outOf100": "滿分 100",
         "good": "好！",
@@ -367,8 +367,8 @@
         "vs": "第一次掃描與今天的掃描",
         "filterByDate": "按日期過濾",
         "records": "記錄",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "手機相機",
         "hairLossPattern": "脫髮模式",
         "hairScore": "頭髮評分",

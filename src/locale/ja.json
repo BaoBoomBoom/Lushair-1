@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "あなたの結果",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "あな���のヘアスコア",
         "outOf100": "100点中",
         "good": "いいですね！",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "あなたの結果",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "あなたのヘアスコア",
         "outOf100": "100点中",
         "good": "いいですね！",
@@ -367,8 +367,8 @@
         "vs": "最初のスキャンと今日のスキャン",
         "filterByDate": "日付でフィルタリング",
         "records": "記録",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "携帯電話のカメラ",
         "hairLossPattern": "脱毛パターン",
         "hairScore": "ヘアスコア",

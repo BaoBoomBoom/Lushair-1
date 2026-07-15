@@ -695,7 +695,8 @@ const getCurrentFollicleAdvice = computed(() => {
     if (analysisReport.value) {
       const metricMap: Record<string, string> = {
         'follicleDensity': 'follicle_density',
-        'follicleRadius': 'hair_radius'
+        'follicleRadius': 'hair_radius',
+        'follicleActivity': 'avg_hair_count'
       };
       const reportKey = metricMap[selectedFollicleMetric.value];
       if (reportKey && analysisReport.value.report && analysisReport.value.report[reportKey]) {
@@ -733,7 +734,7 @@ const getCurrentFollicleDisplayValue = computed(() => {
 const getCurrentFollicleUnit = computed(() => {
   if (selectedFollicleMetric.value === 'follicleDensity') return 'fu/cm²';
   if (selectedFollicleMetric.value === 'follicleRadius') return 'μm';
-  if (selectedFollicleMetric.value === 'follicleActivity') return '';
+  if (selectedFollicleMetric.value === 'follicleActivity') return t('advancedResult.follicleActivityUnit');
   return '';
 });
 

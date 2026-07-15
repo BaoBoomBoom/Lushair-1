@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "Hasil Anda",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "Skor Rambut Anda",
         "outOf100": "dari 100",
         "good": "Bagus!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "Hasil Anda",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "Skor Rambut Anda",
         "outOf100": "dari 100",
         "good": "Bagus!",
@@ -367,8 +367,8 @@
         "vs": "First Scan vs. Today's Scan",
         "filterByDate": "Filter berdasarkan Tanggal",
         "records": "Catatan",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "Kamera Telepon",
         "hairLossPattern": "Pola Rambut Rontok",
         "hairScore": "Skor Rambut",

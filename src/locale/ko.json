@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "귀하의 결과",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "당신의 헤어 스코어",
         "outOf100": "100점 만점에",
         "good": "좋아요!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "귀하의 결과",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "당신의 헤어 스코어",
         "outOf100": "100점 만점에",
         "good": "좋아요!",
@@ -367,8 +367,8 @@
         "vs": "첫 번째 스캔과 오늘의 스캔",
         "filterByDate": "날짜별로 필터링",
         "records": "기록",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "전화 카메라",
         "hairLossPattern": "탈모 패턴",
         "hairScore": "헤어 스코어",

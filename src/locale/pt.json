@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "Seus resultados",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "Sua pontuação de cabelo",
         "outOf100": "de 100",
         "good": "Bom!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "Seus resultados",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "Sua pontuação de cabelo",
         "outOf100": "de 100",
         "good": "Bom!",
@@ -367,8 +367,8 @@
         "vs": "Primeira verificação vs. verificação de hoje",
         "filterByDate": "Filtrar por data",
         "records": "Registros",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "Câmera do telefone",
         "hairLossPattern": "Padrão de queda de cabelo",
         "hairScore": "Pontuação do cabelo",

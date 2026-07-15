@@ -51,14 +51,14 @@ function syncNativeScanUserId() {
     }
 }
 
-/** Lushair One — single-spectral scan (iOS detectionType 200). */
+/** Lushair One — Lushair One (iOS detectionType 200). */
 export function runLushairOneScan(): boolean {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairOne');
     return postNativeBridge('advanced', { data: 'advanced' });
 }
 
-/** Lushair Pro — tri-spectral scan (iOS detectionType 302). */
+/** Lushair Pro — Lushair Pro (iOS detectionType 302). */
 export function runLushairProScan(): boolean {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairPro');

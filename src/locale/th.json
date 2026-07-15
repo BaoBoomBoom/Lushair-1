@@ -169,7 +169,7 @@
     },
     "advancedResult": {
         "title": "ผลลัพธ์ของคุณ",
-        "advancedScan": "Tri-Spectral Scan",
+        "advancedScan": "Lushair Pro",
         "yourHairScore": "คะแนนเส้นผมของคุณ",
         "outOf100": "จาก 100",
         "good": "ดี!",
@@ -262,7 +262,7 @@
     },
     "quickResult": {
         "title": "ผลลัพธ์ของคุณ",
-        "quickScan": "Single-Spectral Scan",
+        "quickScan": "Lushair One",
         "yourHairScore": "คะแนน��ส้นผมของคุณ",
         "outOf100": "จาก 100",
         "good": "ดี!",
@@ -367,8 +367,8 @@
         "vs": "การสแกนครั้งแรกเทียบกับการสแกนของวันนี้",
         "filterByDate": "กรองตามวันที่",
         "records": "บันทึก",
-        "quickScan": "Single-Spectral Scan",
-        "advancedScan": "Tri-Spectral Scan",
+        "quickScan": "Lushair One",
+        "advancedScan": "Lushair Pro",
         "phoneCamera": "กล้องโทรศัพท์",
         "hairLossPattern": "รูปแบบผมร่วง",
         "hairScore": "คะแนนเส้นผม",
