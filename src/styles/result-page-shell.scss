@@ -179,6 +179,7 @@
 }
 
 .rp-ai-text {
+    display: block;
     font-size: 13px;
     line-height: 1.55;
     color: $shell-soft;
@@ -742,8 +743,9 @@
 
 .rp-btn {
     flex: 1;
-    height: 46px;
-    display: flex;
+    min-height: 52px;
+    height: auto;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 12px;
@@ -753,9 +755,11 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: none;
-    padding: 0;
+    padding: 14px 0;
     margin: 0;
     line-height: 1;
+    box-sizing: border-box;
+    width: 100%;
 
     &::after {
         border: none;
