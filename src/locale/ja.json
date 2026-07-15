@@ -62,7 +62,8 @@
         "save": "保存",
         "chinese": "中国語",
         "english": "英語",
-        "next": "次へ"
+        "next": "次へ",
+        "retry": "再試行"
     },
     "infoCards": {
         "latestData": "最新の検出データ",
@@ -210,7 +211,8 @@
         "hairRadius": "毛の半径",
         "greyHairs": "白髪",
         "keratin": "ケラチン",
-        "terminalVellusRatio": "終末軟毛比",
+        "terminalHairRate": "終毛比率",
+        "vellusHairRate": "軟毛比率",
         "follicleDensity": "卵胞密度",
         "follicleRadius": "卵胞半径",
         "follicleAverage": "卵胞平均",
@@ -303,7 +305,8 @@
         "hairDensity": "毛の密度",
         "hairRadius": "毛の半径",
         "greyHairs": "白髪",
-        "terminalVellusRatio": "終末軟毛比",
+        "terminalHairRate": "終毛比率",
+        "vellusHairRate": "軟毛比率",
         "follicleDensity": "卵胞密度",
         "follicleRadius": "卵胞半径",
         "follicleAverage": "卵胞平均",

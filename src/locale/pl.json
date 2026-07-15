@@ -62,7 +62,8 @@
         "save": "Zapisz",
         "chinese": "Chiński",
         "english": "Angielski",
-        "next": "Następny"
+        "next": "Następny",
+        "retry": "Spróbuj ponownie"
     },
     "infoCards": {
         "latestData": "Najnowsze dane dotyczące wykrywania",
@@ -210,7 +211,8 @@
         "hairRadius": "Promień włosów",
         "greyHairs": "Siwe włosy",
         "keratin": "Keratyna",
-        "terminalVellusRatio": "Stosunek terminal-vellus",
+        "terminalHairRate": "Wskaźnik włosów terminalnych",
+        "vellusHairRate": "Wskaźnik włosów meszkowych",
         "follicleDensity": "Gęstość pęcherzyków",
         "follicleRadius": "Promień pęcherzyka",
         "follicleAverage": "Średnia pęcherzykowa",
@@ -303,7 +305,8 @@
         "hairDensity": "Gęstość włosów",
         "hairRadius": "Promień włosów",
         "greyHairs": "Siwe włosy",
-        "terminalVellusRatio": "Stosunek terminal-vellus",
+        "terminalHairRate": "Wskaźnik włosów terminalnych",
+        "vellusHairRate": "Wskaźnik włosów meszkowych",
         "follicleDensity": "Gęstość pęcherzyków",
         "follicleRadius": "Promień pęcherzyka",
         "follicleAverage": "Średnia pęcherzykowa",

@@ -62,7 +62,8 @@
         "save": "حفظ",
         "chinese": "الصينية",
         "english": "الإنجليزية",
-        "next": "التالي"
+        "next": "التالي",
+        "retry": "إعادة المحاولة"
     },
     "infoCards": {
         "latestData": "أحدث بيانات الكشف",
@@ -210,7 +211,8 @@
         "hairRadius": "شعاع الشعر",
         "greyHairs": "الشعر الرمادي",
         "keratin": "الكيراتين",
-        "terminalVellusRatio": "نسبة النهاية إلى الزغب",
+        "terminalHairRate": "معدل الشعر النهائي",
+        "vellusHairRate": "معدل الشعر الزغبي",
         "follicleDensity": "كثافة الجريبات",
         "follicleRadius": "نصف قطر الجريب",
         "follicleAverage": "متوسط الجريب",
@@ -303,7 +305,8 @@
         "hairDensity": "كثافة الشعر",
         "hairRadius": "شعاع الشعر",
         "greyHairs": "الشعر الرمادي",
-        "terminalVellusRatio": "نسبة النهاية إلى الزغب",
+        "terminalHairRate": "معدل الشعر النهائي",
+        "vellusHairRate": "معدل الشعر الزغبي",
         "follicleDensity": "كثافة الجريبات",
         "follicleRadius": "نصف قطر الجريب",
         "follicleAverage": "متوسط الجريب",

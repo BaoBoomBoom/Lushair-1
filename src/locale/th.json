@@ -62,7 +62,8 @@
         "save": "บันทึก",
         "chinese": "ภาษาจีน",
         "english": "ภาษาอังกฤษ",
-        "next": "ถัดไป"
+        "next": "ถัดไป",
+        "retry": "ลองอีกครั้ง"
     },
     "infoCards": {
         "latestData": "ข้อมูลการตรวจจับล่าสุด",
@@ -210,7 +211,8 @@
         "hairRadius": "รัศมีเส้นผม",
         "greyHairs": "ผมสีเทา",
         "keratin": "เคราติน",
-        "terminalVellusRatio": "อัตราส่วนเทอร์มินัล-เวลลัส",
+        "terminalHairRate": "อัตราส่วนเส้นผมเทอร์มินัล",
+        "vellusHairRate": "อัตราส่วนขนเวลลัส",
         "follicleDensity": "ความหนาแน่นของฟอลลิเคิล",
         "follicleRadius": "รัศมีรูขุมขน",
         "follicleAverage": "ค่าเฉลี่ยฟอลลิเคิล",
@@ -303,7 +305,8 @@
         "hairDensity": "ความหนาแน่นของเส้นผม",
         "hairRadius": "รัศมีเส้นผม",
         "greyHairs": "ผมสีเทา",
-        "terminalVellusRatio": "อัตราส่วนเทอร์มินัล-เวลลัส",
+        "terminalHairRate": "อัตราส่วนเส้นผมเทอร์มินัล",
+        "vellusHairRate": "อัตราส่วนขนเวลลัส",
         "follicleDensity": "ความหนาแน่นของฟอลลิเคิล",
         "follicleRadius": "รัศมีรูขุมขน",
         "follicleAverage": "ค่าเฉลี่ยฟอลลิเคิล",

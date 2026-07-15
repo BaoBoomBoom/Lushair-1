@@ -62,7 +62,8 @@
         "save": "저장",
         "chinese": "중국어",
         "english": "영어",
-        "next": "다음"
+        "next": "다음",
+        "retry": "재시도"
     },
     "infoCards": {
         "latestData": "최신 탐지 데이터",
@@ -210,7 +211,8 @@
         "hairRadius": "머리 반경",
         "greyHairs": "회색 머리카락",
         "keratin": "케라틴",
-        "terminalVellusRatio": "말단-연골 비율",
+        "terminalHairRate": "터미널 모발 비율",
+        "vellusHairRate": "비듬 모발 비율",
         "follicleDensity": "난포 밀도",
         "follicleRadius": "모낭 반경",
         "follicleAverage": "난포 평균",
@@ -303,7 +305,8 @@
         "hairDensity": "모발 밀도",
         "hairRadius": "머리 반경",
         "greyHairs": "회색 머리카락",
-        "terminalVellusRatio": "말단-연골 비율",
+        "terminalHairRate": "터미널 모발 비율",
+        "vellusHairRate": "비듬 모발 비율",
         "follicleDensity": "난포 밀도",
         "follicleRadius": "모낭 반경",
         "follicleAverage": "난포 평균",

@@ -62,7 +62,8 @@
         "save": "I-save",
         "chinese": "Intsik",
         "english": "Ingles",
-        "next": "Susunod"
+        "next": "Susunod",
+        "retry": "Subukan Muli"
     },
     "infoCards": {
         "latestData": "Pinakabagong Data ng Pagtuklas",
@@ -210,7 +211,8 @@
         "hairRadius": "Radius ng Buhok",
         "greyHairs": "Kulay-abo na Buhok",
         "keratin": "Keratin",
-        "terminalVellusRatio": "Ratio ng Terminal-Vellus",
+        "terminalHairRate": "Terminal Hair Rate",
+        "vellusHairRate": "Vellus Hair Rate",
         "follicleDensity": "Densidad ng follicle",
         "follicleRadius": "Radius ng Follicle",
         "follicleAverage": "Average ng Follicle",
@@ -303,7 +305,8 @@
         "hairDensity": "Densidad ng Buhok",
         "hairRadius": "Radius ng Buhok",
         "greyHairs": "Kulay-abo na Buhok",
-        "terminalVellusRatio": "Ratio ng Terminal-Vellus",
+        "terminalHairRate": "Terminal Hair Rate",
+        "vellusHairRate": "Vellus Hair Rate",
         "follicleDensity": "Densidad ng follicle",
         "follicleRadius": "Radius ng Follicle",
         "follicleAverage": "Average ng Follicle",

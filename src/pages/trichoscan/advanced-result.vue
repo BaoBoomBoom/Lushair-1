@@ -176,10 +176,18 @@ const hairMetrics: ScalpMetric[] = [
     displayIcon: '/static/icons/icon_grey_black.svg'
   },
   {
-    id: 'terminalVellusRatio',
-    nameKey: 'advancedResult.terminalVellusRatio',
-    dataField: 'terminal_vellus_ratio',
-    standardRange: '4:1',
+    id: 'terminalHairRate',
+    nameKey: 'advancedResult.terminalHairRate',
+    dataField: 'terminal_hair_rate_map',
+    standardRange: '80-90%',
+    icon: '/static/icons/icon_terminal.svg',
+    displayIcon: '/static/icons/icon_terminal_black.svg'
+  },
+  {
+    id: 'vellusHairRate',
+    nameKey: 'advancedResult.vellusHairRate',
+    dataField: 'velveolus_hair_rate_map',
+    standardRange: '10-20%',
     icon: '/static/icons/icon_terminal.svg',
     displayIcon: '/static/icons/icon_terminal_black.svg'
   }
@@ -407,73 +415,49 @@ const selectScalpMetric = (metricId: string) => {
 const getCurrentHairMetricData = computed(() => {
   const currentMetric = hairMetrics.find(m => m.id === selectedHairMetric.value);
   if (!currentMetric) return null;
-  
-  // 优先使用真实数据
-  if (currentMetric.id === 'terminalVellusRatio') {
-    const terminalMap = (analysisData.value as any)?.terminal_hair_rate_map;
-    const vellusMap = (analysisData.value as any)?.velveolus_hair_rate_map;
-    
-    // 如果terminal_hair_rate_map或velveolus_hair_rate_map取值为null，或者terminal_hair_rate_map和velveolus_hair_rate_map的值都为0
-    if (!terminalMap || !vellusMap || (terminalMap.score === 0 && vellusMap.score === 0)) {
-       return { score: 0, advice: '', display: 'No Data' };
-    }
-    
-    const tScore = terminalMap.score || 0;
-    const vScore = vellusMap.score || 0;
-    
-    // 计算终毛百分比 Calculate terminal hair percentage
-    // 如果是1:0的情况(即vScore为0)，则percentage为100 If 1:0 case (vScore is 0), percentage is 100
-    // 如果是4:1的情况，则percentage为80 (4/5 * 100) If 4:1 case, percentage is 80
-    const total = tScore + vScore;
-    const percentage = total > 0 ? (tScore / total * 100) : 0;
-    
-    return {
-      score: percentage,
-      advice: terminalMap.advice || '',
-      display: `${Math.round(tScore)}:${Math.round(total)}`
-    };
-  }
 
+  // 优先使用真实数据
   if (analysisData.value && (analysisData.value as any)[currentMetric.dataField]) {
     return (analysisData.value as any)[currentMetric.dataField];
   }
-  
+
   // 如果没有真实数据，使用测试数据来验证功能
   const testData = {
-    'hair_density_score_map': { 
+    'hair_density_score_map': {
       score: 0, // 低于80标准，应该约30百分位
-      advice: '' 
+      advice: ''
     },
-    'hair_max_rad_score_map': { 
+    'hair_max_rad_score_map': {
       score: 0, // 在15-40区间，应该约60百分位
-      advice: '' 
+      advice: ''
     },
-    'white_ratio_score_map': { 
+    'white_ratio_score_map': {
       score: 0, // 在0-15%区间，应该约70百分位
-      advice: '' 
+      advice: ''
     },
-    'terminal_vellus_ratio': {
+    'terminal_hair_rate_map': {
+      score: 0,
+      advice: '',
+      display: 'No Data'
+    },
+    'velveolus_hair_rate_map': {
       score: 0,
       advice: '',
       display: 'No Data'
     }
   };
-  
+
   return (testData as any)[currentMetric.dataField] || null;
 });
 
 // 获取当前头发指标的显示值
 const getCurrentHairDisplayValue = computed(() => {
   const data = getCurrentHairMetricData.value;
-  if (selectedHairMetric.value === 'terminalVellusRatio') {
-    return data?.display || 'No Data';
-  }
   return (data?.score || 0).toFixed(2);
 });
 
 // 获取当前头发指标的单位
 const getCurrentHairUnit = computed(() => {
-  if (selectedHairMetric.value === 'terminalVellusRatio') return '';
   if (selectedHairMetric.value === 'hairDensity') return t('advancedResult.hairDensityUnit');
   if (selectedHairMetric.value === 'hairRadius') return 'μm';
   return '%';
@@ -518,8 +502,10 @@ const getCurrentHairStatus = computed(() => {
       return t('advancedResult.hairRadius');
     case 'greyHairs':
       return t('advancedResult.greyHairs');
-    case 'terminalVellusRatio':
-      return 'Ratio'; // 或者其他状态描述
+    case 'terminalHairRate':
+      return t('advancedResult.terminalHairRate');
+    case 'vellusHairRate':
+      return t('advancedResult.vellusHairRate');
     default:
       return '';
   }
@@ -597,9 +583,8 @@ const getCurrentHairPercentile = computed(() => {
       }
       break;
 
-    case 'terminalVellusRatio':
+    case 'terminalHairRate':
       // 终毛比例分布：越高越好
-      // 假设80%以上为优秀
       // 0-40%: 极差 (5-15百分位)
       // 40-60%: 差 (15-35百分位)
       // 60-80%: 一般 (35-65百分位)
@@ -615,6 +600,26 @@ const getCurrentHairPercentile = computed(() => {
         percentile = 65 + ((score - 80) / 10) * 20;
       } else {
         percentile = 85 + Math.min(10, (score - 90) / 10 * 10);
+      }
+      break;
+
+    case 'vellusHairRate':
+      // 毳毛比例分布：越低越好（相反）
+      // 0-10%: 优秀 (85-95百分位)
+      // 10-20%: 良好 (65-85百分位)
+      // 20-40%: 一般 (35-65百分位)
+      // 40-60%: 差 (15-35百分位)
+      // 60%+: 极差 (5-15百分位)
+      if (score <= 10) {
+        percentile = 85 + (score / 10) * 10;
+      } else if (score <= 20) {
+        percentile = 65 + ((score - 10) / 10) * 20;
+      } else if (score <= 40) {
+        percentile = 35 + ((score - 20) / 20) * 30;
+      } else if (score <= 60) {
+        percentile = 15 + ((score - 40) / 20) * 20;
+      } else {
+        percentile = 5 + Math.min(10, (100 - score) / 40 * 10);
       }
       break;
       
@@ -637,7 +642,6 @@ const getCurrentHairMetricIcon = computed(() => {
 // 获取当前头发指标的名称
 const getCurrentHairMetricName = computed(() => {
   const currentMetric = hairMetrics.find(m => m.id === selectedHairMetric.value);
-  if (currentMetric?.id === 'terminalVellusRatio') return 'Terminal-Vellus Ratio';
   return t(currentMetric?.nameKey || 'advancedResult.hairDensity');
 });
 
@@ -1069,7 +1073,8 @@ const shareGridMetrics = [
   { nameKey: 'advancedResult.hairDensity', dataField: 'hair_density_score_map', icon: 'density' },
   { nameKey: 'advancedResult.hairRadius', dataField: 'hair_max_rad_score_map', icon: 'hair_radius' },
   { nameKey: 'advancedResult.greyHairs', dataField: 'white_ratio_score_map', icon: 'grey' },
-  { nameKey: 'advancedResult.terminalVellusRatio', dataField: 'terminal_vellus_ratio', icon: 'terminal' },
+  { nameKey: 'advancedResult.terminalHairRate', dataField: 'terminal_hair_rate_map', icon: 'terminal' },
+  { nameKey: 'advancedResult.vellusHairRate', dataField: 'velveolus_hair_rate_map', icon: 'terminal' },
   { nameKey: 'advancedResult.follicleDensity', dataField: 'follicle_score_map', icon: 'follicle_density' }
 ];
 
@@ -2130,7 +2135,8 @@ const getHairCardImages = computed(() => {
     'hairDensity': 'hair',
     'hairRadius': 'hair',
     'greyHairs': 'white_hair',
-    'terminalVellusRatio': 'hair'
+    'terminalHairRate': 'hair',
+    'vellusHairRate': 'hair'
   };
   
   const urlKey = metricUrlMap[selectedHairMetric.value];

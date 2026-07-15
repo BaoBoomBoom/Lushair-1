@@ -62,7 +62,8 @@
         "save": "Simpan",
         "chinese": "Cina",
         "english": "Bahasa Inggris",
-        "next": "Selanjutnya"
+        "next": "Selanjutnya",
+        "retry": "Coba lagi"
     },
     "infoCards": {
         "latestData": "Data Deteksi Terbaru",
@@ -210,7 +211,8 @@
         "hairRadius": "Jari-jari Rambut",
         "greyHairs": "Rambut Abu-abu",
         "keratin": "Keratin",
-        "terminalVellusRatio": "Rasio Terminal-Vellus",
+        "terminalHairRate": "Tasio rambut terminal",
+        "vellusHairRate": "Tasio rambut vellus",
         "follicleDensity": "Kepadatan Folikel",
         "follicleRadius": "Jari-jari Folikel",
         "follicleAverage": "Rata-rata Folikel",
@@ -303,7 +305,8 @@
         "hairDensity": "Kepadatan Rambut",
         "hairRadius": "Jari-jari Rambut",
         "greyHairs": "Rambut Abu-abu",
-        "terminalVellusRatio": "Rasio Terminal-Vellus",
+        "terminalHairRate": "Tasio rambut terminal",
+        "vellusHairRate": "Tasio rambut vellus",
         "follicleDensity": "Kepadatan Folikel",
         "follicleRadius": "Jari-jari Folikel",
         "follicleAverage": "Rata-rata Folikel",

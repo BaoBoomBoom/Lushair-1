@@ -62,7 +62,8 @@
         "save": "Enregistrer",
         "chinese": "chinois",
         "english": "anglais",
-        "next": "Suivant"
+        "next": "Suivant",
+        "retry": "Réessayer"
     },
     "infoCards": {
         "latestData": "Dernières données de détection",
@@ -210,7 +211,8 @@
         "hairRadius": "Rayon des cheveux",
         "greyHairs": "Poils gris",
         "keratin": "Kératine",
-        "terminalVellusRatio": "Rapport Terminal-Vellus",
+        "terminalHairRate": "Taux de cheveu terminal",
+        "vellusHairRate": "Taux de duvet",
         "follicleDensity": "Densité folliculaire",
         "follicleRadius": "Rayon du follicule",
         "follicleAverage": "Moyenne folliculaire",
@@ -303,7 +305,8 @@
         "hairDensity": "Densité des cheveux",
         "hairRadius": "Rayon des cheveux",
         "greyHairs": "Poils gris",
-        "terminalVellusRatio": "Rapport Terminal-Vellus",
+        "terminalHairRate": "Taux de cheveu terminal",
+        "vellusHairRate": "Taux de duvet",
         "follicleDensity": "Densité folliculaire",
         "follicleRadius": "Rayon du follicule",
         "follicleAverage": "Moyenne folliculaire",

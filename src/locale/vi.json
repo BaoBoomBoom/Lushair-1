@@ -62,7 +62,8 @@
         "save": "Lưu",
         "chinese": "Trung Quốc",
         "english": "tiếng Anh",
-        "next": "Tiếp theo"
+        "next": "Tiếp theo",
+        "retry": "Thử lại"
     },
     "infoCards": {
         "latestData": "Dữ liệu phát hiện mới nhất",
@@ -210,7 +211,8 @@
         "hairRadius": "Bán kính tóc",
         "greyHairs": "Tóc màu xám",
         "keratin": "Keratin",
-        "terminalVellusRatio": "Tỷ lệ đầu cuối-Vellus",
+        "terminalHairRate": "Tỷ lệ tóc terminal",
+        "vellusHairRate": "Tỷ lệ tóc măng",
         "follicleDensity": "Mật độ nang",
         "follicleRadius": "Bán kính nang",
         "follicleAverage": "Trung bình nang",
@@ -303,7 +305,8 @@
         "hairDensity": "Mật độ tóc",
         "hairRadius": "Bán kính tóc",
         "greyHairs": "Tóc màu xám",
-        "terminalVellusRatio": "Tỷ lệ đầu cuối-Vellus",
+        "terminalHairRate": "Tỷ lệ tóc terminal",
+        "vellusHairRate": "Tỷ lệ tóc măng",
         "follicleDensity": "Mật độ nang",
         "follicleRadius": "Bán kính nang",
         "follicleAverage": "Trung bình nang",

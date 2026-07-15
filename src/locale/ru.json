@@ -58,7 +58,8 @@
         "save": "Сохранить",
         "chinese": "Китайский",
         "english": "Английский",
-        "next": "Далее"
+        "next": "Далее",
+        "retry": "Повторить"
     },
     "infoCards": {
         "latestData": "Последние данные обнаружения",
@@ -206,7 +207,8 @@
         "hairRadius": "Радиус волоса",
         "greyHairs": "Седые волосы",
         "keratin": "Кератин",
-        "terminalVellusRatio": "Соотношение терминальных/пушковых",
+        "terminalHairRate": "Доля терминальных волос",
+        "vellusHairRate": "Доля пушковых волос",
         "follicleDensity": "Плотность фолликулов",
         "follicleRadius": "Радиус фолликула",
         "follicleAverage": "Среднее фолликулов",
@@ -299,7 +301,8 @@
         "hairDensity": "Плотность волос",
         "hairRadius": "Радиус волоса",
         "greyHairs": "Седые волосы",
-        "terminalVellusRatio": "Соотношение терминальных/пушковых",
+        "terminalHairRate": "Доля терминальных волос",
+        "vellusHairRate": "Доля пушковых волос",
         "follicleDensity": "Плотность фолликулов",
         "follicleRadius": "Радиус фолликула",
         "follicleAverage": "Среднее фолликулов",

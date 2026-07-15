@@ -58,7 +58,8 @@
         "save": "Speichern",
         "chinese": "Chinesisch",
         "english": "Englisch",
-        "next": "Weiter"
+        "next": "Weiter",
+        "retry": "Wiederholen"
     },
     "infoCards": {
         "latestData": "Neueste Erkennungsdaten",
@@ -206,7 +207,8 @@
         "hairRadius": "Haarradius",
         "greyHairs": "Graue Haare",
         "keratin": "Keratin",
-        "terminalVellusRatio": "Terminal-Vellus-Verhältnis",
+        "terminalHairRate": "Terminalhaarrate",
+        "vellusHairRate": "Flaumhaarrate",
         "follicleDensity": "Follikeldichte",
         "follicleRadius": "Follikelradius",
         "follicleAverage": "Follikel-Durchschnitt",
@@ -299,7 +301,8 @@
         "hairDensity": "Haardichte",
         "hairRadius": "Haarradius",
         "greyHairs": "Graue Haare",
-        "terminalVellusRatio": "Terminal-Vellus-Verhältnis",
+        "terminalHairRate": "Terminalhaarrate",
+        "vellusHairRate": "Flaumhaarrate",
         "follicleDensity": "Follikeldichte",
         "follicleRadius": "Follikelradius",
         "follicleAverage": "Follikel-Durchschnitt",
