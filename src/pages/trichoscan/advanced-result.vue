@@ -1117,6 +1117,68 @@ const trendRecords = computed(() => {
   return [];
 });
 
+// 将具体测量值转换为0-100分数
+const calculateMetricScore = (dataField: string, rawScore: number): number => {
+  if (!Number.isFinite(rawScore) || rawScore === 0) return 50;
+
+  let score = 50;
+
+  switch (dataField) {
+    case 'follicle_score_map':
+      // 毛囊密度：>=1为正常，标准=1，优秀=2，较差=0.5（越大越好）
+      if (rawScore >= 2) score = 95;
+      else if (rawScore <= 0.5) score = 20;
+      else if (rawScore < 1) score = 20 + ((rawScore - 0.5) / 0.5) * 45;
+      else score = 65 + ((rawScore - 1) / 1) * 30;
+      break;
+
+    case 'hair_density_score_map':
+      // 头发密度：标准=80，优秀=100，较差=50（越大越好）
+      if (rawScore >= 100) score = 95;
+      else if (rawScore <= 50) score = 20;
+      else if (rawScore < 80) score = 20 + ((rawScore - 50) / 30) * 45;
+      else score = 65 + ((rawScore - 80) / 20) * 30;
+      break;
+
+    case 'hair_max_rad_score_map':
+      // 头发半径：标准=27.5，优秀=40，较差=15（越大越好）
+      if (rawScore >= 40) score = 95;
+      else if (rawScore <= 15) score = 20;
+      else if (rawScore < 27.5) score = 20 + ((rawScore - 15) / 12.5) * 45;
+      else score = 65 + ((rawScore - 27.5) / 12.5) * 30;
+      break;
+
+    case 'keratinocytes_score_map':
+      // 角质（头屑）：标准=1.5，优秀=0.5，较差=5（越小越好）
+      if (rawScore <= 0.5) score = 95;
+      else if (rawScore >= 5) score = 20;
+      else if (rawScore < 1.5) score = 95 - ((rawScore - 0.5) / 1) * 30;
+      else score = 65 - ((rawScore - 1.5) / 3.5) * 45;
+      break;
+
+    case 'scalp_oil_area_score_map':
+      // 油性：标准=7.5，优秀=3，较差=20（越小越好）
+      if (rawScore <= 3) score = 95;
+      else if (rawScore >= 20) score = 20;
+      else if (rawScore < 7.5) score = 95 - ((rawScore - 3) / 4.5) * 30;
+      else score = 65 - ((rawScore - 7.5) / 12.5) * 45;
+      break;
+
+    case 'redness_area_score_map':
+      // 敏感性（红肿）：标准=7.5，优秀=3，较差=20（越小越好）
+      if (rawScore <= 3) score = 95;
+      else if (rawScore >= 20) score = 20;
+      else if (rawScore < 7.5) score = 95 - ((rawScore - 3) / 4.5) * 30;
+      else score = 65 - ((rawScore - 7.5) / 12.5) * 45;
+      break;
+
+    default:
+      score = 50;
+  }
+
+  return Math.round(Math.max(0, Math.min(100, score)));
+};
+
 const getMetricFieldScore = (dataField: string): string => {
   const data = (analysisData.value as any)?.[dataField];
   if (!data) return '';
@@ -1124,20 +1186,33 @@ const getMetricFieldScore = (dataField: string): string => {
     return data.display || (data.score != null ? String(Math.round(Number(data.score))) : '');
   }
   if (data.score !== 0 && !data.score) return '';
-  const score = Number(data.score);
-  return Number.isFinite(score) ? String(Math.round(score)) : '';
+  const rawScore = Number(data.score);
+  const calculatedScore = calculateMetricScore(dataField, rawScore);
+  return String(calculatedScore);
 };
 
-// 专门用于分享图片的分数获取函数（保留两位小数）
+// 专门用于分享图片的分数获取函数
 const getMetricFieldScoreForShare = (dataField: string): string => {
   const data = (analysisData.value as any)?.[dataField];
   if (!data) return '';
   if (dataField === 'terminal_vellus_ratio') {
-    return data.display || (data.score != null ? Number(data.score).toFixed(2) : '');
+    return data.display || (data.score != null ? String(Math.round(Number(data.score))) : '');
   }
   if (data.score !== 0 && !data.score) return '';
+  const rawScore = Number(data.score);
+  const calculatedScore = calculateMetricScore(dataField, rawScore);
+  return String(calculatedScore);
+};
+
+// 获取分享图片网格中指标的具体值（不带单位，统一2位小数）
+const getMetricFieldValueForShare = (dataField: string): string => {
+  const data = (analysisData.value as any)?.[dataField];
+  if (!data || (data.score !== 0 && !data.score)) return '—';
+
   const score = Number(data.score);
-  return Number.isFinite(score) ? score.toFixed(2) : '';
+  if (!Number.isFinite(score)) return '—';
+
+  return score.toFixed(2);
 };
 
 const radarAxisLabels = computed(() => [
@@ -3284,7 +3359,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
             </view>
             <text class="rp-share-tile-label">{{ t(metric.nameKey) }}</text>
-            <text class="rp-share-tile-score">{{ getMetricFieldScoreForShare(metric.dataField) || '—' }}</text>
+            <text class="rp-share-tile-score">{{ getMetricFieldValueForShare(metric.dataField) }}</text>
           </view>
         </view>
       </view>
