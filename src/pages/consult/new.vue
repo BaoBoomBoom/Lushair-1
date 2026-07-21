@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app';
 import { useI18n } from 'vue-i18n';
 import { getAchievementTracker } from '@/utils/achievementTracker';
 import { getLocale } from '@/i18n.js';
@@ -662,6 +662,7 @@ const refreshScanContext = async () => {
         await loadLatestScanReports(userInfo.userId);
     } finally {
         scanContextReady.value = true;
+        uni.stopPullDownRefresh();
     }
     const nextKey = scanContext.value.contextKey;
 
@@ -699,6 +700,10 @@ onShow(async () => {
         // Reset flag when autoStart is not set, allowing next trigger to work
         hasAutoStarted = false;
     }
+});
+
+onPullDownRefresh(async () => {
+    await refreshScanContext();
 });
 </script>
 
