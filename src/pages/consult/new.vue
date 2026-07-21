@@ -253,16 +253,43 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
 
             console.log('[聊天页] 首次对话，使用 aiReportId:', aiReportId);
         } else {
-            // 后续对话：使用 chatId
-            requestData = {
-                userId: userInfo.userId,
-                chatId: savedChatId.value,
-                content: content,
-                stream: true,
-                source_app: 'lushair'
-            };
+            // 后续对话：检查 reportId 是否变化，有变化则重置 chatId
+            const currentAiReportId = await getChatAiReportId();
 
-            console.log('[聊天页] 后续对话，使用 chatId:', savedChatId.value);
+            if (currentAiReportId && currentAiReportId !== savedReportId.value) {
+                console.log('[聊天页] 检测到新报告，重置对话:', {
+                    old: savedReportId.value,
+                    new: currentAiReportId
+                });
+
+                // 重置为新对话
+                savedReportId.value = currentAiReportId;
+                savedChatId.value = '';
+                uni.removeStorageSync('ai_chat_chatId');
+                uni.removeStorageSync('ai_chat_reportId');
+
+                requestData = {
+                    userId: userInfo.userId,
+                    reportId: currentAiReportId,
+                    content: buildAgentMessageContent(content),
+                    stream: true,
+                    language: currentLanguage,
+                    source_app: 'lushair'
+                };
+
+                console.log('[聊天页] 重置后首次对话，使用 aiReportId:', currentAiReportId);
+            } else {
+                // 后续对话：使用 chatId
+                requestData = {
+                    userId: userInfo.userId,
+                    chatId: savedChatId.value,
+                    content: content,
+                    stream: true,
+                    source_app: 'lushair'
+                };
+
+                console.log('[聊天页] 后续对话，使用 chatId:', savedChatId.value);
+            }
         }
 
         // 使用 fetch 处理流式响应

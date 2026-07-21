@@ -724,6 +724,14 @@ const fetchAnalysis = async () => {
                 const aiReportId = response.reportId;
                 console.log('Got ai_report_id from API:', aiReportId);
 
+                // 保存到本地存储，确保始终是最新
+                try {
+                    uni.setStorageSync('ai_analysis_reportId', aiReportId);
+                    console.log('已保存 ai_analysis_reportId 到本地存储:', aiReportId);
+                } catch (e) {
+                    console.error('保存 ai_analysis_reportId 失败:', e);
+                }
+
                 // 检查是否有Clerk token
                 // const clerkToken = getClerkToken();
                 // if (!clerkToken) {
