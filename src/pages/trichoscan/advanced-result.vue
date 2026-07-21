@@ -280,6 +280,44 @@ const getCurrentScalpScore = computed(() => {
   return data?.score || 0;
 });
 
+// 判断AI分析报告是否已加载完成
+const isAnalysisReportLoaded = computed(() => {
+  return useNewAnalysisMode.value && analysisReport.value !== null;
+});
+
+// 获取头皮指标建议的显示文本（处理加载中、无数据、有数据三种状态）
+const getScalpAdviceDisplayText = computed(() => {
+  if (getCurrentScalpAdvice.value) {
+    return getCurrentScalpAdvice.value;
+  }
+  if (isAnalysisReportLoaded.value) {
+    return t('advancedResult.noAdviceAvailable');
+  }
+  return t('advancedResult.percentileDescription', [getCurrentPercentile.value, selectedScalpMetric.value, 'high']);
+});
+
+// 获取头发指标建议的显示文本
+const getHairAdviceDisplayText = computed(() => {
+  if (getCurrentHairAdvice.value) {
+    return getCurrentHairAdvice.value;
+  }
+  if (isAnalysisReportLoaded.value) {
+    return t('advancedResult.noAdviceAvailable');
+  }
+  return t('advancedResult.percentileDescription', [getCurrentHairPercentile.value, selectedHairMetric.value, 'normal']);
+});
+
+// 获取毛囊指标建议的显示文本
+const getFollicleAdviceDisplayText = computed(() => {
+  if (getCurrentFollicleAdvice.value) {
+    return getCurrentFollicleAdvice.value;
+  }
+  if (isAnalysisReportLoaded.value) {
+    return t('advancedResult.noAdviceAvailable');
+  }
+  return t('advancedResult.percentileDescription', [getCurrentFolliclePercentile.value, selectedFollicleMetric.value, 'good']);
+});
+
 // 获取当前指标的建议文本
 const getCurrentScalpAdvice = computed(() => {
   if (useNewAnalysisMode.value) {
@@ -292,10 +330,13 @@ const getCurrentScalpAdvice = computed(() => {
       };
       const reportKey = metricMap[selectedScalpMetric.value];
       if (reportKey && analysisReport.value.report && analysisReport.value.report[reportKey]) {
-        return analysisReport.value.report[reportKey].root_cause.analysis;
+        const advice = analysisReport.value.report[reportKey].root_cause?.analysis;
+        if (advice) return advice;
       }
+      // 报告已加载但该指标无建议数据
+      return ''; // 空字符串表示无数据
     }
-    // 新模式下，如果报告还未返回，返回空字符串，让模板使用默认文本
+    // 报告未加载，返回空字符串，让模板显示加载中
     return '';
   }
   // 旧模式：使用现有数据
@@ -486,15 +527,18 @@ const getCurrentHairAdvice = computed(() => {
     if (analysisReport.value) {
       const metricMap: Record<string, string> = {
         'hairDensity': 'follicle_density',
-        'hairRadius': 'hair_radius', 
+        'hairRadius': 'hair_radius',
         'greyHairs': '' // 接口似乎没有直接对应白发比例的分析，或需确认
       };
       const reportKey = metricMap[selectedHairMetric.value];
       if (reportKey && analysisReport.value.report && analysisReport.value.report[reportKey]) {
-        return analysisReport.value.report[reportKey].root_cause.analysis;
+        const advice = analysisReport.value.report[reportKey].root_cause?.analysis;
+        if (advice) return advice;
       }
+      // 报告已加载但该指标无建议数据
+      return ''; // 空字符串表示无数据
     }
-    // 新模式下，如果报告还未返回，返回空字符串，让模板使用默认文本
+    // 报告未加载，返回空字符串，让模板显示加载中
     return '';
   }
   // 旧模式：使用现有数据
@@ -702,10 +746,13 @@ const getCurrentFollicleAdvice = computed(() => {
       };
       const reportKey = metricMap[selectedFollicleMetric.value];
       if (reportKey && analysisReport.value.report && analysisReport.value.report[reportKey]) {
-        return analysisReport.value.report[reportKey].root_cause.analysis;
+        const advice = analysisReport.value.report[reportKey].root_cause?.analysis;
+        if (advice) return advice;
       }
+      // 报告已加载但该指标无建议数据
+      return ''; // 空字符串表示无数据
     }
-    // 新模式下，如果报告还未返回，返回空字符串，让模板使用默认文本
+    // 报告未加载，返回空字符串，让模板显示加载中
     return '';
   }
   // 旧模式：使用现有数据
@@ -1081,6 +1128,18 @@ const getMetricFieldScore = (dataField: string): string => {
   return Number.isFinite(score) ? String(Math.round(score)) : '';
 };
 
+// 专门用于分享图片的分数获取函数（保留两位小数）
+const getMetricFieldScoreForShare = (dataField: string): string => {
+  const data = (analysisData.value as any)?.[dataField];
+  if (!data) return '';
+  if (dataField === 'terminal_vellus_ratio') {
+    return data.display || (data.score != null ? Number(data.score).toFixed(2) : '');
+  }
+  if (data.score !== 0 && !data.score) return '';
+  const score = Number(data.score);
+  return Number.isFinite(score) ? score.toFixed(2) : '';
+};
+
 const radarAxisLabels = computed(() => [
   { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
   { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
@@ -1092,12 +1151,12 @@ const radarAxisLabels = computed(() => [
 
 // 分享卡片专用标签（使用view元素，保持两行布局）
 const radarAxisLabelsForShare = computed(() => [
-  { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
-  { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
-  { label: t('advancedResult.hairRadius'), score: getMetricFieldScore('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
-  { label: t('advancedResult.keratin'), score: getMetricFieldScore('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
-  { label: t('advancedResult.oiliness'), score: getMetricFieldScore('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
-  { label: t('advancedResult.sensitivity'), score: getMetricFieldScore('redness_area_score_map'), style: 'top:50%;right:-55px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' }
+  { label: t('advancedResult.follicle'), score: getMetricFieldScoreForShare('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
+  { label: t('advancedResult.hairDensity'), score: getMetricFieldScoreForShare('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
+  { label: t('advancedResult.hairRadius'), score: getMetricFieldScoreForShare('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
+  { label: t('advancedResult.keratin'), score: getMetricFieldScoreForShare('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
+  { label: t('advancedResult.oiliness'), score: getMetricFieldScoreForShare('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
+  { label: t('advancedResult.sensitivity'), score: getMetricFieldScoreForShare('redness_area_score_map'), style: 'top:50%;right:-55px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' }
 ]);
 
 const shareGridMetrics = [
@@ -1106,10 +1165,11 @@ const shareGridMetrics = [
   { nameKey: 'advancedResult.sensitivity', dataField: 'redness_area_score_map', icon: 'sensitivity' },
   { nameKey: 'advancedResult.hairDensity', dataField: 'hair_density_score_map', icon: 'density' },
   { nameKey: 'advancedResult.hairRadius', dataField: 'hair_max_rad_score_map', icon: 'hair_radius' },
+  { nameKey: 'advancedResult.follicleRadius', dataField: 'hair_texture_score_map', icon: 'hair_radius' },
+  { nameKey: 'advancedResult.follicleActivity', dataField: 'follicle_score_map', icon: 'follicle_density' },
   { nameKey: 'advancedResult.greyHairs', dataField: 'white_ratio_score_map', icon: 'grey' },
   { nameKey: 'advancedResult.terminalHairRate', dataField: 'terminal_hair_rate_map', icon: 'terminal' },
-  { nameKey: 'advancedResult.vellusHairRate', dataField: 'velveolus_hair_rate_map', icon: 'terminal' },
-  { nameKey: 'advancedResult.follicleDensity', dataField: 'follicle_score_map', icon: 'follicle_density' }
+  { nameKey: 'advancedResult.vellusHairRate', dataField: 'velveolus_hair_rate_map', icon: 'terminal' }
 ];
 
 // 与AI助手聊天
@@ -2791,7 +2851,7 @@ watch(analysisData, (newVal: any) => {
             </view>
           </view>
           <text class="rp-detail-desc">
-            {{ getCurrentScalpAdvice || t('advancedResult.percentileDescription', [getCurrentPercentile, selectedScalpMetric, 'high']) }}
+            {{ getScalpAdviceDisplayText }}
           </text>
           <scroll-view v-if="getScalpCardImages.length > 0" class="rp-img-scroll" scroll-x show-scrollbar="false">
             <view class="rp-img-list">
@@ -2888,7 +2948,7 @@ watch(analysisData, (newVal: any) => {
             </view>
           </view>
           <text class="rp-detail-desc">
-            {{ getCurrentHairAdvice || t('advancedResult.percentileDescription', [getCurrentHairPercentile, selectedHairMetric, 'normal']) }}
+            {{ getHairAdviceDisplayText }}
           </text>
           <scroll-view v-if="getHairCardImages.length > 0" class="rp-img-scroll" scroll-x show-scrollbar="false">
             <view class="rp-img-list">
@@ -2985,7 +3045,7 @@ watch(analysisData, (newVal: any) => {
             </view>
           </view>
           <text class="rp-detail-desc">
-            {{ getCurrentFollicleAdvice || t('advancedResult.percentileDescription', [getCurrentFolliclePercentile, selectedFollicleMetric, 'good']) }}
+            {{ getFollicleAdviceDisplayText }}
           </text>
           <scroll-view v-if="getFollicleCardImages.length > 0" class="rp-img-scroll" scroll-x show-scrollbar="false">
             <view class="rp-img-list">
@@ -3123,6 +3183,15 @@ watch(analysisData, (newVal: any) => {
 
     <!-- Off-screen share card for long-image export -->
     <view class="rp-share-card" v-if="analysisData">
+      <!-- 分享卡片头部：分数显示 -->
+      <view class="rp-share-header">
+        <text class="rp-share-header-title">{{ t('advancedResult.yourHairScore') }}</text>
+        <view class="rp-share-score">
+          <text class="rp-share-score-num">{{ Math.round(Number(overallScoreFromList ?? analysisData?.scalpScore ?? 0)) }}</text>
+          <text class="rp-share-score-of">{{ t('advancedResult.outOf100') }}</text>
+        </view>
+      </view>
+
       <view class="rp-share-section">
         <text class="rp-share-title">{{ t('advancedResult.yourMetrics') }}</text>
         <view class="rp-share-hex">
@@ -3215,7 +3284,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
             </view>
             <text class="rp-share-tile-label">{{ t(metric.nameKey) }}</text>
-            <text class="rp-share-tile-score">{{ getMetricFieldScore(metric.dataField) || '—' }}</text>
+            <text class="rp-share-tile-score">{{ getMetricFieldScoreForShare(metric.dataField) || '—' }}</text>
           </view>
         </view>
       </view>

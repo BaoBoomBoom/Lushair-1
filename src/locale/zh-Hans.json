@@ -316,6 +316,7 @@
         "lowDensity": "低密度",
         "highAverage": "高平均值",
         "percentileDescription": "正在加载中，请稍后…",
+        "noAdviceAvailable": "该指标暂无建议",
         "highDandruff": "高头屑",
         "highSensitivity": "高敏感性",
         "fetchDataFailed": "获取数据失败",

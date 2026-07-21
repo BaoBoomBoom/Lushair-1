@@ -316,6 +316,7 @@
         "lowDensity": "Low Density",
         "highAverage": "High Average",
         "percentileDescription": "Loading, please wait...",
+        "noAdviceAvailable": "No recommendations available for this metric",
         "highDandruff": "High Dandruff",
         "highSensitivity": "High Sensitivity",
         "fetchDataFailed": "Failed to fetch data",
