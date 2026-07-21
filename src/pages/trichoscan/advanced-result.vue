@@ -1833,10 +1833,16 @@ const routinePeriodLabel = (period: string) => {
 
 // 与AI助手聊天 / Chat with AI assistant
 const askLushairAi = () => {
-  // 保存当前报告ID以便在聊天中使用
-  if (currentReportId.value) {
-    uni.setStorageSync('ai_chat_targetReportId', currentReportId.value);
+  // 保存当前结果页的 aiReportId（临时，仅用于当前会话）
+  const currentAiReportId = currentReportId.value ||
+                            uni.getStorageSync('ai_analysis_reportId') ||
+                            aiReportIdFromList.value;
+
+  if (currentAiReportId) {
+    uni.setStorageSync('ai_chat_targetReportId', currentAiReportId);
+    console.log('[毛囊镜结果页] 保存当前 aiReportId:', currentAiReportId);
   }
+
   uni.setStorageSync('ai_chat_autoStart', 'true');
   uni.switchTab({ url: '/pages/consult/new' });
 };

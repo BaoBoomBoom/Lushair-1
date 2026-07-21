@@ -858,6 +858,14 @@ const overallScore = computed(() => calculateOverallScore());
 const scoreDelta = ref(0);
 
 const askLushairAi = () => {
+    // 保存当前结果页的 aiReportId（临时，仅用于当前会话）
+    const currentAiReportId = uni.getStorageSync('ai_analysis_reportId') ||
+                              reportIdFromList.value;
+    if (currentAiReportId) {
+        uni.setStorageSync('ai_chat_targetReportId', currentAiReportId);
+        console.log('[自拍照结果页] 保存当前 aiReportId:', currentAiReportId);
+    }
+
     uni.setStorageSync('ai_chat_autoStart', 'true');
     uni.switchTab({ url: '/pages/consult/new' });
 };

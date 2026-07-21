@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/userStore';
 import MarkdownRenderer from '../../components/MarkdownRenderer.vue';
 import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
 import { extractChatSharePayload } from '@/utils/chatShareExtract';
+import { get, ProjectBrand } from '@/utils/request';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
@@ -16,8 +17,6 @@ const { userInfo } = userStore;
 // 使用状态栏高度 composable
 // Use status bar height composable
 import {
-    buildChatReportPayload,
-    readStoredScanReportIds,
     useLatestScanReports,
 } from '@/composables/useLatestScanReports';
 import { AI_HOME_CARE_PROMPT_KEY } from '@/composables/useHomeHealthInsights';
@@ -106,6 +105,85 @@ const sendMessage = async () => {
     await getAiResponse(userMessage);
 };
 
+/**
+ * 获取用于聊天的 aiReportId
+ * 优先级：
+ * 1. ai_chat_targetReportId（结果页点击，临时）
+ * 2. ai_analysis_reportId（最新）
+ * 3. 获取最新报告（兜底）
+ */
+const getChatAiReportId = async (): Promise<string | null> => {
+    // 1. 优先使用结果页传递的 aiReportId（临时，用完即清除）
+    const targetReportId = uni.getStorageSync('ai_chat_targetReportId') || '';
+    if (targetReportId) {
+        console.log('[聊天页] 使用结果页 aiReportId:', targetReportId);
+        uni.removeStorageSync('ai_chat_targetReportId');
+        return targetReportId;
+    }
+
+    // 2. 使用最新的 aiReportId
+    const latestAiReportId = uni.getStorageSync('ai_analysis_reportId') || '';
+    if (latestAiReportId) {
+        console.log('[聊天页] 使用最新 aiReportId:', latestAiReportId);
+        return latestAiReportId;
+    }
+
+    // 3. 兜底：获取最新的扫描报告
+    console.log('[聊天页] 无缓存，获取最新报告...');
+
+    const { scanContext } = useLatestScanReports();
+    await loadLatestScanReports(userInfo.userId);
+
+    const trichoReport = scanContext.value.trichoscan;
+    const selfieReport = scanContext.value.selfie;
+
+    if (!trichoReport && !selfieReport) {
+        console.log('[聊天页] 没有可用的扫描报告');
+        return null;
+    }
+
+    // 比较时间，取最新的报告
+    let latestReportId: string | null = null;
+    let latestType = '';
+
+    if (trichoReport && selfieReport) {
+        const trichoTime = new Date(trichoReport.createTime || 0).getTime();
+        const selfieTime = new Date(selfieReport.createTime || 0).getTime();
+        if (trichoTime >= selfieTime) {
+            latestReportId = trichoReport.id;
+            latestType = '毛囊镜';
+        } else {
+            latestReportId = selfieReport.id;
+            latestType = '自拍照';
+        }
+    } else if (trichoReport) {
+        latestReportId = trichoReport.id;
+        latestType = '毛囊镜';
+    } else if (selfieReport) {
+        latestReportId = selfieReport.id;
+        latestType = '自拍照';
+    }
+
+    if (!latestReportId) {
+        return null;
+    }
+
+    // 调用 /api/report/detail 获取 aiReportId
+    try {
+        const response: any = await get(`/report/detail/${latestReportId}`, {}, { brand: ProjectBrand.LUSHAIR_NEW });
+        const aiReportId = response?.report?.aiReportId;
+
+        if (aiReportId) {
+            console.log(`[聊天页] 从最新${latestType}报告获取 aiReportId:`, aiReportId);
+            return aiReportId;
+        }
+    } catch (error) {
+        console.error('[聊天页] 获取 report detail 失败:', error);
+    }
+
+    return null;
+};
+
 // 获取AI回复
 const getAiResponse = async (content: string) => {
     isAiTyping.value = true;
@@ -129,27 +207,15 @@ const getAiResponse = async (content: string) => {
 // 新 API 模式的响应处理
 const getNewAiResponse = async (content: string, currentLanguage: string) => {
     try {
-        const targetReportId = uni.getStorageSync('ai_chat_targetReportId') || '';
-        if (targetReportId) {
-            uni.removeStorageSync('ai_chat_targetReportId');
-        }
-
-        const storedReports = readStoredScanReportIds();
-        const reportBundle = buildChatReportPayload({
-            targetReportId,
-            trichoscanReportId: scanContext.value.trichoscanReportId || storedReports.trichoscanReportId,
-            selfieReportId: scanContext.value.selfieReportId || storedReports.selfieReportId,
-            trichoscanTime: scanContext.value.trichoscan?.createTime,
-            selfieTime: scanContext.value.selfie?.createTime,
-        });
-
-        const { primaryReportId, contextKey, payload: reportPayload, hasAnyReport } = reportBundle;
-        const contextChanged = contextKey !== savedContextKey.value;
-
         let requestData: any;
 
-        if (!savedChatId.value || contextChanged) {
-            if (!hasAnyReport) {
+        // 首次对话或需要新的上下文
+        if (!savedChatId.value) {
+            // 获取 aiReportId
+            const aiReportId = await getChatAiReportId();
+
+            if (!aiReportId) {
+                // 无可用报告，提示用户
                 uni.showModal({
                     title: 'Analysis Required',
                     content: 'Please complete a hair analysis first.',
@@ -175,18 +241,17 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
 
             requestData = {
                 userId: userInfo.userId,
-                ...reportPayload,
+                reportId: aiReportId,
                 content: buildAgentMessageContent(content),
                 stream: true,
                 language: currentLanguage,
                 source_app: 'lushair'
             };
 
-            savedReportId.value = primaryReportId;
-            savedContextKey.value = contextKey;
+            savedReportId.value = aiReportId;
             savedChatId.value = '';
 
-            console.log('首次对话或扫描上下文变化，请求参数:', requestData);
+            console.log('[聊天页] 首次对话，使用 aiReportId:', aiReportId);
         } else {
             // 后续对话：使用 chatId
             requestData = {
@@ -196,8 +261,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                 stream: true,
                 source_app: 'lushair'
             };
-            
-            console.log('后续对话，请求参数:', requestData);
+
+            console.log('[聊天页] 后续对话，使用 chatId:', savedChatId.value);
         }
 
         // 使用 fetch 处理流式响应
@@ -586,7 +651,7 @@ const refreshScanContext = async () => {
 onMounted(() => {
     savedChatId.value = uni.getStorageSync('ai_chat_chatId') || '';
     savedReportId.value = uni.getStorageSync('ai_chat_reportId') || '';
-    savedContextKey.value = uni.getStorageSync('ai_chat_contextKey') || readStoredScanReportIds().contextKey;
+    savedContextKey.value = uni.getStorageSync('ai_chat_contextKey') || '';
 });
 
 onShow(async () => {
