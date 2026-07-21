@@ -364,7 +364,12 @@
         "generatingImage": "Generating image...",
         "pageNotReady": "Page not ready",
         "imageSent": "Image sent",
-        "imageDownloaded": "Image downloaded"
+        "imageDownloaded": "Image downloaded",
+        "routineUpdates": "Routine Updates",
+        "routineUpdatesNote": "Based on your analysis, here are personalized care recommendations",
+        "routineUpdatesEmpty": "No routine recommendations yet. Complete more scans to get personalized advice.",
+        "recommendedIngredients": "Recommended Ingredients",
+        "askLushairAi": "Ask Lushair AI"
     },
     "quickResult": {
         "title": "Your Results",

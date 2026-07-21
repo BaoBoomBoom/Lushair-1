@@ -16,6 +16,7 @@ const userStore = useUserStore();
 // 使用状态栏高度 composable
 // Use status bar height composable
 import { useStatusBar } from '@/composables/useStatusBar';
+import { useCareRoutinePlan } from '@/composables/useCareRoutinePlan';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
 import ShellDisclaimer from '@/components/layout/ShellDisclaimer.vue';
@@ -28,6 +29,7 @@ const HEX_CY = 115.585;
 const HEX_RADIUS = 72;
 const DOWNLOAD_LINK = 'https://www.lushair.ai/getlushair/p/advanced-scalp-analysis-tool-lushair-scalp-scanner';
 const { statusBarHeight, headerPaddingStyle } = useStatusBar();
+const { applyActionablePlan, groupedSections, loadPlan } = useCareRoutinePlan();
 
 const pushType = ref('0');
 const recordId = ref(0);
@@ -1527,6 +1529,9 @@ const fetchAIAnalysis = async (userId: string) => {
         showNoDataState.value = products.value.length === 0;
     }
 
+    // 同步习惯推荐到本地存储 Sync care routine
+    syncRoutineFromReport();
+
   } catch (error: any) {
     console.error('AI分析接口调用失败:', error);
     // AI 摘要失败不应阻断主检测数据展示
@@ -1582,13 +1587,15 @@ const fetchExistingReport = async () => {
 
         console.log('已有report API响应: Existing report API response:', response);
 
-        if (response && response.data.data) {
-            analysisReport.value = response.data.data;
-            // useNewAnalysisMode.value = true;
+        // 兼容两种数据格式：response.data 或 response.data.data
+        const reportData = response?.data?.data || response?.data;
+        if (reportData) {
+            analysisReport.value = reportData;
+            useNewAnalysisMode.value = true;
 
             // 如果启用新模式，处理产品推荐 Handle product recommendations if new mode is enabled
-            if (useNewAnalysisMode.value && response.data.data.actionable_plan && response.data.data.actionable_plan.key_ingredients) {
-                const ingredients = response.data.data.actionable_plan.key_ingredients;
+            if (useNewAnalysisMode.value && reportData.actionable_plan && reportData.actionable_plan.key_ingredients) {
+                const ingredients = reportData.actionable_plan.key_ingredients;
                 // 已知成分图片映射表 Known ingredient image mapping (key: ingredient name, value: image filename)
                 const ingredientImageMap: Record<string, string> = {
                     'aloe vera': 'aloe-vera',
@@ -1625,6 +1632,9 @@ const fetchExistingReport = async () => {
                 showNoDataState.value = products.value.length === 0;
             }
 
+            // 同步习惯推荐到本地存储 Sync care routine
+            syncRoutineFromReport();
+
             uni.showToast({
                 title: 'Report loaded',
                 icon: 'success'
@@ -1637,7 +1647,63 @@ const fetchExistingReport = async () => {
         showErrorPopup(error, { silent: !!analysisData.value });
     } finally {
         loading.value = false;
+        // 如果没有习惯推荐数据，使用默认建议
+        applyFallbackRoutine();
     }
+};
+
+// 从 AI 报告同步习惯推荐 Sync care routine from AI report
+const syncRoutineFromReport = () => {
+  console.log('[advanced-result] syncRoutineFromReport called, analysisReport:', analysisReport.value);
+  const plan = analysisReport.value?.actionable_plan;
+  console.log('[advanced-result] actionable_plan:', plan);
+  if (plan) {
+    applyActionablePlan(plan);
+    console.log('[advanced-result] Care routine synced from AI report');
+  } else {
+    console.log('[advanced-result] No actionable_plan found in report');
+  }
+};
+
+const applyFallbackRoutine = () => {
+  if (groupedSections.value.length) {
+    console.log('[advanced-result] Existing care routine found, skipping fallback');
+    return;
+  }
+  // 基础建议作为后备
+  const fallbackAdvice = [
+    'Gentle daily scalp massage',
+    'Use sulfate-free shampoo',
+    'Avoid excessive heat styling',
+    'Maintain balanced diet',
+    'Get adequate sleep'
+  ];
+  applyActionablePlan({ advice: fallbackAdvice });
+  console.log('[advanced-result] Applied fallback care routine');
+};
+
+// 习惯推荐相关 / Care routine related
+const routinePlanSections = computed(() => groupedSections.value);
+
+const routinePeriodLabel = (period: string) => {
+  const map: Record<string, string> = {
+    morning: t('routine.morning'),
+    evening: t('routine.evening'),
+    treatment: t('routine.treatment'),
+    diet: t('routine.diet'),
+    ingredient: t('routine.recommendedIngredients'),
+  };
+  return map[period] || period;
+};
+
+// 与AI助手聊天 / Chat with AI assistant
+const askLushairAi = () => {
+  // 保存当前报告ID以便在聊天中使用
+  if (currentReportId.value) {
+    uni.setStorageSync('ai_chat_targetReportId', currentReportId.value);
+  }
+  uni.setStorageSync('ai_chat_autoStart', 'true');
+  uni.switchTab({ url: '/pages/consult/new' });
 };
 
 // 更新检测记录的reportId Update detection record reportId
@@ -2590,6 +2656,32 @@ watch(analysisData, (newVal: any) => {
           <TablerIcon name="package" :size="28" color="#8A82A0" />
           <text class="rp-empty-title">{{ t('advancedResult.noProductData') }}</text>
           <text>{{ t('advancedResult.noProductDataDescription') }}</text>
+        </view>
+      </view>
+
+      <view class="shell-card">
+        <view class="rp-ai-head">
+          <TablerIcon name="sparkles" :size="18" color="#6B21C8" />
+          <text class="rp-ai-title">{{ t('advancedResult.routineUpdates') }}</text>
+        </view>
+        <text class="rp-routine-note">{{ t('advancedResult.routineUpdatesNote') }}</text>
+        <template v-if="routinePlanSections.length">
+          <view v-for="section in routinePlanSections" :key="section.period" class="rp-routine-section">
+            <text class="shell-label">{{ routinePeriodLabel(section.period) }}</text>
+            <view class="rp-plan-list">
+              <view v-for="item in section.items" :key="item.id" class="rp-plan-item">
+                <text class="rp-plan-dot">•</text>
+                <view class="rp-plan-copy">
+                  <text class="rp-plan-title">{{ item.name }}</text>
+                  <text v-if="item.sub" class="rp-plan-sub">{{ item.sub }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </template>
+        <text v-else class="rp-routine-empty">{{ t('advancedResult.routineUpdatesEmpty') }}</text>
+        <view class="rp-btn rp-btn--primary rp-btn--wide" @tap="askLushairAi">
+          <text>{{ t('advancedResult.askLushairAi') }}</text>
         </view>
       </view>
 

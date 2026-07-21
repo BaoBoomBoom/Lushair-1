@@ -364,7 +364,12 @@
         "generatingImage": "正在生成图片…",
         "pageNotReady": "页面尚未就绪",
         "imageSent": "图片已发送",
-        "imageDownloaded": "图片已下载"
+        "imageDownloaded": "图片已下载",
+        "routineUpdates": "日常护理建议",
+        "routineUpdatesNote": "根据您的检测结果，为您推荐以下个性化护理方案",
+        "routineUpdatesEmpty": "暂无护理建议。完成更多检测后即可获得个性化建议。",
+        "recommendedIngredients": "推荐成分",
+        "askLushairAi": "咨询 Lushair AI"
     },
     "quickResult": {
         "title": "您的检测结果",
