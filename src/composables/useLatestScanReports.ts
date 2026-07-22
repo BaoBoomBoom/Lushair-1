@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { post } from '@/utils/request';
+import { getSelfieReports, getTrichoReports } from '@/utils/clerk';
 
 export interface DetectionRecordItem {
     recordId: number;
@@ -107,20 +107,37 @@ function buildSelfieContext(result: SelfieResultItem): ScanReportContext {
 
 async function fetchDetectionRecords(userId: string): Promise<DetectionRecordItem[]> {
     try {
-        const response = await post('user/getDetectionRecordList', { userId }) as { list?: DetectionRecordItem[] };
-        return response.list || [];
+        const response = await getTrichoReports(userId, 1, 50);
+        // 新接口返回格式转换
+        return (response.reports || []).map((report: any) => ({
+            recordId: 0,
+            userId: report.userId || userId,
+            createTime: report.generatedAt || report.created_at || new Date().toISOString(),
+            scalpScore: report.overallScore?.toString() || '0',
+            reportId: report.id || '',
+        }));
     } catch (error) {
-        console.error('[useLatestScanReports] Failed to fetch detection records:', error);
+        console.error('[useLatestScanReports] Failed to fetch tricho reports:', error);
         return [];
     }
 }
 
 async function fetchSelfieResults(userId: string): Promise<SelfieResultItem[]> {
     try {
-        const response = await post('user/getSelfieResultList', { userId }) as SelfieResultItem[];
-        return response || [];
+        const response = await getSelfieReports(userId, 1, 50);
+        // 新接口返回格式转换
+        return (response.reports || []).map((report: any) => ({
+            id: parseInt(report.id) || 0,
+            userId: report.userId || userId,
+            createTime: report.generatedAt || report.created_at || null,
+            createdTime: report.generatedAt || report.created_at || null,
+            reportId: report.id || null,
+            stage: report.stage || 1,
+            position: report.position || '',
+            image: report.coverImage || '',
+        }));
     } catch (error) {
-        console.error('[useLatestScanReports] Failed to fetch selfie results:', error);
+        console.error('[useLatestScanReports] Failed to fetch selfie reports:', error);
         return [];
     }
 }

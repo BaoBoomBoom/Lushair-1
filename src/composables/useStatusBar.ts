@@ -22,7 +22,16 @@
 // 获取系统状态栏高度（只执行一次，缓存结果）
 // Get system status bar height (executed only once, cache the result)
 const systemInfo = uni.getSystemInfoSync();
-const statusBarHeightValue = systemInfo.statusBarHeight || 44;
+
+// 优先使用 iOS 注入的状态栏高度，否则使用 uni.getSystemInfoSync() 的值
+// Priority: iOS injected value > uni.getSystemInfoSync() > default 44px
+let statusBarHeightValue = systemInfo.statusBarHeight || 44;
+
+// 在 iOS WebView 环境下，检查是否有原生注入的状态栏高度
+// Check for iOS injected status bar height in WebView environment
+if (typeof window !== 'undefined' && (window as any).__iOS_STATUS_BAR_HEIGHT__) {
+    statusBarHeightValue = (window as any).__iOS_STATUS_BAR_HEIGHT__;
+}
 
 export function useStatusBar() {
     /**

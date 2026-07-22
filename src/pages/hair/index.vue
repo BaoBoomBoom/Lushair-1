@@ -30,6 +30,7 @@ interface DetectionRecord {
     scalpScore: string;
     userId: string;
     deviceModel?: string;  // 设备型号：lushairPro 或其他
+    coverImage?: string;  // 封面图片
 }
 
 interface SelfieResult {
@@ -399,7 +400,8 @@ const fetchTrichoReportsForHistory = async (userId: string, page = 1, pageSize =
                 position: '',
                 reportId: report.id || undefined,
                 aiReportId: report.ai_report_id || report.aiReportId || null,  // AI分析报告ID
-                deviceModel: report.device_model || undefined  // 设备型号
+                deviceModel: report.device_model || undefined,  // 设备型号
+                coverImage: report.coverImage || report.cover_image || ''  // 封面图片
             } as DetectionRecord;
         });
 
@@ -2345,7 +2347,7 @@ const getGalThumbStyle = (record: HistoryRecord): Record<string, string> => {
         }
     }
     if (record.type === 'advancedScan') {
-        const img = getTrichoThumbUrl(record);
+        const img = (record.originalData as DetectionRecord).coverImage || getTrichoThumbUrl(record);
         if (img) {
             return {
                 backgroundImage: `url(${img})`,
