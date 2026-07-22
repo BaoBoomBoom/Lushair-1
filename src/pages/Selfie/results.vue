@@ -543,6 +543,12 @@ onMounted(async () => {
                 console.error('Failed to decompress detail for metrics:', e);
             }
         }
+
+        // 提取并保存 aiReportId（如果 reportIdFromList 为空）
+        if (!reportIdFromList.value && detailData?.report?.aiReportId) {
+            reportIdFromList.value = detailData.report.aiReportId;
+            console.log('从 detail 接口获取 aiReportId:', reportIdFromList.value);
+        }
     }
 
     // 如果没有hairReportId但有extInfo，尝试解析extInfo（兼容旧数据）

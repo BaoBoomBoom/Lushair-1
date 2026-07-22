@@ -2010,7 +2010,10 @@ const handleBack = () => {
 };
 
 const handleGenerateMore = () => {
-  const reportId = currentReportId.value;
+  // 使用和 askLushairAi 相同的逻辑获取 aiReportId
+  const reportId = currentReportId.value ||
+                   uni.getStorageSync('ai_analysis_reportId') ||
+                   aiReportIdFromList.value;
 
   // H5 uni-app mode: use uni.switchTab
   if (pushType.value === '1' || fromSource.value === 'hair') {
@@ -2581,7 +2584,6 @@ onMounted(async () => {
 
   // 获取reportId Get reportId (hair_reports 的 id，用于更新数据库)
   reportIdFromList.value = options.reportId || '';
-  currentReportId.value = options.reportId || '';
 
   // 获取aiReportId Get aiReportId (AI 报告的 id，用于获取已存在的报告)
   aiReportIdFromList.value = options.aiReportId || '';
