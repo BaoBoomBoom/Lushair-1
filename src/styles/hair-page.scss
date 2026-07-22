@@ -125,6 +125,51 @@
 .ba-card {
     padding: 14px;
     margin-bottom: 12px;
+
+    .shell-ba {
+        cursor: grab;
+
+        &:active {
+            cursor: grabbing;
+        }
+    }
+}
+
+.shell-ba-preview-btn {
+    position: absolute;
+    top: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(248, 248, 255, 0.82));
+    border: 1px solid rgba(107, 33, 200, 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(8px);
+
+    &:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(248, 248, 255, 0.88));
+    }
+
+    &--before {
+        left: 12px;
+    }
+
+    &--after {
+        right: 12px;
+    }
+
+    svg {
+        filter: drop-shadow(0 1px 2px rgba(26, 18, 40, 0.1));
+    }
 }
 
 .ba-muted {

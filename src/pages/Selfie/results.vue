@@ -194,13 +194,12 @@
         <view class="rp-share-card" v-if="!loadingAnalysis">
             <text class="rp-share-kicker">{{ $t('selfieResult.shareReportLabel') }}</text>
             <text class="rp-share-title">{{ $t('selfieResult.shareReportTitle') }}</text>
-            <text class="rp-share-score">{{ overallScore }}<text class="rp-share-score-sub">/100</text></text>
-            <text v-if="scoreDelta > 0" class="rp-share-delta">{{ $t('selfieResult.scoreImprovement', [scoreDelta]) }}</text>
+            <text class="rp-share-score-small">{{ $t('hair.level') }} {{ hairLossLevel }} / 7 · {{ levelDescriptor }}</text>
             <text class="rp-share-section-title">{{ $t('selfieResult.keyInsights') }}</text>
             <view v-for="finding in keyFindings" :key="'share-' + finding.key" class="rp-share-insight">
                 <text class="rp-share-insight-label">{{ finding.label }}</text>
                 <text class="rp-share-insight-value">{{ finding.value }}</text>
-                <text v-if="finding.tags[0]" class="rp-share-insight-tag">{{ finding.tags[0].text }}</text>
+                <text v-if="finding.tags[0]" class="rp-share-insight-tag" :class="finding.tags[0].tone">{{ finding.tags[0].text }}</text>
             </view>
             <view class="rp-share-footer">
                 <view>
@@ -1524,6 +1523,15 @@ const exitResults = () => {
 
 .rp-share-score-sub {
     font-size: 22px;
+}
+
+.rp-share-score-small {
+    display: block;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #6b21c8;
+    margin: 12px 0;
 }
 
 .rp-share-delta {

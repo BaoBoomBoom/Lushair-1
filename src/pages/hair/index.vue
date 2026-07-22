@@ -136,7 +136,9 @@ const trichoThumbCache = ref<Record<number, string>>({});
 const dateChip = ref<'all' | 'last90'>('all');
 const baSplit = ref(50);
 const baDragging = ref(false);
-const baSliderRef = ref<HTMLElement | null>(null);
+const baStartX = ref(0);
+const baStartY = ref(0);
+const baRect = ref({ left: 0, top: 0, width: 0, height: 0 });
 
 const tabs = [
     { key: 'analysis', label: t('hair.analysis') || 'Analysis' },
@@ -2552,30 +2554,55 @@ const setDateChip = (chip: 'all' | 'last90') => {
     if (chip === 'all') clearDateFilter();
 };
 
-const onBaStart = (e: TouchEvent | PointerEvent) => {
-    baDragging.value = true;
-    updateBaFromClientX(getClientX(e));
+// Get bounding rect using uni-app API
+const getBaRect = (): Promise<{ left: number; top: number; width: number; height: number }> => {
+    return new Promise((resolve) => {
+        const query = uni.createSelectorQuery();
+        query.select('.shell-ba').boundingClientRect((rect: any) => {
+            if (rect) {
+                resolve({ left: rect.left || 0, top: rect.top || 0, width: rect.width || 0, height: rect.height || 0 });
+            } else {
+                resolve({ left: 0, top: 0, width: 0, height: 0 });
+            }
+        }).exec();
+    });
 };
 
-const onBaMove = (e: TouchEvent | PointerEvent) => {
-    if (baDragging.value) updateBaFromClientX(getClientX(e));
+const onBaStart = (e: any) => {
+    // Check if touch originated from preview button
+    const touch = e.touches ? e.touches[0] : e;
+    const target = e.target || e.srcElement;
+    if (target && target.classList && target.classList.contains('shell-ba-preview-btn')) {
+        return; // Don't start drag if touching preview button
+    }
+
+    baDragging.value = true;
+    const clientX = touch.clientX || 0;
+    const clientY = touch.clientY || 0;
+    baStartX.value = clientX;
+    baStartY.value = clientY;
+
+    // Get rect and update split position
+    getBaRect().then((rect) => {
+        baRect.value = rect;
+        if (rect.width > 0) {
+            baSplit.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        }
+    });
+};
+
+const onBaMove = (e: any) => {
+    if (!baDragging.value) return;
+    const touch = e.touches ? e.touches[0] : e;
+    const clientX = touch.clientX || 0;
+
+    if (baRect.value.width > 0) {
+        baSplit.value = Math.max(0, Math.min(100, ((clientX - baRect.value.left) / baRect.value.width) * 100));
+    }
 };
 
 const onBaEnd = () => {
     baDragging.value = false;
-};
-
-const getClientX = (e: TouchEvent | PointerEvent) => {
-    if ('touches' in e && e.touches[0]) return e.touches[0].clientX;
-    return (e as PointerEvent).clientX;
-};
-
-const updateBaFromClientX = (clientX: number) => {
-    if (typeof document === 'undefined') return;
-    const el = baSliderRef.value || (document.querySelector('.shell-ba') as HTMLElement | null);
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    baSplit.value = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
 };
 
 const baBeforeStyle = computed(() => ({
@@ -2585,6 +2612,25 @@ const baBeforeStyle = computed(() => ({
 const baHandleStyle = computed(() => ({
     left: `${baSplit.value}%`,
 }));
+
+// 点击图片预览功能
+const previewBeforeImage = () => {
+    if (beforeAfterPair.value?.baselineImg) {
+        uni.previewImage({
+            urls: [beforeAfterPair.value.baselineImg],
+            current: beforeAfterPair.value.baselineImg
+        });
+    }
+};
+
+const previewAfterImage = () => {
+    if (beforeAfterPair.value?.latestImg) {
+        uni.previewImage({
+            urls: [beforeAfterPair.value.latestImg],
+            current: beforeAfterPair.value.latestImg
+        });
+    }
+};
 
 const getRecordScoreDelta = (record: HistoryRecord, index: number, records: HistoryRecord[]): number => {
     if (index >= records.length - 1) return 0;
@@ -2860,7 +2906,30 @@ const getCalendarDays = () => {
     });
 };
 
-const shareProgressLabel = computed(() => '3-Month');
+const shareProgressLabel = computed(() => {
+    const records = chartDetectionRecords.value;
+    if (!records.length) return '3-Month';
+
+    const now = new Date();
+    const threeMonthsAgo = new Date(now);
+    threeMonthsAgo.setDate(now.getDate() - 90);
+
+    const oldestRecord = records.reduce((oldest, r) => {
+        const rTime = new Date(r.createTime).getTime();
+        const oldestTime = new Date(oldest.createTime).getTime();
+        return rTime < oldestTime ? r : oldest;
+    });
+
+    const oldestTime = new Date(oldestRecord.createTime).getTime();
+    const threeMonthsTime = threeMonthsAgo.getTime();
+
+    if (oldestTime >= threeMonthsTime) {
+        return '3-Month';
+    }
+
+    const monthsDiff = Math.round((now.getTime() - oldestTime) / (30 * 24 * 60 * 60 * 1000));
+    return `${monthsDiff}-Month`;
+});
 
 const buildQuarterSeries = (metric: ScoreMetricKey) => {
     const records = chartDetectionRecords.value;
@@ -2870,9 +2939,14 @@ const buildQuarterSeries = (metric: ScoreMetricKey) => {
     const threeMonthsAgo = new Date(now);
     threeMonthsAgo.setDate(now.getDate() - 90);
 
-    const filtered = [...records]
+    let filtered = [...records]
         .filter((record) => new Date(record.createTime) >= threeMonthsAgo)
         .sort((a, b) => new Date(a.createTime).getTime() - new Date(b.createTime).getTime());
+
+    // 如果三个月内没有数据，使用所有记录（从最老到最新）
+    if (!filtered.length) {
+        filtered = [...records].sort((a, b) => new Date(a.createTime).getTime() - new Date(b.createTime).getTime());
+    }
 
     if (!filtered.length) return [] as { label: string; value: number }[];
     if (filtered.length <= 5) {
@@ -3115,16 +3189,11 @@ const shareProgress = async () => {
                         <text class="shell-section-sub">Drag to compare your baseline and latest scan</text>
                         <view class="shell-card ba-card">
                             <view
-                                ref="baSliderRef"
                                 class="shell-ba"
-                                @touchstart.stop.prevent="onBaStart"
-                                @touchmove.stop.prevent="onBaMove"
+                                @touchstart.stop="onBaStart"
+                                @touchmove.stop="onBaMove"
                                 @touchend.stop="onBaEnd"
                                 @touchcancel.stop="onBaEnd"
-                                @pointerdown.stop.prevent="onBaStart"
-                                @pointermove.stop.prevent="onBaMove"
-                                @pointerup.stop="onBaEnd"
-                                @pointercancel.stop="onBaEnd"
                             >
                                 <view
                                     class="shell-ba-layer shell-ba-after shell-ba-photo"
@@ -3144,6 +3213,29 @@ const shareProgress = async () => {
                                     <view class="shell-ba-knob">
                                         <TablerIcon name="arrows-horizontal" :size="16" color="#6B21C8" />
                                     </view>
+                                </view>
+                                <!-- Preview buttons -->
+                                <view
+                                    class="shell-ba-preview-btn shell-ba-preview-btn--before"
+                                    @touchstart.stop.prevent="previewBeforeImage"
+                                >
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1228" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                        <path d="M11 8v6"></path>
+                                        <path d="M8 11h6"></path>
+                                    </svg>
+                                </view>
+                                <view
+                                    class="shell-ba-preview-btn shell-ba-preview-btn--after"
+                                    @touchstart.stop.prevent="previewAfterImage"
+                                >
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1228" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                        <path d="M11 8v6"></path>
+                                        <path d="M8 11h6"></path>
+                                    </svg>
                                 </view>
                             </view>
                             <view class="shell-ba-foot">
