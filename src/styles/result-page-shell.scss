@@ -999,10 +999,15 @@
 .rp-share-tile-score {
     display: block;
     font-family: Georgia, 'Times New Roman', serif;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 300;
     color: $shell-primary;
     margin-top: 2px;
+}
+
+.rp-share-tile-unit {
+    font-size: 9px;
+    color: $shell-muted;
 }
 
 .rp-share-footer {
