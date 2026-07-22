@@ -1215,6 +1215,23 @@ const getMetricFieldValueForShare = (dataField: string): string => {
   return score.toFixed(2);
 };
 
+// 获取分享图片网格中指标的单位
+const getMetricUnitForShare = (dataField: string): string => {
+  if (dataField === 'follicle_score_map') return t('advancedResult.follicleActivityUnit');
+  const unitMap: Record<string, string> = {
+    'scalp_oil_area_score_map': '%',
+    'keratinocytes_score_map': '%',
+    'redness_area_score_map': '%',
+    'hair_density_score_map': 'fu/cm²',
+    'hair_max_rad_score_map': 'μm',
+    'hair_texture_score_map': 'μm',
+    'white_ratio_score_map': '%',
+    'terminal_hair_rate_map': '%',
+    'velveolus_hair_rate_map': '%'
+  };
+  return unitMap[dataField] || '';
+};
+
 const radarAxisLabels = computed(() => [
   { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
   { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
@@ -3365,7 +3382,7 @@ watch(analysisData, (newVal: any) => {
               </svg>
             </view>
             <text class="rp-share-tile-label">{{ t(metric.nameKey) }}</text>
-            <text class="rp-share-tile-score">{{ getMetricFieldValueForShare(metric.dataField) }}</text>
+            <text class="rp-share-tile-score">{{ getMetricFieldValueForShare(metric.dataField) }}<text v-if="getMetricUnitForShare(metric.dataField)" class="rp-share-tile-unit">{{ getMetricUnitForShare(metric.dataField) }}</text></text>
           </view>
         </view>
       </view>
