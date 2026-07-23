@@ -6,6 +6,7 @@ import { getAchievementTracker } from '@/utils/achievementTracker';
 import { getLocale } from '@/i18n.js';
 import { useUserStore } from '@/stores/userStore';
 import MarkdownRenderer from '../../components/MarkdownRenderer.vue';
+import TablerIcon from '@/components/icons/TablerIcon.vue';
 import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
 import { extractChatSharePayload } from '@/utils/chatShareExtract';
 import { get, ProjectBrand } from '@/utils/request';
@@ -711,6 +712,7 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
+    <page-meta page-style="height: 100%;" />
     <MainTabLayout show-promo fill-screen fixed-header>
         <view class="shell-chat consult-page">
             <view class="consult-page__header">
