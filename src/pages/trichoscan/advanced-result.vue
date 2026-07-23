@@ -2015,13 +2015,7 @@ const handleBack = () => {
     }
   } 
 
-  if (fromSource.value === 'hair') {
-    uni.navigateBack();
-    return;
-  }
-  // 纯 H5 环境：返回首页 Tab
-  // Pure H5 environment: navigate to home tab
-  uni.switchTab({ url: '/pages/index/home' });
+  uni.navigateBack();
 };
 
 const handleGenerateMore = () => {
@@ -2076,7 +2070,7 @@ const handleCopyInviteCode = () => {
 
 const handleRetakeScan = () => {
   if (fromSource.value === 'native') {
-    handleBack()
+    handleBack();
   } else {
     // 从首页或其他 H5 页面进入时，跳转到扫描页
     uni.switchTab({ url: '/pages/scan/index' });
@@ -2084,12 +2078,7 @@ const handleRetakeScan = () => {
 };
 
 const handleExit = () => {
-  if (fromSource.value === 'native') {
-    handleBack()
-  } else {
-    // 从首页或其他 H5 页面进入时，返回首页
-    uni.switchTab({ url: '/pages/index/home' });
-  }
+  handleBack();
 };
 
 // 测试空数据状态（开发时使用）
