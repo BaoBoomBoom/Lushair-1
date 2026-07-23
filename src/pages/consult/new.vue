@@ -19,6 +19,11 @@ import {
 } from '@/composables/useLatestScanReports';
 import { AI_HOME_CARE_PROMPT_KEY } from '@/composables/useHomeHealthInsights';
 
+// 状态栏高度 Composable
+// Status bar height Composable
+import { useStatusBar } from '@/composables/useStatusBar';
+const { statusBarHeight } = useStatusBar();
+
 // 页面滚动控制逻辑
 const useNewChatApi = ref(true);
 
@@ -710,7 +715,7 @@ onPullDownRefresh(async () => {
     <MainTabLayout show-promo fill-screen fixed-header>
         <view class="shell-chat consult-page">
             <view class="consult-page__header">
-                <view class="chat-header-actions">
+                <view class="chat-header-actions" :style="{ paddingTop: statusBarHeight + 'px' }">
                     <button class="shell-scan-link" @tap="viewLastScan">
                         <image src="/static/tabbar/hair-active.svg" class="scan-link-icon" mode="aspectFit" />
                         {{ $t('consult.viewLastScan') }}
@@ -849,6 +854,8 @@ onPullDownRefresh(async () => {
     padding: 0 18px;
 }
 
+/* 顶部动态使用手机状态栏高度间距 */
+/* Top padding dynamically uses status bar height */
 .chat-header-actions {
     display: flex;
     align-items: center;
