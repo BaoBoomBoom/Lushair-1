@@ -711,7 +711,6 @@ onPullDownRefresh(async () => {
 </script>
 
 <template>
-    <page-meta page-style="height: 100%;" />
     <MainTabLayout show-promo fill-screen fixed-header>
         <view class="shell-chat consult-page">
             <view class="consult-page__header">
