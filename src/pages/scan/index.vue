@@ -124,16 +124,14 @@ function selectOption(id: ScanOptionId) {
     selected.value = id;
 }
 
-function launchNativeScan(action: ScanActionType) {
+async function launchNativeScan(action: ScanActionType) {
     if (!ensureMerchantCustomerReady()) return;
-    if (!runScanAction(action)) {
-        // Delay error display to allow bridge retry mechanism to complete
-        setTimeout(() => {
-            uni.showToast({
-                title: t('scan.nativeAppRequired'),
-                icon: 'none',
-            });
-        }, 300);
+    const success = await runScanAction(action);
+    if (!success) {
+        uni.showToast({
+            title: t('scan.nativeAppRequired'),
+            icon: 'none',
+        });
     }
 }
 

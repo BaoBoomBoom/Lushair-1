@@ -2001,11 +2001,26 @@ const fetchProductRecommendations = async (userId: string) => {
 };
 
 const handleBack = () => {
+  // 从 Native iOS 进入（from=native），通过 bridge 调用 App 的 goBack，由 App 处理导航栈
+  // Opened from native iOS (from=native): call App goBack via bridge so App handles navigation stack
+  if (fromSource.value === 'native') {
+    const w = window as any;
+    if (w.webkit?.messageHandlers?.goBack) {
+      w.webkit.messageHandlers.goBack.postMessage({ data: 'goBack' });
+      return;
+    }
+    if (w.android?.goBack) {
+      w.android.goBack(JSON.stringify({ data: 'goBack' }));
+      return;
+    }
+  } 
+
   if (fromSource.value === 'hair') {
     uni.navigateBack();
     return;
   }
-  // 从首页或其他 H5 页面进入时，返回首页
+  // 纯 H5 环境：返回首页 Tab
+  // Pure H5 environment: navigate to home tab
   uni.switchTab({ url: '/pages/index/home' });
 };
 
@@ -2015,8 +2030,21 @@ const handleGenerateMore = () => {
                    uni.getStorageSync('ai_analysis_reportId') ||
                    aiReportIdFromList.value;
 
-  // H5 uni-app mode: use uni.switchTab
-  if (pushType.value === '1' || fromSource.value === 'hair') {
+  if (fromSource.value === 'native') {
+    // App WebView: notify native side with reportId
+    const payload = JSON.stringify({ reportId });
+    const u = navigator.userAgent;
+    const isiOS = /iPad|iPhone|iPod/.test(u) ||
+                  (/Macintosh/.test(u) && 'ontouchend' in document);
+    if (isiOS) {
+      window.webkit.messageHandlers.chatWithAssistant.postMessage({
+        data: 'chatWithAssistant',
+        reportId
+      });
+    } else {
+      window.android.chatWithAssistant(payload);
+    }
+  } else {
     if (reportId) {
       try {
         uni.setStorageSync('ai_chat_targetReportId', reportId);
@@ -2028,21 +2056,6 @@ const handleGenerateMore = () => {
     }
     uni.setStorageSync('ai_chat_autoStart', 'true');
     uni.switchTab({ url: '/pages/consult/new' });
-    return;
-  }
-
-  // App WebView: notify native side with reportId
-  const payload = JSON.stringify({ reportId });
-  const u = navigator.userAgent;
-  const isiOS = /iPad|iPhone|iPod/.test(u) ||
-                (/Macintosh/.test(u) && 'ontouchend' in document);
-  if (isiOS) {
-    window.webkit.messageHandlers.chatWithAssistant.postMessage({
-      data: 'chatWithAssistant',
-      reportId
-    });
-  } else {
-    window.android.chatWithAssistant(payload);
   }
 };
 
@@ -2062,21 +2075,21 @@ const handleCopyInviteCode = () => {
 };
 
 const handleRetakeScan = () => {
-  if (fromSource.value === 'hair') {
-    uni.navigateBack();
-    return;
+  if (fromSource.value === 'native') {
+    handleBack()
+  } else {
+    // 从首页或其他 H5 页面进入时，跳转到扫描页
+    uni.switchTab({ url: '/pages/scan/index' });
   }
-  // 从首页或其他 H5 页面进入时，跳转到扫描页
-  uni.switchTab({ url: '/pages/scan/index' });
 };
 
 const handleExit = () => {
-  if (fromSource.value === 'hair') {
-    uni.navigateBack();
-    return;
+  if (fromSource.value === 'native') {
+    handleBack()
+  } else {
+    // 从首页或其他 H5 页面进入时，返回首页
+    uni.switchTab({ url: '/pages/index/home' });
   }
-  // 从首页或其他 H5 页面进入时，返回首页
-  uni.switchTab({ url: '/pages/index/home' });
 };
 
 // 测试空数据状态（开发时使用）
