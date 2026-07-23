@@ -14,8 +14,6 @@ const { t, locale } = useI18n();
 const userStore = useUserStore();
 const { userInfo } = userStore;
 
-// 使用状态栏高度 composable
-// Use status bar height composable
 import {
     useLatestScanReports,
 } from '@/composables/useLatestScanReports';

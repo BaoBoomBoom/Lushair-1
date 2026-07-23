@@ -41,6 +41,35 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
         return true;
     }
 
+    // Retry mechanism: messageHandlers may not be ready after returning from native page
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryInterval = 50; // ms
+
+    const retryTimer = setInterval(() => {
+        retryCount++;
+        const retryW = window as NativeWindow;
+
+        if (retryW.webkit?.messageHandlers?.[handlerName]) {
+            clearInterval(retryTimer);
+            retryW.webkit.messageHandlers[handlerName].postMessage(payload);
+            console.log(`[useScanActions] Bridge ${handlerName} succeeded after ${retryCount} retries`);
+            return true;
+        }
+
+        if (retryW.android?.[handlerName]) {
+            clearInterval(retryTimer);
+            retryW.android[handlerName](JSON.stringify(payload));
+            console.log(`[useScanActions] Bridge ${handlerName} succeeded after ${retryCount} retries`);
+            return true;
+        }
+
+        if (retryCount >= maxRetries) {
+            clearInterval(retryTimer);
+            console.warn(`[useScanActions] Bridge ${handlerName} failed after ${maxRetries} retries`);
+        }
+    }, retryInterval);
+
     return false;
 }
 

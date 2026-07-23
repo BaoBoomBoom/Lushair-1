@@ -127,10 +127,13 @@ function selectOption(id: ScanOptionId) {
 function launchNativeScan(action: ScanActionType) {
     if (!ensureMerchantCustomerReady()) return;
     if (!runScanAction(action)) {
-        uni.showToast({
-            title: t('scan.nativeAppRequired'),
-            icon: 'none',
-        });
+        // Delay error display to allow bridge retry mechanism to complete
+        setTimeout(() => {
+            uni.showToast({
+                title: t('scan.nativeAppRequired'),
+                icon: 'none',
+            });
+        }, 300);
     }
 }
 
@@ -253,7 +256,6 @@ function selectAngle(angleId: SelfieAngleId) {
 </script>
 
 <template>
-    <page-meta page-style="height: 100%; overflow: hidden;" />
     <MainTabLayout fill-screen fixed-header>
         <view class="scan-scroll">
             <view class="scan-shell">
