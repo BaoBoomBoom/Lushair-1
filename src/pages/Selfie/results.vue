@@ -550,33 +550,6 @@ onMounted(async () => {
         }
     }
 
-    // 如果没有hairReportId但有extInfo，尝试解析extInfo（兼容旧数据）
-    if (!hairReportId.value && extInfo.value) {
-        try {
-            // 首先尝试直接解析（兼容旧数据）
-            let parsedExtInfo: any = null;
-            try {
-                parsedExtInfo = JSON.parse(extInfo.value);
-            } catch {
-                // 如果直接解析失败，尝试解压缩
-                parsedExtInfo = await extractExtInfo(extInfo.value);
-            }
-
-            // 从解压后的数据中提取指标
-            // 数据结构可能是 {input: {ext_info: {...}}} 或直接是 ext_info 对象
-            const extInfoData = parsedExtInfo?.input?.ext_info || parsedExtInfo;
-            if (extInfoData && typeof extInfoData === 'object') {
-                oilValue.value = extInfoData.oil || 0;
-                scurfOrKeratinValue.value = extInfoData.scurfOrKeratin || 0;
-                overallValue.value = extInfoData.overall || 0;
-                hairLossValue.value = extInfoData.hairLoss || 0;
-                discomfortValue.value = extInfoData.discomfort || 0;
-            }
-        } catch (e) {
-            console.error('Failed to parse extInfo for metrics:', e);
-        }
-    }
-
     // 如果有aiReportId，调用GET report接口获取已有AI报告；否则如果有extInfo和userId，调用新API分析
     if (reportIdFromList.value) {
         console.log('Fetch existing AI report by aiReportId:', reportIdFromList.value);
@@ -810,8 +783,8 @@ const routinePeriodLabel = (period: CarePlanPeriod) => {
     const map: Record<CarePlanPeriod, string> = {
         morning: t('routine.morning'),
         evening: t('routine.evening'),
-        treatment: t('routine.morning'),
-        diet: t('routine.morning'),
+        treatment: t('routine.treatment'),
+        diet: t('routine.diet'),
         ingredient: t('routine.recommendedIngredients'),
     };
     return map[period] || period;
