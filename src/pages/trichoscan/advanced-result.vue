@@ -2775,19 +2775,24 @@ watch(analysisData, (newVal: any) => {
   if (newVal) {
     setTimeout(() => drawHexagon(), 300);
   }
+  // 优先使用 aiReportId 获取已有报告，避免重复调用 analyze 接口
+  if (aiReportIdFromList.value && !isExistingReportCalled.value) {
+    const uId = resolveUserId(newVal?.userId);
+    if (uId) {
+      console.log('[DEBUG watch] calling fetchExistingReport with aiReportId:', aiReportIdFromList.value);
+      fetchExistingReport();
+    }
+    return;
+  }
+  // 只有在没有 aiReportId 时才考虑调用 analyze 接口
+  if (aiReportIdFromList.value) return; // 有 aiReportId 但已经调用过 fetchExistingReport，不再处理
   if (!newVal || !useNewAnalysisMode.value || analysisReport.value) return;
   const uId = resolveUserId(newVal.userId);
   if (!uId) return;
 
-  console.log('[DEBUG watch analysisData] aiReportIdFromList.value:', aiReportIdFromList.value, 'isExistingReportCalled.value:', isExistingReportCalled.value);
-  if (aiReportIdFromList.value && !isExistingReportCalled.value) {
-    console.log('[DEBUG watch] calling fetchExistingReport with aiReportId:', aiReportIdFromList.value);
-    fetchExistingReport();
-  } else if (!isAIAnalysisCalled.value) {
-    console.log('[DEBUG watch] calling fetchAIAnalysis');
-    startAiLoadTimeout();
-    fetchAIAnalysis(uId);
-  }
+  console.log('[DEBUG watch] calling fetchAIAnalysis');
+  startAiLoadTimeout();
+  fetchAIAnalysis(uId);
 });
 </script>
 

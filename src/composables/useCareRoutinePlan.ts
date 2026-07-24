@@ -141,11 +141,62 @@ export function useCareRoutinePlan() {
 
         const payload = plan as {
             summary?: string;
-            advice?: string[];
+            advice?: string[] | Record<string, string>;
             items?: Array<{ title?: string; text?: string; period?: string }>;
             markdown?: string;
             text?: string;
+            morning?: string;
+            evening?: string;
+            treatment?: string;
+            diet?: string;
+            ingredient?: string;
         };
+
+        // 处理 {morning: "...", evening: "..."} 格式（包括嵌套在 advice 中的情况）
+        const periodData = payload.morning || payload.evening || payload.treatment || payload.diet || payload.ingredient;
+        const adviceAsObject = typeof payload.advice === 'object' && !Array.isArray(payload.advice) ? payload.advice : null;
+        const advicePeriods = adviceAsObject?.morning || adviceAsObject?.evening || adviceAsObject?.treatment || adviceAsObject?.diet || adviceAsObject?.ingredient;
+
+        if (periodData || advicePeriods) {
+            const sections: string[] = [];
+
+            // 从顶层数据获取
+            if (payload.morning?.trim()) {
+                sections.push(`## Morning\n- ${payload.morning.trim()}`);
+            } else if (adviceAsObject?.morning?.trim()) {
+                sections.push(`## Morning\n- ${adviceAsObject.morning.trim()}`);
+            }
+
+            if (payload.evening?.trim()) {
+                sections.push(`## Evening\n- ${payload.evening.trim()}`);
+            } else if (adviceAsObject?.evening?.trim()) {
+                sections.push(`## Evening\n- ${adviceAsObject.evening.trim()}`);
+            }
+
+            if (payload.treatment?.trim()) {
+                sections.push(`## Treatment\n- ${payload.treatment.trim()}`);
+            } else if (adviceAsObject?.treatment?.trim()) {
+                sections.push(`## Treatment\n- ${adviceAsObject.treatment.trim()}`);
+            }
+
+            if (payload.diet?.trim()) {
+                sections.push(`## Diet\n- ${payload.diet.trim()}`);
+            } else if (adviceAsObject?.diet?.trim()) {
+                sections.push(`## Diet\n- ${adviceAsObject.diet.trim()}`);
+            }
+
+            if (payload.ingredient?.trim()) {
+                sections.push(`## Ingredients\n- ${payload.ingredient.trim()}`);
+            } else if (adviceAsObject?.ingredient?.trim()) {
+                sections.push(`## Ingredients\n- ${adviceAsObject.ingredient.trim()}`);
+            }
+
+            if (sections.length) {
+                applyAiRecommendations(sections.join('\n\n'));
+                console.log('[useCareRoutinePlan] Applied period-based plan:', sections);
+                return;
+            }
+        }
 
         if (Array.isArray(payload.items) && payload.items.length) {
             const lines = payload.items.map((item) => {
