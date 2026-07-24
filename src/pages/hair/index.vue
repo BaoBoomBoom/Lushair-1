@@ -8,6 +8,7 @@ import { getSelfieReports, getTrichoReports } from '@/utils/clerk';
 import { decompressBase64Gzip } from '@/utils/decompress';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import ImagePreview from '@/components/common/ImagePreview.vue';
 import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
 
 const { t, locale } = useI18n();
@@ -139,6 +140,11 @@ const baDragging = ref(false);
 const baStartX = ref(0);
 const baStartY = ref(0);
 const baRect = ref({ left: 0, top: 0, width: 0, height: 0 });
+
+// 图片预览相关状态
+const showImagePreview = ref(false);
+const previewImages = ref<string[]>([]);
+const previewCurrentIndex = ref(0);
 
 const tabs = [
     { key: 'analysis', label: t('hair.analysis') || 'Analysis' },
@@ -2616,19 +2622,17 @@ const baHandleStyle = computed(() => ({
 // 点击图片预览功能
 const previewBeforeImage = () => {
     if (beforeAfterPair.value?.baselineImg) {
-        uni.previewImage({
-            urls: [beforeAfterPair.value.baselineImg],
-            current: beforeAfterPair.value.baselineImg
-        });
+        previewImages.value = [beforeAfterPair.value.baselineImg];
+        previewCurrentIndex.value = 0;
+        showImagePreview.value = true;
     }
 };
 
 const previewAfterImage = () => {
     if (beforeAfterPair.value?.latestImg) {
-        uni.previewImage({
-            urls: [beforeAfterPair.value.latestImg],
-            current: beforeAfterPair.value.latestImg
-        });
+        previewImages.value = [beforeAfterPair.value.latestImg];
+        previewCurrentIndex.value = 0;
+        showImagePreview.value = true;
     }
 };
 
@@ -3557,6 +3561,13 @@ const shareProgress = async () => {
             <text class="hair-share-url">Lushair.ai</text>
         </view>
     </MainTabLayout>
+
+    <!-- 图片预览组件 -->
+    <ImagePreview
+        v-model:show="showImagePreview"
+        :urls="previewImages"
+        :current="previewCurrentIndex"
+    />
 </template>
 
 <style lang="scss" scoped>
