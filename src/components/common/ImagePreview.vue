@@ -54,10 +54,10 @@ const currentImageUrl = computed(() => {
 
 <template>
     <view v-if="show" class="image-preview-overlay" @tap="close">
-        <!-- 关闭按钮 - 位置考虑状态栏高度 -->
+        <!-- 关闭按钮 - 底部中间位置 -->
         <view
             class="image-preview-close"
-            :style="{ top: (16 + statusBarHeight) + 'px' }"
+            :style="{ bottom: (40 + 16) + 'px' }"
             @tap.stop="close"
         >
             <view class="close-icon">×</view>
@@ -113,7 +113,8 @@ const currentImageUrl = computed(() => {
 
 .image-preview-close {
     position: absolute;
-    right: 16px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 44px;
     height: 44px;
     border-radius: 50%;
@@ -155,7 +156,7 @@ const currentImageUrl = computed(() => {
 
 .image-preview-indicator {
     position: absolute;
-    bottom: calc(40px + env(safe-area-inset-bottom));
+    bottom: calc(100px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
     color: rgba(255, 255, 255, 0.8);
