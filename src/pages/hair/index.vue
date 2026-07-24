@@ -323,6 +323,11 @@ const fetchServerClockInRecords = async (
     return merged;
 };
 
+interface RoutineLogEntry {
+    dateKey: string;
+    logs: string[];
+}
+
 const buildProductUsageRecords = (
     recordsMap: Record<string, string[]>,
     userId: string,
@@ -357,6 +362,49 @@ const buildProductUsageRecords = (
                 },
             };
         });
+};
+
+// 获取 routine 任务日志
+const fetchRoutineLogs = async (userId: string): Promise<RoutineLogEntry[]> => {
+    try {
+        const response = await get('/user/routine-log?userId=' + encodeURIComponent(userId), {}, { brand: ProjectBrand.LUSHAIR_NEW }) as RoutineLogEntry[];
+        console.log('[hair] routine logs response:', response);
+        return response || [];
+    } catch (error) {
+        console.warn('[hair] failed to fetch routine logs', error);
+        return [];
+    }
+};
+
+// 构建 routine 日志记录
+const buildRoutineLogRecords = (
+    routineLogs: RoutineLogEntry[],
+    userId: string,
+): HistoryRecord[] => {
+    return routineLogs.map((entry) => {
+        const [year, month, day] = entry.dateKey.split('-').map(Number);
+        const numericId = year && month && day ? -(year * 10000 + month * 100 + day + 0.5) : -Date.now();
+
+        return {
+            id: numericId,
+            userId,
+            date: formatProductDateLabel(entry.dateKey),
+            type: 'productUsage' as const,
+            typeLabel: t('hair.productRoutine'),
+            typeIcon: '/static/routine/routine-icon.png',
+            hairLossPattern: { level: 0, total: 7, improvement: 0 },
+            hairScore: {
+                score: entry.logs.length,
+                total: entry.logs.length,
+                improvement: 0,
+            },
+            originalData: {
+                dateKey: entry.dateKey,
+                productIds: [],
+                productNames: entry.logs,
+            },
+        };
+    });
 };
 
 // API调用函数 - 获取毛囊镜记录（用于 ANALYSIS 标签页，需要老系统的 recordId）
@@ -585,6 +633,10 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         const clockInRecords = await fetchServerClockInRecords(userId, localClockIn);
         const productRecords = buildProductUsageRecords(clockInRecords, userId);
 
+        // 获取 routine 任务日志
+        const routineLogs = await fetchRoutineLogs(userId);
+        const routineRecords = buildRoutineLogRecords(routineLogs, userId);
+
         // 保存原始顺序的数据（用于计算删除索引）
         originalDetectionRecords.value = [...detectionRecords];
         originalSelfieResults.value = [...selfieResults];
@@ -668,6 +720,7 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
         });
 
         allRecords.push(...productRecords);
+        allRecords.push(...routineRecords);
         
         // 按时间倒序排列
         allRecords.sort((a, b) => getRecordTimestamp(b) - getRecordTimestamp(a));
