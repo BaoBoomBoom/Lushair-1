@@ -192,6 +192,14 @@ const hairMetrics: ScalpMetric[] = [
     standardRange: '10-20%',
     icon: '/static/icons/icon_terminal.svg',
     displayIcon: '/static/icons/icon_terminal_black.svg'
+  },
+  {
+    id: 'intermediateHairRate',
+    nameKey: 'advancedResult.intermediateHairRate',
+    dataField: 'intermediate_hair_rate_map',
+    standardRange: '5-10%',
+    icon: '/static/icons/icon_terminal.svg',
+    displayIcon: '/static/icons/icon_terminal_black.svg'
   }
 ];
 
@@ -462,10 +470,38 @@ const selectScalpMetric = (metricId: string) => {
 };
 
 // 头发指标相关函数
+// 计算头发密度：毛囊密度 × 毛囊活度
+const calculateHairDensity = computed(() => {
+  const follicleDensity = analysisData.value?.hair_density_score_map?.score || 0;
+  const follicleActivity = analysisData.value?.follicle_score_map?.score || 1.5; // 默认1.5发/囊
+  return follicleDensity * follicleActivity;
+});
+
 // 获取当前选中头发指标的数据
 const getCurrentHairMetricData = computed(() => {
   const currentMetric = hairMetrics.find(m => m.id === selectedHairMetric.value);
   if (!currentMetric) return null;
+
+  // 头发密度特殊处理：通过毛囊密度×毛囊活度计算
+  if (currentMetric.id === 'hairDensity') {
+    const calculatedDensity = calculateHairDensity.value;
+    return {
+      score: calculatedDensity,
+      advice: (analysisData.value as any)?.hair_density_score_map?.advice || ''
+    };
+  }
+
+  // 中间毛特殊处理：100 - 终毛比例 - 毳毛比例
+  if (currentMetric.id === 'intermediateHairRate') {
+    const terminalRate = analysisData.value?.terminal_hair_rate_map?.score || 0;
+    const vellusRate = analysisData.value?.velveolus_hair_rate_map?.score || 0;
+    const intermediateRate = 100 - terminalRate - vellusRate;
+    return {
+      score: Math.max(0, intermediateRate),
+      advice: '',
+      display: intermediateRate.toFixed(2) + '%'
+    };
+  }
 
   // 优先使用真实数据
   if (analysisData.value && (analysisData.value as any)[currentMetric.dataField]) {
@@ -474,10 +510,6 @@ const getCurrentHairMetricData = computed(() => {
 
   // 如果没有真实数据，使用测试数据来验证功能
   const testData = {
-    'hair_density_score_map': {
-      score: 0, // 低于80标准，应该约30百分位
-      advice: ''
-    },
     'hair_max_rad_score_map': {
       score: 0, // 在15-40区间，应该约60百分位
       advice: ''
@@ -560,6 +592,8 @@ const getCurrentHairStatus = computed(() => {
       return t('advancedResult.terminalHairRate');
     case 'vellusHairRate':
       return t('advancedResult.vellusHairRate');
+    case 'intermediateHairRate':
+      return t('advancedResult.intermediateHairRate');
     default:
       return '';
   }
@@ -578,22 +612,22 @@ const getCurrentHairPercentile = computed(() => {
   
   switch (metricId) {
     case 'hairDensity':
-      // 头发密度分布：基于80fu/cm²标准
-      // 0-40: 极低密度 (5-15百分位)
-      // 40-60: 低密度 (15-35百分位)
-      // 60-80: 偏低 (35-65百分位)
-      // 80-100: 正常 (65-85百分位)
-      // 100+: 高密度 (85-95百分位)
-      if (score <= 40) {
-        percentile = 5 + (score / 40) * 10;
-      } else if (score <= 60) {
-        percentile = 15 + ((score - 40) / 20) * 20;
-      } else if (score <= 80) {
-        percentile = 35 + ((score - 60) / 20) * 30;
-      } else if (score <= 100) {
-        percentile = 65 + ((score - 80) / 20) * 20;
+      // 头发密度分布：基于80-200根/cm²标准（毛囊密度×毛囊活度）
+      // 0-80: 极低密度 (5-35百分位)
+      // 80-120: 偏低 (35-50百分位)
+      // 120-160: 正常 (50-75百分位)
+      // 160-200: 良好 (75-90百分位)
+      // 200+: 高密度 (90-95百分位)
+      if (score <= 80) {
+        percentile = 5 + (score / 80) * 30;
+      } else if (score <= 120) {
+        percentile = 35 + ((score - 80) / 40) * 15;
+      } else if (score <= 160) {
+        percentile = 50 + ((score - 120) / 40) * 25;
+      } else if (score <= 200) {
+        percentile = 75 + ((score - 160) / 40) * 15;
       } else {
-        percentile = 85 + Math.min(10, (score - 100) / 50 * 10);
+        percentile = 90 + Math.min(5, (score - 200) / 50 * 5);
       }
       break;
       
@@ -676,7 +710,24 @@ const getCurrentHairPercentile = computed(() => {
         percentile = 5 + Math.min(10, (100 - score) / 40 * 10);
       }
       break;
-      
+
+    case 'intermediateHairRate':
+      // 中间毛比例分布：正常范围较小
+      // 0-3%: 偏少 (5-25百分位)
+      // 3-8%: 正常 (25-75百分位)
+      // 8-15%: 偏多 (75-90百分位)
+      // 15%+: 过多 (90-95百分位)
+      if (score <= 3) {
+        percentile = 5 + (score / 3) * 20;
+      } else if (score <= 8) {
+        percentile = 25 + ((score - 3) / 5) * 50;
+      } else if (score <= 15) {
+        percentile = 75 + ((score - 8) / 7) * 15;
+      } else {
+        percentile = 90 + Math.min(5, (score - 15) / 10 * 5);
+      }
+      break;
+
     default:
       percentile = 50;
   }
@@ -1191,6 +1242,22 @@ const getMetricFieldScore = (dataField: string): string => {
   return String(calculatedScore);
 };
 
+// 获取头发密度的计算分数（基于毛囊密度×毛囊活度）
+const getHairDensityCalculatedScore = (): string => {
+  const hairDensity = calculateHairDensity.value;
+  if (!hairDensity || hairDensity === 0) return '';
+  // 基于头发密度80-200根/cm²计算分数
+  let score = 50;
+  if (hairDensity >= 200) {
+    score = 95;
+  } else if (hairDensity <= 80) {
+    score = 20 + (hairDensity / 80) * 45;
+  } else {
+    score = 65 + ((hairDensity - 80) / 120) * 30;
+  }
+  return String(Math.round(Math.max(0, Math.min(100, score))));
+};
+
 // 专门用于分享图片的分数获取函数
 const getMetricFieldScoreForShare = (dataField: string): string => {
   const data = (analysisData.value as any)?.[dataField];
@@ -1206,6 +1273,22 @@ const getMetricFieldScoreForShare = (dataField: string): string => {
 
 // 获取分享图片网格中指标的具体值（不带单位，统一2位小数）
 const getMetricFieldValueForShare = (dataField: string): string => {
+  // 头发密度特殊处理：返回计算后的头发密度值
+  if (dataField === 'hair_density_score_map') {
+    const hairDensity = calculateHairDensity.value;
+    if (!hairDensity || hairDensity === 0) return '—';
+    return hairDensity.toFixed(2);
+  }
+
+  // 中间毛特殊处理：返回计算后的中间毛比例
+  if (dataField === 'intermediate_hair_rate_map') {
+    const terminalRate = analysisData.value?.terminal_hair_rate_map?.score || 0;
+    const vellusRate = analysisData.value?.velveolus_hair_rate_map?.score || 0;
+    const intermediateRate = 100 - terminalRate - vellusRate;
+    if (!Number.isFinite(intermediateRate) || intermediateRate < 0) return '—';
+    return intermediateRate.toFixed(2);
+  }
+
   const data = (analysisData.value as any)?.[dataField];
   if (!data || (data.score !== 0 && !data.score)) return '—';
 
@@ -1227,14 +1310,15 @@ const getMetricUnitForShare = (dataField: string): string => {
     'hair_texture_score_map': 'μm',
     'white_ratio_score_map': '%',
     'terminal_hair_rate_map': '%',
-    'velveolus_hair_rate_map': '%'
+    'velveolus_hair_rate_map': '%',
+    'intermediate_hair_rate_map': '%'
   };
   return unitMap[dataField] || '';
 };
 
 const radarAxisLabels = computed(() => [
   { label: t('advancedResult.follicle'), score: getMetricFieldScore('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
-  { label: t('advancedResult.hairDensity'), score: getMetricFieldScore('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
+  { label: t('advancedResult.hairDensity'), score: getHairDensityCalculatedScore(), style: 'top:-6px;right:-4px', class: '' },
   { label: t('advancedResult.hairRadius'), score: getMetricFieldScore('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
   { label: t('advancedResult.keratin'), score: getMetricFieldScore('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
   { label: t('advancedResult.oiliness'), score: getMetricFieldScore('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
@@ -1244,7 +1328,7 @@ const radarAxisLabels = computed(() => [
 // 分享卡片专用标签（使用view元素，保持两行布局）
 const radarAxisLabelsForShare = computed(() => [
   { label: t('advancedResult.follicle'), score: getMetricFieldScoreForShare('follicle_score_map'), style: 'top:-6px;left:-4px', class: '' },
-  { label: t('advancedResult.hairDensity'), score: getMetricFieldScoreForShare('hair_density_score_map'), style: 'top:-6px;right:-4px', class: '' },
+  { label: t('advancedResult.hairDensity'), score: getHairDensityCalculatedScore(), style: 'top:-6px;right:-4px', class: '' },
   { label: t('advancedResult.hairRadius'), score: getMetricFieldScoreForShare('hair_max_rad_score_map'), style: 'top:50%;left:-60px;transform:translateY(-50%)', class: 'rp-hex-label-vertical' },
   { label: t('advancedResult.keratin'), score: getMetricFieldScoreForShare('keratinocytes_score_map'), style: 'bottom:-10px;right:36px', class: '' },
   { label: t('advancedResult.oiliness'), score: getMetricFieldScoreForShare('scalp_oil_area_score_map'), style: 'bottom:-10px;left:36px', class: '' },
@@ -1261,7 +1345,8 @@ const shareGridMetrics = [
   { nameKey: 'advancedResult.follicleActivity', dataField: 'follicle_score_map', icon: 'follicle_density' },
   { nameKey: 'advancedResult.greyHairs', dataField: 'white_ratio_score_map', icon: 'grey' },
   { nameKey: 'advancedResult.terminalHairRate', dataField: 'terminal_hair_rate_map', icon: 'terminal' },
-  { nameKey: 'advancedResult.vellusHairRate', dataField: 'velveolus_hair_rate_map', icon: 'terminal' }
+  { nameKey: 'advancedResult.vellusHairRate', dataField: 'velveolus_hair_rate_map', icon: 'terminal' },
+  { nameKey: 'advancedResult.intermediateHairRate', dataField: 'intermediate_hair_rate_map', icon: 'terminal' }
 ];
 
 // 与AI助手聊天

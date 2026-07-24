@@ -203,18 +203,5 @@ Based on this person's most recent trichoscopy and selfie quantitative results, 
 ## Latest selfie
 ${selfieLabel || 'No selfie on file'}
 
-Return ONLY a JSON code block (no extra prose) with this schema:
-\`\`\`json
-{
-  "sections": [
-    { "period": "ingredient", "items": [{ "title": "...", "subtitle": "..." }] },
-    { "period": "morning", "items": [{ "title": "...", "subtitle": "..." }] },
-    { "period": "evening", "items": [{ "title": "...", "subtitle": "..." }] },
-    { "period": "treatment", "items": [{ "title": "...", "subtitle": "..." }] },
-    { "period": "diet", "items": [{ "title": "...", "subtitle": "..." }] }
-  ]
-}
-\`\`\`
-
 Use period values: ingredient, morning, evening, treatment, diet. Each item must be a short, checkable daily action. Keep it practical and screening-oriented, not a medical diagnosis.`;
 }
