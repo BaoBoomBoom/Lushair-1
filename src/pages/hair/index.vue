@@ -3428,6 +3428,7 @@ const shareProgress = async () => {
                                 :class="{
                                     now: getGlobalRecordIndex(record) === 0,
                                     product: record.type === 'productUsage',
+                                    routine: record.typeLabel === t('hair.productRoutine'),
                                 }"
                             />
                             <view class="shell-tl-card" :class="{ 'shell-tl-card--product': record.type === 'productUsage' }">
@@ -3449,7 +3450,7 @@ const shareProgress = async () => {
                                             chipFilteredRecords.length,
                                         )
                                     }}</text>
-                                    <view class="shell-src-badge" :class="{ 'shell-src-badge--product': record.type === 'productUsage' }">
+                                    <view class="shell-src-badge" :class="{ 'shell-src-badge--product': record.type === 'productUsage', 'shell-src-badge--routine': record.typeLabel === t('hair.productRoutine') }">
                                         <TablerIcon :name="getTimelineBadgeIcon(record)" :size="11" color="#fff" />
                                         <text>{{ record.typeLabel }}</text>
                                     </view>
@@ -3466,6 +3467,7 @@ const shareProgress = async () => {
                                             v-for="(name, pi) in getProductUsageData(record).productNames"
                                             :key="`${record.id}-${pi}`"
                                             class="shell-tl-product-chip"
+                                            :class="{ 'shell-tl-product-chip--routine': record.typeLabel === t('hair.productRoutine') }"
                                         >{{ name }}</text>
                                     </view>
                                 </template>

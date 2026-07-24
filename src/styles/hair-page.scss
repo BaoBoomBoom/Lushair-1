@@ -742,12 +742,20 @@
     background: #0e9e62;
 }
 
+.shell-tl-dot.routine {
+    background: #7c3aed;
+}
+
 .shell-tl-card--product {
     border-color: rgba(14, 158, 98, 0.18);
 }
 
 .shell-src-badge--product {
     background: #0e9e62;
+}
+
+.shell-src-badge--routine {
+    background: #7c3aed;
 }
 
 .shell-tl-product-head {
@@ -774,4 +782,9 @@
     border-radius: 999px;
     padding: 5px 10px;
     max-width: 100%;
+}
+
+.shell-tl-product-chip--routine {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.1);
 }
