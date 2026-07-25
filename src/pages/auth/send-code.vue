@@ -136,7 +136,9 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>): 
             console.log('[UserSync] 老后端找到用户，同步到新后端:', legacyUserInfo.userId);
 
             // 3. 老后端查到了，同步到新后端
-            await post('user/sync', legacyUserInfo, { brand: ProjectBrand.LUSHAIR_NEW });
+            // 将老后端的 type 赋值为 userType 同步到新后端
+            const syncData = { ...legacyUserInfo, userType: legacyUserInfo.type };
+            await post('user/sync', syncData, { brand: ProjectBrand.LUSHAIR_NEW });
             userInfoResponse = legacyUserInfo;
         } else {
             console.log('[UserSync] 老后端也未找到用户，调用 registUser 创建用户...');
@@ -154,7 +156,9 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>): 
                     ...registerResult,
                 };
 
-                await post('user/sync', userData, { brand: ProjectBrand.LUSHAIR_NEW });
+                // 将老后端的 type 赋值为 userType 同步到新后端
+                const syncData = { ...userData, userType: userData.type };
+                await post('user/sync', syncData, { brand: ProjectBrand.LUSHAIR_NEW });
                 userInfoResponse = registerResult;
             } else {
                 console.error('[UserSync] 老后端注册失败:', registerResult);
