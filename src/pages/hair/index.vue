@@ -953,6 +953,11 @@ const switchTab = async (idx: number) => {
 const viewRecordDetail = async (record: HistoryRecord) => {
     console.log('View record detail:', record);
 
+    // Daily routine 记录不点击进详情
+    if (record.type === 'productUsage' && record.typeLabel === t('hair.productRoutine')) {
+        return;
+    }
+
     if (record.type === 'productUsage') {
         uni.navigateTo({ url: '/pages/analysis/index' });
         return;
