@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue';
-import { post } from '@/utils/request';
+import { post, ProjectBrand } from '@/utils/request';
 import { useUserStore } from '@/stores/userStore';
 import { setUserIdToApp } from '@/composables/useAuthFlow';
 
 export const MERCHANT_SCAN_CUSTOMER_KEY = 'merchant_scan_customer';
 
 export interface MerchantScanCustomer {
+    customerId: string;
     userId: string;
     merchantId: string;
     name: string;
@@ -20,7 +21,7 @@ function readStoredCustomer(): MerchantScanCustomer | null {
         const raw = uni.getStorageSync(MERCHANT_SCAN_CUSTOMER_KEY);
         if (!raw) return null;
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (!parsed?.userId || !parsed?.merchantId) return null;
+        if (!parsed?.customerId || !parsed?.userId || !parsed?.merchantId) return null;
         return parsed as MerchantScanCustomer;
     } catch {
         return null;
@@ -89,6 +90,8 @@ export function useMerchantScanCustomer() {
         contactType: MerchantContactType;
         phone?: string;
         email?: string;
+        gender?: string;
+        birthDate?: string;
     }): Promise<MerchantScanCustomer> {
         const trimmedName = input.name.trim();
         const phone = input.phone?.replace(/\D/g, '') || '';
@@ -113,19 +116,29 @@ export function useMerchantScanCustomer() {
             const contact = input.contactType === 'phone' ? { phone } : { email };
             const userId = await resolveCustomerUserId(contact);
 
-            await post('merchant/addCustomer', {
-                merchantId: merchantId.value,
-                userId,
-                name: trimmedName,
-                ...contact,
-            });
+            // 调用新后端 API 创建客户
+            const response = await post(
+                'customer',
+                {
+                    merchantId: merchantId.value,
+                    userId,
+                    name: trimmedName,
+                    ...contact,
+                    gender: input.gender,
+                    birthDate: input.birthDate,
+                },
+                { brand: ProjectBrand.LUSHAIR_NEW }
+            ) as { exists?: boolean; customer?: { id: string; userId: string; merchantId: string; name: string; phone?: string; email?: string } };
+
+            const customerData = response.customer || response;
 
             const customer: MerchantScanCustomer = {
-                userId,
-                merchantId: merchantId.value,
-                name: trimmedName,
-                ...(contact.phone ? { phone: contact.phone } : {}),
-                ...(contact.email ? { email: contact.email } : {}),
+                customerId: customerData.id,
+                userId: customerData.userId || userId,
+                merchantId: customerData.merchantId || merchantId.value,
+                name: customerData.name || trimmedName,
+                ...(customerData.phone ? { phone: customerData.phone } : {}),
+                ...(customerData.email ? { email: customerData.email } : {}),
             };
 
             persistCustomer(customer);
@@ -146,8 +159,9 @@ export function useMerchantScanCustomer() {
         if (!isMerchant.value || !activeCustomer.value) {
             return {};
         }
-        const { merchantId: mid, userId, name, phone, email } = activeCustomer.value;
+        const { customerId, merchantId: mid, userId, name, phone, email } = activeCustomer.value;
         return {
+            customerId,
             merchantId: mid,
             userId,
             name,

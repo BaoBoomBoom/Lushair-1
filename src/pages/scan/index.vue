@@ -14,7 +14,6 @@ const { t } = useI18n();
 const userStore = useUserStore();
 const {
     isMerchant,
-    hasActiveCustomer,
     activeCustomer,
     isSaving: isSavingCustomer,
     registerCustomer,
@@ -76,7 +75,7 @@ const captureLabel = computed(() => {
     return t('scan.capture');
 });
 const isCaptureDisabled = computed(() => isAnalyzing.value || isAnyUploading.value || isSavingCustomer.value);
-const merchantBlocksScan = computed(() => isMerchant.value && !hasActiveCustomer.value);
+const merchantBlocksScan = computed(() => false);
 
 function ensureMerchantCustomerReady(): boolean {
     if (!merchantBlocksScan.value) return true;
@@ -125,7 +124,12 @@ function selectOption(id: ScanOptionId) {
 }
 
 async function launchNativeScan(action: ScanActionType) {
-    if (!ensureMerchantCustomerReady()) return;
+    // 商家账号使用 Lushair One/Pro 时先跳转到客户列表
+    if (isMerchant.value && (action === 'lushairOne' || action === 'advanced')) {
+        uni.navigateTo({ url: '/pages/merchant/customer-list' });
+        return;
+    }
+
     const success = await runScanAction(action);
     if (!success) {
         uni.showToast({
@@ -259,7 +263,7 @@ function selectAngle(angleId: SelfieAngleId) {
             <view class="scan-shell">
                 <text class="shell-ptitle">{{ t('scan.title') }}</text>
 
-                <view v-if="isMerchant" class="shell-card shell-card-compact merchant-customer-card">
+                <!-- <view v-if="isMerchant" class="shell-card shell-card-compact merchant-customer-card">
                     <text class="shell-label">{{ t('scan.merchantCustomerTitle') }}</text>
                     <text class="scan-desc">{{ t('scan.merchantCustomerSubtitle') }}</text>
 
@@ -326,7 +330,7 @@ function selectAngle(angleId: SelfieAngleId) {
                             {{ t('scan.merchantCustomerChange') }}
                         </text>
                     </view>
-                </view>
+                </view> -->
 
                 <view class="shell-card shell-card-compact">
                     <text class="shell-label">{{ t('scan.scanType') }}</text>

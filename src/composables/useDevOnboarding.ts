@@ -23,7 +23,13 @@ export function shouldDevRedirectToOnboarding() {
     if (path.startsWith('/pages/landing') || path.startsWith('/pages/auth')) return false;
 
     const devEntryRoutes = ['', '/', '/pages/index/home', '/pages/index/index'];
-    return devEntryRoutes.includes(path);
+    if (!devEntryRoutes.includes(path)) return false;
+
+    // 检查 userId 是否存在
+    const userInfo = uni.getStorageSync('userInfo');
+    if (userInfo?.userId) return false;
+
+    return true;
 }
 
 export function resetDevLoginState() {

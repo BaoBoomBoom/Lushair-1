@@ -98,6 +98,34 @@
             }
         },
         {
+            "path": "pages/merchant/customer-list",
+            "style": {
+                "navigationStyle": "custom",
+                "enablePullDownRefresh": true,
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/merchant/add-customer",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
+            "path": "pages/merchant/customer-history",
+            "style": {
+                "navigationStyle": "custom",
+                "app-plus": {
+                    "titleNView": false
+                }
+            }
+        },
+        {
             "path": "pages/routine/index",
             "style": {
                 "navigationStyle": "custom",
