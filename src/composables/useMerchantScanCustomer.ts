@@ -12,6 +12,8 @@ export interface MerchantScanCustomer {
     name: string;
     phone?: string;
     email?: string;
+    gender?: string;
+    birthDate?: string;
 }
 
 export type MerchantContactType = 'phone' | 'email';
@@ -157,6 +159,8 @@ export function useMerchantScanCustomer() {
                 name: customerData.name || trimmedName,
                 ...(customerData.phone ? { phone: customerData.phone } : {}),
                 ...(customerData.email ? { email: customerData.email } : {}),
+                gender: input.gender,
+                birthDate: input.birthDate,
             };
 
             persistCustomer(customer);
@@ -173,11 +177,11 @@ export function useMerchantScanCustomer() {
         return userStore.userInfo.userId;
     }
 
-    function getMerchantScanPayload(): Record<string, string> {
+    function getMerchantScanPayload(): Record<string, any> {
         if (!isMerchant.value || !activeCustomer.value) {
             return {};
         }
-        const { customerId, merchantId: mid, userId, name, phone, email } = activeCustomer.value;
+        const { customerId, merchantId: mid, userId, name, phone, email, gender, birthDate } = activeCustomer.value;
         return {
             customerId,
             merchantId: mid,
@@ -185,6 +189,8 @@ export function useMerchantScanCustomer() {
             name,
             ...(phone ? { phone } : {}),
             ...(email ? { email } : {}),
+            ...(gender ? { gender } : {}),
+            ...(birthDate ? { birthDate } : {}),
         };
     }
 

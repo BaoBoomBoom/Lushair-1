@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onLoad } from '@dcloudio/uni-app';
 import { get, ProjectBrand } from '@/utils/request';
+import { useMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
+import { runLushairOneScan, runLushairProScan } from '@/composables/useScanActions';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
+const { getMerchantScanPayload } = useMerchantScanCustomer();
 
 interface Report {
   id: string;
@@ -30,6 +33,9 @@ const customerId = ref('');
 const customerName = ref('');
 const reports = ref<Report[]>([]);
 const isLoading = ref(false);
+
+// 检测设备类型选择
+const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
 
 // 分页状态
 const pagination = ref({
@@ -109,9 +115,55 @@ function viewReportDetail(report: Report) {
   }
 }
 
-function onNext() {
-  // 事件留空，后续开发
-  uni.showToast({ title: t('merchant.nextFeatureComingSoon'), icon: 'none' });
+async function onNext() {
+  // 获取客户信息
+  const merchantPayload = getMerchantScanPayload();
+
+  // 计算年龄
+  let customerAge: number | undefined = undefined;
+  if (merchantPayload.birthDate) {
+    const today = new Date();
+    const birth = new Date(merchantPayload.birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    customerAge = age;
+  }
+
+  // 传递商家信息和客户信息给 iOS/Android
+  if (merchantPayload.merchantId) {
+    try {
+      const nativeWindow = window as Window & { webkit?: any; android?: any };
+      if (nativeWindow.webkit?.messageHandlers?.setMerchantInfo) {
+        nativeWindow.webkit.messageHandlers.setMerchantInfo.postMessage({
+          merchantId: merchantPayload.merchantId,
+          customerId: merchantPayload.customerId,
+          userId: merchantPayload.userId,
+          gender: merchantPayload.gender,
+          age: customerAge,
+        });
+      } else if (nativeWindow.android?.setMerchantInfo) {
+        nativeWindow.android.setMerchantInfo({
+          merchantId: merchantPayload.merchantId,
+          customerId: merchantPayload.customerId,
+          userId: merchantPayload.userId,
+          gender: merchantPayload.gender,
+          age: customerAge,
+        });
+      }
+    } catch (e) {
+      console.log('[customer-history] Set merchant info to native failed:', e);
+    }
+  }
+
+  // 根据设备类型唤起对应的检测
+  if (scanDeviceType.value === 'lushairOne') {
+    await runLushairOneScan();
+  } else {
+    await runLushairProScan();
+  }
 }
 
 function onReachBottom() {
@@ -195,6 +247,29 @@ onMounted(() => {
 
         <view v-else-if="!pagination.hasMore && reports.length > 0" class="load-more">
           <text class="load-more-text">{{ t('common.noMore') }}</text>
+        </view>
+      </view>
+
+      <!-- 检测设备类型选择 -->
+      <view class="form-section">
+        <view class="form-field">
+          <text class="form-label">{{ t('merchant.scanDevice') }}</text>
+          <view class="device-options">
+            <view
+              class="device-chip"
+              :class="{ on: scanDeviceType === 'lushairOne' }"
+              @click="scanDeviceType = 'lushairOne'"
+            >
+              Lushair One
+            </view>
+            <view
+              class="device-chip"
+              :class="{ on: scanDeviceType === 'lushairPro' }"
+              @click="scanDeviceType = 'lushairPro'"
+            >
+              Lushair Pro
+            </view>
+          </view>
         </view>
       </view>
 
@@ -360,6 +435,44 @@ onMounted(() => {
 .load-more-text {
   font-size: 13px;
   color: #8a82a0;
+}
+
+.form-section {
+  padding: 12px 16px 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1228;
+}
+
+.device-options {
+  display: flex;
+  gap: 8px;
+}
+
+.device-chip {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid #e8e4f4;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b21c8;
+
+  &.on {
+    border-color: #6b21c8;
+    background: rgba(107, 33, 200, 0.08);
+  }
 }
 
 .footer {

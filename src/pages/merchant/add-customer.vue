@@ -131,11 +131,20 @@ async function launchScanForCustomer() {
   const merchantPayload = getMerchantScanPayload();
   if (merchantPayload.merchantId) {
     try {
-      const nativeWindow = window as any;
+      const nativeWindow = window as Window & { webkit?: any; android?: any };
       if (nativeWindow.webkit?.messageHandlers?.setMerchantInfo) {
         nativeWindow.webkit.messageHandlers.setMerchantInfo.postMessage({
           merchantId: merchantPayload.merchantId,
           customerId: merchantPayload.customerId,
+          userId: merchantPayload.userId,
+          gender: gender.value || undefined,
+          age: customerAge,
+        });
+      } else if (nativeWindow.android?.setMerchantInfo) {
+        nativeWindow.android.setMerchantInfo({
+          merchantId: merchantPayload.merchantId,
+          customerId: merchantPayload.customerId,
+          userId: merchantPayload.userId,
           gender: gender.value || undefined,
           age: customerAge,
         });
