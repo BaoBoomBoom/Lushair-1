@@ -59,13 +59,12 @@ const emailAddress = ref('');
 const customerName = ref('');
 const contactType = ref<'phone' | 'email'>('phone');
 const gender = ref('');
-const birthDate = ref('');
-
-// 检测设备类型： lushairOne | lushairPro
-const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
+const birthDate = ref('2000-01-01'); // 选择器默认定位到2000年
+const hasUserSelectedBirthDate = ref(false); // 标记用户是否主动选择过
 
 // 格式化日期显示
 const formattedBirthDate = computed(() => {
+  if (!hasUserSelectedBirthDate.value) return ''; // 用户未选择时不显示
   if (!birthDate.value) return '';
   const date = new Date(birthDate.value);
   const lang = locale.value === 'zh-Hans' ? 'zh-CN' : 'en-US';
@@ -74,6 +73,19 @@ const formattedBirthDate = computed(() => {
     month: 'long',
     day: 'numeric'
   });
+});
+
+// 检测设备类型： lushairOne | lushairPro（从URL参数获取，默认 lushairOne）
+const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
+
+// 获取页面传递的 scanDevice 参数
+onMounted(() => {
+  const pages = getCurrentPages();
+  const currentPage = pages[pages.length - 1];
+  const options = (currentPage as any).options || {};
+  if (options.scanDevice && (options.scanDevice === 'lushairOne' || options.scanDevice === 'lushairPro')) {
+    scanDeviceType.value = options.scanDevice;
+  }
 });
 
 // 下拉菜单状态
@@ -111,6 +123,11 @@ function closeDropdown() {
 
 function goBack() {
   uni.navigateBack();
+}
+
+function onBirthDateChange(value: string) {
+  birthDate.value = value;
+  hasUserSelectedBirthDate.value = true;
 }
 
 async function launchScanForCustomer() {
@@ -165,6 +182,18 @@ async function launchScanForCustomer() {
 async function handleSubmit() {
   if (!customerName.value.trim()) {
     uni.showToast({ title: t('merchant.nameRequired'), icon: 'none' });
+    return;
+  }
+
+  // 验证性别（必填）
+  if (!gender.value) {
+    uni.showToast({ title: t('merchant.genderRequired'), icon: 'none' });
+    return;
+  }
+
+  // 验证出生日期（必填）
+  if (!hasUserSelectedBirthDate.value) {
+    uni.showToast({ title: t('merchant.birthRequired'), icon: 'none' });
     return;
   }
 
@@ -360,9 +389,9 @@ async function handleSubmit() {
           />
         </view>
 
-        <!-- 性别（可选） -->
+        <!-- 性别（必选） -->
         <view class="form-field">
-          <text class="form-label">{{ t('merchant.gender') }} ({{ t('common.optional') }})</text>
+          <text class="form-label">{{ t('merchant.gender') }} *</text>
           <view class="gender-options">
             <view
               class="gender-chip"
@@ -388,38 +417,17 @@ async function handleSubmit() {
           </view>
         </view>
 
-        <!-- 出生日期（可选） -->
+        <!-- 出生日期（必选） -->
         <view class="form-field">
-          <text class="form-label">{{ t('merchant.birthDate') }} ({{ t('common.optional') }})</text>
-          <uni-datetime-picker type="date" v-model="birthDate" :locale="locale === 'zh-Hans' ? 'zh' : 'en'" :end="new Date().toISOString().split('T')[0]">
+          <text class="form-label">{{ t('merchant.birthDate') }} *</text>
+          <uni-datetime-picker type="date" v-model="birthDate" :locale="locale === 'zh-Hans' ? 'zh' : 'en'" :end="new Date().toISOString().split('T')[0]" @change="onBirthDateChange">
             <view class="picker-input">
-              <text :class="{ 'placeholder': !birthDate }">
+              <text :class="{ 'placeholder': !hasUserSelectedBirthDate }">
                 {{ formattedBirthDate || t('merchant.selectDate') }}
               </text>
               <TablerIcon name="calendar" :size="18" color="#8a82a0" />
             </view>
           </uni-datetime-picker>
-        </view>
-
-        <!-- 检测设备类型选择（商家默认使用Lushair One） -->
-        <view class="form-field">
-          <text class="form-label">{{ t('merchant.scanDevice') }}</text>
-          <view class="device-options">
-            <view
-              class="device-chip"
-              :class="{ on: scanDeviceType === 'lushairOne' }"
-              @click="scanDeviceType = 'lushairOne'"
-            >
-              Lushair One
-            </view>
-            <view
-              class="device-chip"
-              :class="{ on: scanDeviceType === 'lushairPro' }"
-              @click="scanDeviceType = 'lushairPro'"
-            >
-              Lushair Pro
-            </view>
-          </view>
         </view>
       </view>
     </scroll-view>

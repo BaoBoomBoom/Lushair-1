@@ -29,6 +29,9 @@ const customers = ref<Customer[]>([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
 
+// 保存从 scan 页面传递的 scanDevice 参数
+const scanDevice = ref<string>('');
+
 // 分页状态
 const pagination = ref({
   page: 1,
@@ -97,7 +100,10 @@ function selectCustomer(customer: Customer) {
 }
 
 function goToAddCustomer() {
-  uni.navigateTo({ url: '/pages/merchant/add-customer' });
+  const url = scanDevice.value
+    ? `/pages/merchant/add-customer?scanDevice=${scanDevice.value}`
+    : '/pages/merchant/add-customer';
+  uni.navigateTo({ url });
 }
 
 function goBack() {
@@ -116,6 +122,14 @@ function formatPhone(phone?: string): string {
 }
 
 onMounted(() => {
+  // 获取页面传递的 scanDevice 参数
+  const pages = getCurrentPages();
+  const currentPage = pages[pages.length - 1];
+  const options = (currentPage as any).options || {};
+  if (options.scanDevice) {
+    scanDevice.value = options.scanDevice;
+  }
+
   fetchCustomers();
 });
 

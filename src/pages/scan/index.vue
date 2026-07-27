@@ -126,7 +126,8 @@ function selectOption(id: ScanOptionId) {
 async function launchNativeScan(action: ScanActionType) {
     // 商家账号使用 Lushair One/Pro 时先跳转到客户列表
     if (isMerchant.value && (action === 'lushairOne' || action === 'advanced')) {
-        uni.navigateTo({ url: '/pages/merchant/customer-list' });
+        const scanDevice = action === 'lushairOne' ? 'lushairOne' : 'lushairPro';
+        uni.navigateTo({ url: `/pages/merchant/customer-list?scanDevice=${scanDevice}` });
         return;
     }
 
