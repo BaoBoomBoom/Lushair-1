@@ -8,11 +8,12 @@ import zhLocale from 'i18n-iso-countries/langs/zh.json';
 import { useUserStore } from '@/stores/userStore';
 import { post, ProjectBrand } from '@/utils/request';
 import { useMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
+import { runLushairOneScan, runLushairProScan } from '@/composables/useScanActions';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
-const { registerCustomer } = useMerchantScanCustomer();
+const { registerCustomer, getMerchantScanPayload } = useMerchantScanCustomer();
 
 // 注册语言包
 countries.registerLocale(enLocale);
@@ -59,6 +60,9 @@ const customerName = ref('');
 const contactType = ref<'phone' | 'email'>('phone');
 const gender = ref('');
 const birthDate = ref('');
+
+// 检测设备类型： lushairOne | lushairPro
+const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
 
 // 格式化日期显示
 const formattedBirthDate = computed(() => {
@@ -107,6 +111,46 @@ function closeDropdown() {
 
 function goBack() {
   uni.navigateBack();
+}
+
+async function launchScanForCustomer() {
+  // 计算年龄
+  let customerAge: number | undefined = undefined;
+  if (birthDate.value) {
+    const today = new Date();
+    const birth = new Date(birthDate.value);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    customerAge = age;
+  }
+
+  // 传递商家信息和客户信息给iOS
+  const merchantPayload = getMerchantScanPayload();
+  if (merchantPayload.merchantId) {
+    try {
+      const nativeWindow = window as any;
+      if (nativeWindow.webkit?.messageHandlers?.setMerchantInfo) {
+        nativeWindow.webkit.messageHandlers.setMerchantInfo.postMessage({
+          merchantId: merchantPayload.merchantId,
+          customerId: merchantPayload.customerId,
+          gender: gender.value || undefined,
+          age: customerAge,
+        });
+      }
+    } catch (e) {
+      console.log('[add-customer] Set merchant info to native failed:', e);
+    }
+  }
+
+  // 根据设备类型唤起对应的检测
+  if (scanDeviceType.value === 'lushairOne') {
+    await runLushairOneScan();
+  } else {
+    await runLushairProScan();
+  }
 }
 
 async function handleSubmit() {
@@ -161,10 +205,14 @@ async function handleSubmit() {
     });
 
     if (result) {
-      // 跳转到客户历史检测页面
-      uni.navigateTo({
-        url: `/pages/merchant/customer-history?customerId=${result.customerId}&name=${encodeURIComponent(result.name)}`,
-      });
+      // 客户首次添加成功，直接唤起iOS App进行检测
+      // 使用eventBus或页面参数通知customer-list刷新
+      uni.setStorageSync('needRefreshCustomerList', 'true');
+
+      // 延迟一下确保存储完成
+      setTimeout(() => {
+        launchScanForCustomer();
+      }, 100);
     }
   } catch (error: any) {
     console.error('Register customer error:', error);
@@ -172,15 +220,20 @@ async function handleSubmit() {
     // 检查是否是"客户已存在"的错误
     const errorMessage = error?.message || error?.toString() || '';
     if (errorMessage.includes('exists') || errorMessage.includes('already')) {
+      // 客户已存在，跳转到客户检测记录页面
       uni.showModal({
         title: t('merchant.customerExists'),
         content: t('merchant.customerExistsMessage'),
-        confirmText: t('common.confirm'),
+        confirmText: t('merchant.viewHistory'),
         cancelText: t('common.cancel'),
         success: (res) => {
           if (res.confirm) {
-            // TODO: 实现更新逻辑（需要 customerId）
-            uni.showToast({ title: 'Update feature coming soon', icon: 'none' });
+            // 跳转到客户检测记录页面（需要先获取customerId）
+            uni.showToast({ title: 'Please select from customer list', icon: 'none' });
+            // 返回客户列表页面
+            setTimeout(() => {
+              uni.navigateBack();
+            }, 1500);
           }
         },
       });
@@ -338,6 +391,27 @@ async function handleSubmit() {
             </view>
           </uni-datetime-picker>
         </view>
+
+        <!-- 检测设备类型选择（商家默认使用Lushair One） -->
+        <view class="form-field">
+          <text class="form-label">{{ t('merchant.scanDevice') }}</text>
+          <view class="device-options">
+            <view
+              class="device-chip"
+              :class="{ on: scanDeviceType === 'lushairOne' }"
+              @click="scanDeviceType = 'lushairOne'"
+            >
+              Lushair One
+            </view>
+            <view
+              class="device-chip"
+              :class="{ on: scanDeviceType === 'lushairPro' }"
+              @click="scanDeviceType = 'lushairPro'"
+            >
+              Lushair Pro
+            </view>
+          </view>
+        </view>
       </view>
     </scroll-view>
 
@@ -347,7 +421,7 @@ async function handleSubmit() {
         :disabled="isLoading"
         @click="handleSubmit"
       >
-        {{ isLoading ? t('common.saving') : t('merchant.saveAndContinue') }}
+        {{ isLoading ? t('common.saving') : t('merchant.saveAndScan') }}
       </button>
     </view>
   </view>
@@ -580,6 +654,28 @@ async function handleSubmit() {
 }
 
 .gender-chip {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid #e8e4f4;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b21c8;
+
+  &.on {
+    border-color: #6b21c8;
+    background: rgba(107, 33, 200, 0.08);
+  }
+}
+
+.device-options {
+  display: flex;
+  gap: 8px;
+}
+
+.device-chip {
   flex: 1;
   text-align: center;
   padding: 12px;

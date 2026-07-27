@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
+import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/stores/userStore';
 import { get, ProjectBrand } from '@/utils/request';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
@@ -117,6 +117,15 @@ function formatPhone(phone?: string): string {
 
 onMounted(() => {
   fetchCustomers();
+});
+
+// 页面显示时检查是否需要刷新（从添加客户页面返回）
+onShow(() => {
+  const needRefresh = uni.getStorageSync('needRefreshCustomerList');
+  if (needRefresh === 'true') {
+    uni.removeStorageSync('needRefreshCustomerList');
+    fetchCustomers(true, false);
+  }
 });
 
 // 下拉刷新

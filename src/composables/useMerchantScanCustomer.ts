@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { post, ProjectBrand } from '@/utils/request';
+import { get, post, ProjectBrand } from '@/utils/request';
 import { useUserStore } from '@/stores/userStore';
 import { setUserIdToApp } from '@/composables/useAuthFlow';
 
@@ -61,28 +61,46 @@ export function useMerchantScanCustomer() {
 
     async function resolveCustomerUserId(contact: { phone?: string; email?: string }): Promise<string> {
         const lookupPayload = contact.phone ? { phone: contact.phone } : { email: contact.email };
-        let userInfo: { userId?: string } | null = null;
 
-        try {
-            userInfo = (await post('user/info', lookupPayload, { silent: true })) as { userId?: string };
-        } catch {
-            userInfo = null;
-        }
-
+        // 1. 先查询新后端
+        let userInfo = await get('user/profile', lookupPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
         if (userInfo?.userId) {
+            console.log('[resolveCustomerUserId] 新后端找到用户:', userInfo.userId);
             return userInfo.userId;
         }
 
-        await post('login/registUser', {
+        // 2. 新后端没有，查询老后端
+        try {
+            const legacyUserInfo = await post('user/info', lookupPayload, { silent: true }) as any;
+            if (legacyUserInfo?.userId) {
+                console.log('[resolveCustomerUserId] 老后端找到用户，同步到新后端:', legacyUserInfo.userId);
+                // 3. 老后端有，同步到新后端
+                await post('user/sync', { ...legacyUserInfo, userType: legacyUserInfo.type }, { brand: ProjectBrand.LUSHAIR_NEW });
+                return legacyUserInfo.userId;
+            }
+        } catch (error) {
+            console.log('[resolveCustomerUserId] 老后端查询失败:', error);
+        }
+
+        // 4. 都没有，注册到老后端
+        console.log('[resolveCustomerUserId] 注册新用户到老后端');
+        const registerResult = await post('login/registUser', {
             ...lookupPayload,
             name: contact.phone || contact.email,
-        });
+        }) as any;
 
-        const created = (await post('user/info', lookupPayload)) as { userId?: string };
-        if (!created?.userId) {
-            throw new Error('customer_user_missing');
+        // 5. 同步到新后端
+        if (registerResult?.userId || registerResult?.customerId) {
+            const userData = registerResult.userId ? registerResult : {
+                userId: registerResult.customerId || registerResult.userId,
+                ...registerResult,
+            };
+            console.log('[resolveCustomerUserId] 同步新用户到新后端:', userData.userId);
+            await post('user/sync', { ...userData, userType: userData.type }, { brand: ProjectBrand.LUSHAIR_NEW });
+            return userData.userId;
         }
-        return created.userId;
+
+        throw new Error('customer_user_missing');
     }
 
     async function registerCustomer(input: {
