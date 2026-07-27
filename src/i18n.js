@@ -129,6 +129,11 @@ export const setLocale = (locale) => {
   // 保存到本地存储
   uni.setStorageSync('locale', locale)
 
+  // 设置uni-ui的全局语言
+  if (uni.setLocale) {
+    uni.setLocale(locale === 'zh-Hans' ? 'zh-Hans' : locale)
+  }
+
   // 更新tabbar文本
   updateTabBarTexts(i18n)
 
@@ -147,6 +152,12 @@ export const getLocale = () => {
 // 创建实例后立即尝试更新tabbar
 setTimeout(() => {
   updateTabBarTexts(i18n);
+
+  // 初始化uni-ui的语言
+  const currentLocale = getSystemLocale()
+  if (uni.setLocale) {
+    uni.setLocale(currentLocale === 'zh-Hans' ? 'zh-Hans' : currentLocale)
+  }
 }, 500); // 给足够时间让应用初始化完成
 
 export default i18n 

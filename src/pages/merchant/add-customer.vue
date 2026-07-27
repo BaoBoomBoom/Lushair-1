@@ -60,6 +60,18 @@ const contactType = ref<'phone' | 'email'>('phone');
 const gender = ref('');
 const birthDate = ref('');
 
+// 格式化日期显示
+const formattedBirthDate = computed(() => {
+  if (!birthDate.value) return '';
+  const date = new Date(birthDate.value);
+  const lang = locale.value === 'zh-Hans' ? 'zh-CN' : 'en-US';
+  return date.toLocaleDateString(lang, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+});
+
 // 下拉菜单状态
 const showCountryDropdown = ref(false);
 const searchQuery = ref('');
@@ -179,10 +191,6 @@ async function handleSubmit() {
     isLoading.value = false;
   }
 }
-
-function onBirthDateChange(event: any) {
-  birthDate.value = event.detail.value;
-}
 </script>
 
 <template>
@@ -191,7 +199,7 @@ function onBirthDateChange(event: any) {
     <view class="header">
       <view class="header-nav">
         <view class="back-button" @click="goBack">
-          <TablerIcon name="arrow-left" :size="22" color="#1a1228" />
+          <TablerIcon name="chevron-left" :size="22" color="#1a1228" />
         </view>
         <text class="header-title">{{ t('merchant.addCustomer') }}</text>
         <view style="width: 22px;"></view>
@@ -242,6 +250,7 @@ function onBirthDateChange(event: any) {
               </view>
 
               <!-- 国家代码下拉菜单 -->
+              <view v-if="showCountryDropdown" class="dropdown-overlay" @tap="closeDropdown" />
               <view v-if="showCountryDropdown" class="country-dropdown" @tap.stop>
                 <view class="search-container">
                   <input
@@ -320,14 +329,14 @@ function onBirthDateChange(event: any) {
         <!-- 出生日期（可选） -->
         <view class="form-field">
           <text class="form-label">{{ t('merchant.birthDate') }} ({{ t('common.optional') }})</text>
-          <picker mode="date" :value="birthDate" @change="onBirthDateChange">
+          <uni-datetime-picker type="date" v-model="birthDate" :locale="locale === 'zh-Hans' ? 'zh' : 'en'" :end="new Date().toISOString().split('T')[0]">
             <view class="picker-input">
               <text :class="{ 'placeholder': !birthDate }">
-                {{ birthDate || t('merchant.selectDate') }}
+                {{ formattedBirthDate || t('merchant.selectDate') }}
               </text>
               <TablerIcon name="calendar" :size="18" color="#8a82a0" />
             </view>
-          </picker>
+          </uni-datetime-picker>
         </view>
       </view>
     </scroll-view>
@@ -370,7 +379,7 @@ function onBirthDateChange(event: any) {
   height: 44px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   cursor: pointer;
 }
 
@@ -383,6 +392,9 @@ function onBirthDateChange(event: any) {
 .form-scroll {
   flex: 1;
   padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .form-section {
@@ -443,6 +455,7 @@ function onBirthDateChange(event: any) {
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  width: 100%;
 }
 
 .country-code-container {
@@ -478,65 +491,87 @@ function onBirthDateChange(event: any) {
   }
 }
 
-.country-dropdown {
-  position: absolute;
-  top: 100%;
+.dropdown-overlay {
+  position: fixed;
+  top: 0;
   left: 0;
-  width: 280px;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+}
+
+.country-dropdown {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 400px;
+  max-height: 70vh;
   background-color: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  max-height: 300px;
+  display: flex;
+  flex-direction: column;
 }
 
 .search-container {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  border-bottom: 1px solid #e8e4f4;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  font-size: 13px;
-  height: 36px;
+  padding: 12px 14px;
+  border: 1px solid #e8e4f4;
+  border-radius: 10px;
+  font-size: 14px;
+  height: 44px;
   box-sizing: border-box;
 }
 
 .dropdown-scroll {
-  max-height: 200px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  min-height: 40px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e8e4f4;
+  min-height: 48px;
+  cursor: pointer;
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &.selected {
-    background-color: #f0f0f0;
+    background-color: rgba(107, 33, 200, 0.08);
   }
 }
 
 .country-code {
-  font-weight: 500;
-  margin-right: 10px;
-  font-size: 13px;
-  min-width: 45px;
+  font-weight: 600;
+  margin-right: 12px;
+  font-size: 15px;
+  min-width: 50px;
+  color: #6b21c8;
 }
 
 .country-name {
-  font-size: 13px;
-  color: #666;
+  font-size: 15px;
+  color: #1a1228;
   flex: 1;
 }
 
 .phone-input {
   flex: 1;
+  min-width: 0;
 }
 
 .gender-options {
@@ -579,9 +614,12 @@ function onBirthDateChange(event: any) {
 }
 
 .footer {
+  position: sticky;
+  bottom: 0;
   padding: 16px;
   background-color: #ffffff;
   border-top: 1px solid #e8e4f4;
+  z-index: 10;
 }
 
 .submit-button {
