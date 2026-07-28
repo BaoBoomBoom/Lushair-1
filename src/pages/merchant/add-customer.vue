@@ -13,7 +13,7 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
-const { registerCustomer, getMerchantScanPayload } = useMerchantScanCustomer();
+const { registerCustomer } = useMerchantScanCustomer();
 
 // 注册语言包
 countries.registerLocale(enLocale);
@@ -95,7 +95,6 @@ onMounted(() => {
 const showCountryDropdown = ref(false);
 const searchQuery = ref('');
 const isLoading = ref(false);
-const isDatePickerOpen = ref(false); // 日期选择器是否打开
 
 // 计算属性
 const selectedCountryCode = computed(() => countryCodes[selectedCountryIndex.value]);
@@ -129,57 +128,12 @@ function goBack() {
   uni.navigateBack();
 }
 
-function onBirthDateChange(value: string) {
-  birthDate.value = value;
+function onBirthDateChange(e: any) {
+  birthDate.value = e.detail.value;
   hasUserSelectedBirthDate.value = true;
-  isDatePickerOpen.value = false;
-}
-
-function onDatePickerClick() {
-  isDatePickerOpen.value = true;
 }
 
 async function launchScanForCustomer() {
-  // 计算年龄
-  let customerAge: number | undefined = undefined;
-  if (birthDate.value) {
-    const today = new Date();
-    const birth = new Date(birthDate.value);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    customerAge = age;
-  }
-
-  // 传递商家信息和客户信息给iOS
-  const merchantPayload = getMerchantScanPayload();
-  if (merchantPayload.merchantId) {
-    try {
-      const nativeWindow = window as Window & { webkit?: any; android?: any };
-      if (nativeWindow.webkit?.messageHandlers?.setMerchantInfo) {
-        nativeWindow.webkit.messageHandlers.setMerchantInfo.postMessage({
-          merchantId: merchantPayload.merchantId,
-          customerId: merchantPayload.customerId,
-          userId: merchantPayload.userId,
-          gender: gender.value || undefined,
-          age: customerAge,
-        });
-      } else if (nativeWindow.android?.setMerchantInfo) {
-        nativeWindow.android.setMerchantInfo({
-          merchantId: merchantPayload.merchantId,
-          customerId: merchantPayload.customerId,
-          userId: merchantPayload.userId,
-          gender: gender.value || undefined,
-          age: customerAge,
-        });
-      }
-    } catch (e) {
-      console.log('[add-customer] Set merchant info to native failed:', e);
-    }
-  }
-
   // 根据设备类型唤起对应的检测
   if (scanDeviceType.value === 'lushairOne') {
     await runLushairOneScan();
@@ -266,6 +220,13 @@ async function handleSubmit() {
 
     // 检查是否是"客户已存在"的错误
     const errorMessage = error?.message || error?.toString() || '';
+
+    // 检查是否是邮箱格式错误
+    if (errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('linked format')) {
+      uni.showToast({ title: t('merchant.invalidEmail'), icon: 'none' });
+      return;
+    }
+
     if (errorMessage.includes('exists') || errorMessage.includes('already') || error?.customer) {
       const existingCustomer = error.customer;
       uni.showModal({
@@ -276,8 +237,13 @@ async function handleSubmit() {
         success: (res) => {
           if (res.confirm && existingCustomer?.id) {
             // 跳转到客户检测记录页面
+            const params = new URLSearchParams({
+              customerId: existingCustomer.id,
+              userId: existingCustomer.userId,
+              name: encodeURIComponent(existingCustomer.name || ''),
+            });
             uni.navigateTo({
-              url: `/pages/merchant/customer-history?customerId=${existingCustomer.id}&name=${encodeURIComponent(existingCustomer.name || '')}`,
+              url: `/pages/merchant/customer-history?${params.toString()}`,
             });
           }
         },
@@ -389,9 +355,9 @@ async function handleSubmit() {
           <input
             v-model="emailAddress"
             class="form-input"
-            type="email"
+            type="text"
             inputmode="email"
-            :placeholder="t('merchant.emailPlaceholder')"
+            placeholder="email@example.com"
           />
         </view>
 
@@ -426,27 +392,23 @@ async function handleSubmit() {
         <!-- 出生日期（必选） -->
         <view class="form-field">
           <text class="form-label">{{ t('merchant.birthDate') }} *</text>
-          <uni-datetime-picker type="date" v-model="birthDate" :locale="locale === 'zh-Hans' ? 'zh' : 'en'" :end="new Date().toISOString().split('T')[0]" @change="onBirthDateChange">
-            <view class="picker-input" @click="onDatePickerClick">
+          <picker mode="date" :value="birthDate" :end="new Date().toISOString().split('T')[0]" @change="onBirthDateChange">
+            <view class="picker-input">
               <text :class="{ 'placeholder': !hasUserSelectedBirthDate }">
                 {{ formattedBirthDate || t('merchant.selectDate') }}
               </text>
               <TablerIcon name="calendar" :size="18" color="#8a82a0" />
             </view>
-          </uni-datetime-picker>
+          </picker>
         </view>
       </view>
     </scroll-view>
 
     <!-- Save按钮固定底部 -->
     <view class="footer">
-      <button
-        class="submit-button"
-        :disabled="isLoading"
-        @click="handleSubmit"
-      >
+      <view class="submit-button" @click="handleSubmit">
         {{ isLoading ? t('common.saving') : t('merchant.saveAndScan') }}
-      </button>
+      </view>
     </view>
   </view>
 </template>
@@ -744,17 +706,23 @@ async function handleSubmit() {
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   background-color: #ffffff;
   border-top: 1px solid #e8e4f4;
+  z-index: auto;
 }
 
 .submit-button {
   width: 100%;
   height: 52px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #6b21c8, #9333ea);
+  background: #6b21c8;
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
   border: none;
+  text-align: center;
+  line-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .submit-button:disabled {

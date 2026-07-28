@@ -25,7 +25,7 @@ onLaunch(() => {
   console.log(`当前环境: ${env.getEnvName()}`);
   
   // 初始化 VConsole (只在开发环境下启用)
-  initVConsole(true);
+  initVConsole();
   
   // 设置摇晃手势以在真机上显示/隐藏 VConsole
   // setupShakeToShowVConsole();

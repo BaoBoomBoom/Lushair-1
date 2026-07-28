@@ -11,9 +11,12 @@ const userStore = useUserStore();
 
 interface Customer {
   id: string;
+  userId: string;
   name: string;
   phone?: string;
   email?: string;
+  gender?: string;
+  birthDate?: string;
   createdAt: string;
 }
 
@@ -93,10 +96,16 @@ function onSearch() {
 }
 
 function selectCustomer(customer: Customer) {
-  // 跳转到客户历史检测页面，传递 scanDevice 参数
-  const url = scanDevice.value
-    ? `/pages/merchant/customer-history?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}&scanDevice=${scanDevice.value}`
-    : `/pages/merchant/customer-history?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}`;
+  // 跳转到客户历史检测页面，传递 scanDevice 参数和客户信息
+  const params = new URLSearchParams({
+    customerId: customer.id,
+    userId: customer.userId,
+    name: customer.name,
+  });
+  if (scanDevice.value) params.set('scanDevice', scanDevice.value);
+  if (customer.gender) params.set('gender', customer.gender);
+  if (customer.birthDate) params.set('birthDate', customer.birthDate);
+  const url = `/pages/merchant/customer-history?${params.toString()}`;
   uni.navigateTo({ url });
 }
 

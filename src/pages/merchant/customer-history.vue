@@ -6,9 +6,11 @@ import { get, ProjectBrand } from '@/utils/request';
 import { useMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
 import { runLushairOneScan, runLushairProScan } from '@/composables/useScanActions';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
+import { useUserStore } from '@/stores/userStore';
 
 const { t, locale } = useI18n();
-const { getMerchantScanPayload } = useMerchantScanCustomer();
+const { persistCustomer } = useMerchantScanCustomer();
+const userStore = useUserStore();
 
 interface Report {
   id: string;
@@ -116,48 +118,6 @@ function viewReportDetail(report: Report) {
 }
 
 async function onNext() {
-  // 获取客户信息
-  const merchantPayload = getMerchantScanPayload();
-
-  // 计算年龄
-  let customerAge: number | undefined = undefined;
-  if (merchantPayload.birthDate) {
-    const today = new Date();
-    const birth = new Date(merchantPayload.birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    customerAge = age;
-  }
-
-  // 传递商家信息和客户信息给 iOS/Android
-  if (merchantPayload.merchantId) {
-    try {
-      const nativeWindow = window as Window & { webkit?: any; android?: any };
-      if (nativeWindow.webkit?.messageHandlers?.setMerchantInfo) {
-        nativeWindow.webkit.messageHandlers.setMerchantInfo.postMessage({
-          merchantId: merchantPayload.merchantId,
-          customerId: merchantPayload.customerId,
-          userId: merchantPayload.userId,
-          gender: merchantPayload.gender,
-          age: customerAge,
-        });
-      } else if (nativeWindow.android?.setMerchantInfo) {
-        nativeWindow.android.setMerchantInfo({
-          merchantId: merchantPayload.merchantId,
-          customerId: merchantPayload.customerId,
-          userId: merchantPayload.userId,
-          gender: merchantPayload.gender,
-          age: customerAge,
-        });
-      }
-    } catch (e) {
-      console.log('[customer-history] Set merchant info to native failed:', e);
-    }
-  }
-
   // 根据设备类型唤起对应的检测
   if (scanDeviceType.value === 'lushairOne') {
     await runLushairOneScan();
@@ -187,6 +147,21 @@ onLoad((options: any) => {
   if (options.scanDevice && (options.scanDevice === 'lushairOne' || options.scanDevice === 'lushairPro')) {
     scanDeviceType.value = options.scanDevice;
   }
+
+  // 保存商家客户信息到 storage（用于传递给原生）
+  if (customerId.value && options.userId && userStore.userInfo.userId) {
+    persistCustomer({
+      customerId: customerId.value,
+      merchantId: userStore.userInfo.userId,
+      userId: options.userId, // 客户的 userId
+      name: customerName.value,
+      gender: options.gender,
+      birthDate: options.birthDate,
+    });
+  } else if (customerId.value && userStore.userInfo.userId) {
+    console.warn('[customer-history] 缺少客户 userId，无法保存商家客户信息');
+  }
+
   if (customerId.value) {
     fetchReports();
   }

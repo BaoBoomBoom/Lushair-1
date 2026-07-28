@@ -136,6 +136,9 @@ export function useMerchantScanCustomer() {
             const contact = input.contactType === 'phone' ? { phone } : { email };
             const userId = await resolveCustomerUserId(contact);
 
+            // gender 直接使用字符串值
+            const genderValue = input.gender || undefined;
+
             // 调用新后端 API 创建客户
             const response = await post(
                 'customer',
@@ -144,7 +147,7 @@ export function useMerchantScanCustomer() {
                     userId,
                     name: trimmedName,
                     ...contact,
-                    gender: input.gender,
+                    gender: genderValue,
                     birthDate: input.birthDate,
                 },
                 { brand: ProjectBrand.LUSHAIR_NEW }
@@ -189,6 +192,11 @@ export function useMerchantScanCustomer() {
             return {};
         }
         const { customerId, merchantId: mid, userId, name, phone, email, gender, birthDate } = activeCustomer.value;
+
+        // gender 字符串转数字 (male=1, female=2, other=0) - 传递给 App 需要数字
+        const genderMap: Record<string, number> = { male: 1, female: 2, other: 0 };
+        const genderValue = gender ? genderMap[gender] ?? 0 : undefined;
+
         return {
             customerId,
             merchantId: mid,
@@ -196,7 +204,7 @@ export function useMerchantScanCustomer() {
             name,
             ...(phone ? { phone } : {}),
             ...(email ? { email } : {}),
-            ...(gender ? { gender } : {}),
+            ...(genderValue ? { gender: genderValue } : {}),
             ...(birthDate ? { birthDate } : {}),
         };
     }

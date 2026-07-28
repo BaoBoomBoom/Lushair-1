@@ -107,6 +107,43 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
     });
 }
 
+/** 构建包含商家信息的 payload */
+function buildMerchantPayload() {
+    const merchantCustomer = getMerchantScanCustomer();
+    console.log('[buildMerchantPayload] merchantCustomer:', merchantCustomer);
+    if (!merchantCustomer?.merchantId) {
+        console.log('[buildMerchantPayload] No merchantId, returning basic payload');
+        return { data: 'advanced' };
+    }
+
+    // 计算年龄
+    let age: number | undefined = undefined;
+    if (merchantCustomer.birthDate) {
+        const today = new Date();
+        const birth = new Date(merchantCustomer.birthDate);
+        age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            age--;
+        }
+    }
+
+    // gender 字符串转数字 (male=1, female=2, other=0)
+    const genderMap: Record<string, number> = { male: 1, female: 2, other: 0 };
+    const genderValue = merchantCustomer.gender ? genderMap[merchantCustomer.gender] ?? 0 : undefined;
+
+    const payload = {
+        data: 'advanced',
+        merchantId: merchantCustomer.merchantId,
+        customerId: merchantCustomer.customerId,
+        userId: merchantCustomer.userId,
+        gender: genderValue,
+        age: age,
+    };
+    console.log('[buildMerchantPayload] Returning payload:', payload);
+    return payload;
+}
+
 function syncNativeScanUserId() {
     const merchantCustomer = getMerchantScanCustomer();
     if (merchantCustomer?.userId) {
@@ -118,14 +155,14 @@ function syncNativeScanUserId() {
 export function runLushairOneScan(): Promise<boolean> {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairOne');
-    return postNativeBridge('advanced', { data: 'advanced' });
+    return postNativeBridge('advanced', buildMerchantPayload());
 }
 
 /** Lushair Pro — Lushair Pro (iOS detectionType 302). */
 export function runLushairProScan(): Promise<boolean> {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairPro');
-    return postNativeBridge('lushairPro', { data: 'lushairPro' });
+    return postNativeBridge('lushairPro', buildMerchantPayload());
 }
 
 export function runScanAction(type: ScanActionType): Promise<boolean> {
