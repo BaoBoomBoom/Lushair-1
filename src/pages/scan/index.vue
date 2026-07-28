@@ -6,7 +6,7 @@ import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
 import { runScanAction, type ScanActionType } from '@/composables/useScanActions';
 import { analyzeSelfieImage } from '@/composables/useSelfieScanAnalysis';
-import { useMerchantScanCustomer, type MerchantContactType } from '@/composables/useMerchantScanCustomer';
+import { useMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
 import { useUserStore } from '@/stores/userStore';
 import { getApiUrl } from '@/utils/apiHelper';
 
@@ -14,17 +14,8 @@ const { t } = useI18n();
 const userStore = useUserStore();
 const {
     isMerchant,
-    activeCustomer,
-    isSaving: isSavingCustomer,
-    registerCustomer,
-    clearCustomer,
     getScanUserId,
 } = useMerchantScanCustomer();
-
-const customerName = ref('');
-const customerContactType = ref<MerchantContactType>('phone');
-const customerPhone = ref('');
-const customerEmail = ref('');
 
 type ScanOptionId = 'phone' | 'lushairOne' | 'advanced';
 type SelfieAngleId = 'front' | 'crown' | 'back' | 'sideFront';
@@ -74,50 +65,7 @@ const captureLabel = computed(() => {
     if (allAnglesUploaded.value) return t('scan.analyze');
     return t('scan.capture');
 });
-const isCaptureDisabled = computed(() => isAnalyzing.value || isAnyUploading.value || isSavingCustomer.value);
-const merchantBlocksScan = computed(() => false);
-
-function ensureMerchantCustomerReady(): boolean {
-    if (!merchantBlocksScan.value) return true;
-    uni.showToast({ title: t('scan.merchantCustomerRequired'), icon: 'none' });
-    return false;
-}
-
-async function saveMerchantCustomer() {
-    if (!customerName.value.trim()) {
-        uni.showToast({ title: t('scan.merchantCustomerNameRequired'), icon: 'none' });
-        return;
-    }
-    if (customerContactType.value === 'phone' && !customerPhone.value.trim()) {
-        uni.showToast({ title: t('scan.merchantCustomerContactRequired'), icon: 'none' });
-        return;
-    }
-    if (customerContactType.value === 'email' && !customerEmail.value.trim()) {
-        uni.showToast({ title: t('scan.merchantCustomerContactRequired'), icon: 'none' });
-        return;
-    }
-
-    try {
-        await registerCustomer({
-            name: customerName.value,
-            contactType: customerContactType.value,
-            phone: customerPhone.value,
-            email: customerEmail.value,
-        });
-        uni.showToast({ title: t('scan.merchantCustomerSaved'), icon: 'success' });
-    } catch (error) {
-        console.error('[scan] merchant customer save failed', error);
-        uni.showToast({ title: t('scan.merchantCustomerSaveFailed'), icon: 'none' });
-    }
-}
-
-function resetMerchantCustomerForm() {
-    clearCustomer();
-    customerName.value = '';
-    customerPhone.value = '';
-    customerEmail.value = '';
-    customerContactType.value = 'phone';
-}
+const isCaptureDisabled = computed(() => isAnalyzing.value || isAnyUploading.value);
 
 function selectOption(id: ScanOptionId) {
     selected.value = id;
@@ -184,7 +132,6 @@ async function uploadImage(tempFilePath: string, angleId: SelfieAngleId) {
 }
 
 function choosePhoneImage(angleId: SelfieAngleId = activeAngle.value) {
-    if (!ensureMerchantCustomerReady()) return;
     activeAngle.value = angleId;
     uni.chooseImage({
         count: 1,
@@ -222,7 +169,11 @@ async function runPhoneAnalysis(imageUrl: string) {
 }
 
 async function captureScan() {
-    if (!ensureMerchantCustomerReady()) return;
+    // 商家直接跳转到客户列表
+    if (isMerchant.value) {
+        uni.navigateTo({ url: '/pages/merchant/customer-list' });
+        return;
+    }
 
     if (selected.value !== 'phone') {
         launchNativeScan(selected.value);
@@ -430,8 +381,7 @@ function selectAngle(angleId: SelfieAngleId) {
 
                 <button
                     class="shell-btn"
-                    :class="{ 'shell-btn--muted': (isCaptureDisabled || merchantBlocksScan) && selected === 'phone' }"
-                    :disabled="isCaptureDisabled || merchantBlocksScan"
+                    :disabled="isCaptureDisabled"
                     @click="captureScan"
                 >
                     {{ captureLabel }}

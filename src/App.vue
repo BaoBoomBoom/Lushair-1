@@ -6,6 +6,7 @@ import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
 import { setLocale, updateTabBarTexts } from './i18n.js';
 import { useSettingsStore } from './stores/settingsStore'
 import { useGlobalStore } from './stores/globalStore'
+import { useUserStore } from './stores/userStore'
 import { setupApiTracker } from './utils/globalTracker'
 import { initVConsole, setupShakeToShowVConsole } from './utils/vConsoleInit';
 import env from './utils/env';
@@ -14,6 +15,7 @@ import { maybeRedirectDevToOnboarding } from './composables/useDevOnboarding';
 // 初始化时不要立即使用 store
 let settingsStore: ReturnType<typeof useSettingsStore>
 let globalStore: ReturnType<typeof useGlobalStore>
+let userStore: ReturnType<typeof useUserStore>
 
 // 在应用启动时执行的操作
 onLaunch(() => {
@@ -75,18 +77,21 @@ onLaunch(() => {
       // 初始化 store
       settingsStore = useSettingsStore()
       globalStore = useGlobalStore()
-      
+      userStore = useUserStore()
+
+      // 初始化用户信息
+      userStore.initUserInfo()
       // 初始化应用设置
       settingsStore.initSettings()
       // 设置主题监听
       settingsStore.setupThemeListener()
-      
+
       // 初始化全局状态
       globalStore.initGlobalState()
-      
+
       // 设置 API 和网络追踪
       setupApiTracker()
-      
+
       console.log('Store 初始化完成')
     } catch (error) {
       console.error('初始化 Store 失败:', error)

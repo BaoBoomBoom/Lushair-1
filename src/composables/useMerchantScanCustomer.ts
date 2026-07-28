@@ -32,7 +32,7 @@ function readStoredCustomer(): MerchantScanCustomer | null {
 
 export function isMerchantAccount(userInfo: { type?: number | string; userType?: number | string } | null | undefined): boolean {
     const info = userInfo as { type?: number | string; userType?: number | string };
-    return Number(info?.type ?? info?.userType) === 1;
+    return Number(info?.userType ?? info?.type) === 1;
 }
 
 export function useMerchantScanCustomer() {
