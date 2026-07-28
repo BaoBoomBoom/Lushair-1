@@ -80,6 +80,9 @@ const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
 
 // 获取页面传递的 scanDevice 参数
 onMounted(() => {
+  // 初始化用户信息（确保 merchantId 可用）
+  userStore.initUserInfo();
+
   const pages = getCurrentPages();
   const currentPage = pages[pages.length - 1];
   const options = (currentPage as any).options || {};
@@ -92,6 +95,7 @@ onMounted(() => {
 const showCountryDropdown = ref(false);
 const searchQuery = ref('');
 const isLoading = ref(false);
+const isDatePickerOpen = ref(false); // 日期选择器是否打开
 
 // 计算属性
 const selectedCountryCode = computed(() => countryCodes[selectedCountryIndex.value]);
@@ -128,6 +132,11 @@ function goBack() {
 function onBirthDateChange(value: string) {
   birthDate.value = value;
   hasUserSelectedBirthDate.value = true;
+  isDatePickerOpen.value = false;
+}
+
+function onDatePickerClick() {
+  isDatePickerOpen.value = true;
 }
 
 async function launchScanForCustomer() {
@@ -257,21 +266,19 @@ async function handleSubmit() {
 
     // 检查是否是"客户已存在"的错误
     const errorMessage = error?.message || error?.toString() || '';
-    if (errorMessage.includes('exists') || errorMessage.includes('already')) {
-      // 客户已存在，跳转到客户检测记录页面
+    if (errorMessage.includes('exists') || errorMessage.includes('already') || error?.customer) {
+      const existingCustomer = error.customer;
       uni.showModal({
         title: t('merchant.customerExists'),
         content: t('merchant.customerExistsMessage'),
-        confirmText: t('merchant.viewHistory'),
+        confirmText: t('common.confirm'),
         cancelText: t('common.cancel'),
         success: (res) => {
-          if (res.confirm) {
-            // 跳转到客户检测记录页面（需要先获取customerId）
-            uni.showToast({ title: 'Please select from customer list', icon: 'none' });
-            // 返回客户列表页面
-            setTimeout(() => {
-              uni.navigateBack();
-            }, 1500);
+          if (res.confirm && existingCustomer?.id) {
+            // 跳转到客户检测记录页面
+            uni.navigateTo({
+              url: `/pages/merchant/customer-history?customerId=${existingCustomer.id}&name=${encodeURIComponent(existingCustomer.name || '')}`,
+            });
           }
         },
       });
@@ -329,7 +336,7 @@ async function handleSubmit() {
         </view>
 
         <!-- 手机号 -->
-        <view v-if="contactType === 'phone'" class="form-field">
+        <view v-show="contactType === 'phone'" class="form-field" :key="'phone'">
           <text class="form-label">{{ t('merchant.phoneNumber') }} *</text>
           <view class="phone-input-row">
             <view class="country-code-container">
@@ -378,7 +385,7 @@ async function handleSubmit() {
         </view>
 
         <!-- 邮箱 -->
-        <view v-else class="form-field">
+        <view v-show="contactType === 'email'" class="form-field" :key="'email'">
           <text class="form-label">{{ t('merchant.emailAddress') }} *</text>
           <input
             v-model="emailAddress"
@@ -421,7 +428,7 @@ async function handleSubmit() {
         <view class="form-field">
           <text class="form-label">{{ t('merchant.birthDate') }} *</text>
           <uni-datetime-picker type="date" v-model="birthDate" :locale="locale === 'zh-Hans' ? 'zh' : 'en'" :end="new Date().toISOString().split('T')[0]" @change="onBirthDateChange">
-            <view class="picker-input">
+            <view class="picker-input" @click="onDatePickerClick">
               <text :class="{ 'placeholder': !hasUserSelectedBirthDate }">
                 {{ formattedBirthDate || t('merchant.selectDate') }}
               </text>
@@ -450,11 +457,12 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   background-color: #faf8ff;
+  position: relative;
 }
 
 .header {
   background-color: #ffffff;
-  padding: 12px 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   border-bottom: 1px solid #e8e4f4;
 }
 
@@ -483,6 +491,7 @@ async function handleSubmit() {
 .form-scroll {
   flex: 1;
   padding: 16px;
+  padding-bottom: 100px;
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -727,12 +736,15 @@ async function handleSubmit() {
 }
 
 .footer {
-  position: sticky;
+  position: absolute;
   bottom: 0;
+  left: 0;
+  right: 0;
   padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   background-color: #ffffff;
   border-top: 1px solid #e8e4f4;
-  z-index: 10;
+  z-index: 1;
 }
 
 .submit-button {
@@ -748,5 +760,20 @@ async function handleSubmit() {
 
 .submit-button:disabled {
   opacity: 0.6;
+}
+
+/* 修复日期选择器z-index被底部按钮遮挡的问题 */
+:deep(.uni-datetime-picker__container),
+:deep(.uni-datetime-picker--fix),
+:deep(.uni-datetime-picker__popup) {
+  z-index: 9999 !important;
+}
+
+/* 确保email输入框在iOS上正确显示 */
+.form-input[type="email"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
 </style>

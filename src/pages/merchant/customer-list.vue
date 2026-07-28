@@ -93,10 +93,11 @@ function onSearch() {
 }
 
 function selectCustomer(customer: Customer) {
-  // 跳转到客户历史检测页面
-  uni.navigateTo({
-    url: `/pages/merchant/customer-history?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}`,
-  });
+  // 跳转到客户历史检测页面，传递 scanDevice 参数
+  const url = scanDevice.value
+    ? `/pages/merchant/customer-history?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}&scanDevice=${scanDevice.value}`
+    : `/pages/merchant/customer-history?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}`;
+  uni.navigateTo({ url });
 }
 
 function goToAddCustomer() {
@@ -237,7 +238,7 @@ onReachBottom(() => {
 
 .header {
   background-color: #ffffff;
-  padding: 12px 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   border-bottom: 1px solid #e8e4f4;
 }
 

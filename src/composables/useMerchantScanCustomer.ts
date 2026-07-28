@@ -150,6 +150,13 @@ export function useMerchantScanCustomer() {
                 { brand: ProjectBrand.LUSHAIR_NEW }
             ) as { exists?: boolean; customer?: { id: string; userId: string; merchantId: string; name: string; phone?: string; email?: string } };
 
+            // 检查是否是客户已存在的情况
+            if (response.exists) {
+                const error = new Error('Customer already exists') as any;
+                error.customer = response.customer;
+                throw error;
+            }
+
             const customerData = response.customer || response;
 
             const customer: MerchantScanCustomer = {

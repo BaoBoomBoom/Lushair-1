@@ -38,8 +38,9 @@ const handleLogin = async () => {
             type: 'email',
             email: email.value.trim(),
         });
-    } catch (error) {
-        console.error('发送验证码失败:', error);
+    } catch (error: any) {
+        const errorMsg = error?.data?.message || t('auth.login.sendCodeFailed');
+        uni.showToast({ title: errorMsg, icon: 'none' });
     } finally {
         isLoading.value = false;
     }

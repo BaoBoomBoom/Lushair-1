@@ -1205,7 +1205,8 @@
             "enterEmail": "Please enter email",
             "invalidEmail": "Please enter a valid email address",
             "phoneNumberTitle": "Sign in with your phone",
-            "phoneNumberSubtitle": "We'll text you a verification code."
+            "phoneNumberSubtitle": "We'll text you a verification code.",
+            "sendCodeFailed": "Failed to send verification code"
         },
         "sendCode": {
             "title": "We've sent you a code",
@@ -1221,7 +1222,8 @@
             "didNotReceive": "Didn't receive it?",
             "resend": "Resend code",
             "resendIn": "Resend in {seconds}s",
-            "codeResent": "Code sent again"
+            "codeResent": "Code sent again",
+            "resendFailed": "Failed to resend code"
         },
         "register": {
             "emailTitle": "Create your account",

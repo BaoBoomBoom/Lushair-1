@@ -288,9 +288,10 @@ const handleResend = async () => {
         uni.showToast({ title: t('auth.sendCode.codeResent'), icon: 'none', duration: 1500 });
         startResendCountdown();
         clearCode();
-    } catch (error) {
+    } catch (error: any) {
         uni.hideLoading();
-        console.error('重发验证码失败:', error);
+        const errorMsg = error?.data?.message || t('auth.sendCode.resendFailed');
+        uni.showToast({ title: errorMsg, icon: 'none' });
     }
 };
 

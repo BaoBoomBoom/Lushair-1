@@ -34,7 +34,7 @@ const customerName = ref('');
 const reports = ref<Report[]>([]);
 const isLoading = ref(false);
 
-// 检测设备类型选择
+// 检测设备类型：从URL参数获取（统一从scan/index.vue传递）
 const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
 
 // 分页状态
@@ -172,9 +172,21 @@ function onReachBottom() {
   }
 }
 
+function goBack() {
+  if (typeof uni !== 'undefined') {
+    uni.navigateBack();
+  } else {
+    history.back();
+  }
+}
+
 onLoad((options: any) => {
   customerId.value = options.customerId || '';
   customerName.value = options.name || '';
+  // 获取 scanDevice 参数
+  if (options.scanDevice && (options.scanDevice === 'lushairOne' || options.scanDevice === 'lushairPro')) {
+    scanDeviceType.value = options.scanDevice;
+  }
   if (customerId.value) {
     fetchReports();
   }
@@ -192,8 +204,8 @@ onMounted(() => {
   <view class="history-page">
     <view class="header">
       <view class="header-nav">
-        <view class="back-button" @click="uni.navigateBack()">
-          <TablerIcon name="arrow-left" :size="22" color="#1a1228" />
+        <view class="back-button" @click="goBack">
+          <TablerIcon name="chevron-left" :size="22" color="#1a1228" />
         </view>
         <text class="header-title">{{ customerName || t('merchant.customer') }}</text>
         <view style="width: 22px;"></view>
@@ -250,29 +262,6 @@ onMounted(() => {
         </view>
       </view>
 
-      <!-- 检测设备类型选择 -->
-      <view class="form-section">
-        <view class="form-field">
-          <text class="form-label">{{ t('merchant.scanDevice') }}</text>
-          <view class="device-options">
-            <view
-              class="device-chip"
-              :class="{ on: scanDeviceType === 'lushairOne' }"
-              @click="scanDeviceType = 'lushairOne'"
-            >
-              Lushair One
-            </view>
-            <view
-              class="device-chip"
-              :class="{ on: scanDeviceType === 'lushairPro' }"
-              @click="scanDeviceType = 'lushairPro'"
-            >
-              Lushair Pro
-            </view>
-          </view>
-        </view>
-      </view>
-
       <!-- 底部留白给 Next 按钮 -->
       <view style="height: 80px;"></view>
     </scroll-view>
@@ -295,7 +284,7 @@ onMounted(() => {
 
 .header {
   background-color: #ffffff;
-  padding: 12px 16px 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
   border-bottom: 1px solid #e8e4f4;
 }
 
@@ -435,44 +424,6 @@ onMounted(() => {
 .load-more-text {
   font-size: 13px;
   color: #8a82a0;
-}
-
-.form-section {
-  padding: 12px 16px 16px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1a1228;
-}
-
-.device-options {
-  display: flex;
-  gap: 8px;
-}
-
-.device-chip {
-  flex: 1;
-  text-align: center;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1.5px solid #e8e4f4;
-  background: #ffffff;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b21c8;
-
-  &.on {
-    border-color: #6b21c8;
-    background: rgba(107, 33, 200, 0.08);
-  }
 }
 
 .footer {

@@ -6,7 +6,8 @@ export interface UserInfo {
   userId: string
   name: string
   avatar: string // 用户头像链接
-  type?: number // 0=consumer, 1=merchant
+  type?: number // 0=consumer, 1=merchant (legacy)
+  userType?: number // 0=consumer, 1=merchant (new backend)
   gender: number
   age: number 
   dob: string // 生日日期
