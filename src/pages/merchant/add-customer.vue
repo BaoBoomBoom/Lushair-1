@@ -292,7 +292,6 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <page-meta page-style="height: 100%; overflow: hidden;" />
   <view class="add-customer-page">
     <view class="header">
       <view class="header-nav">
@@ -385,7 +384,7 @@ async function handleSubmit() {
         </view>
 
         <!-- 邮箱 -->
-        <view v-show="contactType === 'email'" class="form-field" :key="'email'">
+        <view v-if="contactType === 'email'" class="form-field" :key="'email'">
           <text class="form-label">{{ t('merchant.emailAddress') }} *</text>
           <input
             v-model="emailAddress"
@@ -439,6 +438,7 @@ async function handleSubmit() {
       </view>
     </scroll-view>
 
+    <!-- Save按钮固定底部 -->
     <view class="footer">
       <button
         class="submit-button"
@@ -453,7 +453,7 @@ async function handleSubmit() {
 
 <style lang="scss" scoped>
 .add-customer-page {
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #faf8ff;
@@ -491,7 +491,7 @@ async function handleSubmit() {
 .form-scroll {
   flex: 1;
   padding: 16px;
-  padding-bottom: 100px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -744,7 +744,6 @@ async function handleSubmit() {
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   background-color: #ffffff;
   border-top: 1px solid #e8e4f4;
-  z-index: 1;
 }
 
 .submit-button {
@@ -765,8 +764,10 @@ async function handleSubmit() {
 /* 修复日期选择器z-index被底部按钮遮挡的问题 */
 :deep(.uni-datetime-picker__container),
 :deep(.uni-datetime-picker--fix),
-:deep(.uni-datetime-picker__popup) {
-  z-index: 9999 !important;
+:deep(.uni-datetime-picker__popup),
+:deep(.uni-popup__wrapper),
+:deep(.uni-popup) {
+  z-index: 99999 !important;
 }
 
 /* 确保email输入框在iOS上正确显示 */
