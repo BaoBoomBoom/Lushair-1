@@ -169,9 +169,11 @@ async function runPhoneAnalysis(imageUrl: string) {
 }
 
 async function captureScan() {
-    // 商家直接跳转到客户列表
+    // 商家直接跳转到客户列表，带上 scanDevice 参数
     if (isMerchant.value) {
-        uni.navigateTo({ url: '/pages/merchant/customer-list' });
+        const scanDevice = selected.value === 'advanced' ? 'lushairPro' : selected.value === 'lushairOne' ? 'lushairOne' : '';
+        const url = scanDevice ? `/pages/merchant/customer-list?scanDevice=${scanDevice}` : '/pages/merchant/customer-list';
+        uni.navigateTo({ url });
         return;
     }
 

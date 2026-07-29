@@ -31,6 +31,7 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
         const ios = isIOS();
         const w = window as NativeWindow;
         const message = JSON.stringify(payload);
+        console.log('[postNativeBridge] handlerName:', handlerName, 'payload:', payload);
 
         // 回退 handler 映射 (Fallback handler mappings)
         const fallbackHandlers: Record<string, string[]> = {
@@ -53,14 +54,32 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
         };
 
         const activeHandler = getAvailableHandler(handlerName);
+        console.log('[postNativeBridge] activeHandler:', activeHandler, 'original handlerName:', handlerName);
+
+        // 当发生 fallback 时，需要调整 payload 中的 data 字段以匹配实际使用的 handler
+        let finalPayload = payload;
+        if (activeHandler && activeHandler !== handlerName) {
+            // 如果从 lushairPro fallback 到 advanced，需要调整 payload
+            if (handlerName === 'lushairPro' && activeHandler === 'advanced') {
+                // 保持 payload.data = 'lushairPro' 不变，让原生 App 根据 data 字段判断
+                console.log('[postNativeBridge] lushairPro -> advanced fallback, keeping payload.data as lushairPro');
+            }
+            // 如果从 advanced fallback 到 lushairPro，需要调整 payload
+            else if (handlerName === 'advanced' && activeHandler === 'lushairPro') {
+                finalPayload = { ...payload, data: 'advanced' };
+                console.log('[postNativeBridge] advanced -> lushairPro fallback, setting payload.data to advanced');
+            }
+        }
 
         if (ios && activeHandler && w.webkit?.messageHandlers?.[activeHandler]) {
-            w.webkit.messageHandlers[activeHandler].postMessage(payload);
+            console.log('[postNativeBridge] Calling iOS handler:', activeHandler, 'with payload:', finalPayload);
+            w.webkit.messageHandlers[activeHandler].postMessage(finalPayload);
             resolve(true);
             return;
         }
 
         if (w.android?.[handlerName]) {
+            console.log('[postNativeBridge] Calling Android handler:', handlerName, 'with payload:', payload);
             w.android[handlerName](message);
             resolve(true);
             return;
@@ -68,6 +87,7 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
 
         // 如果既非 iOS 也非 Android App 环境（即纯 Web 浏览器），直接返回 false (Return false directly if not in App environment)
         if (!ios && !w.android) {
+            console.log('[postNativeBridge] Not in App environment');
             resolve(false);
             return;
         }
@@ -84,16 +104,16 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
 
             if (retryHandler && retryW.webkit?.messageHandlers?.[retryHandler]) {
                 clearInterval(retryTimer);
-                retryW.webkit.messageHandlers[retryHandler].postMessage(payload);
                 console.log(`[useScanActions] Bridge ${retryHandler} succeeded after ${retryCount} retries`);
+                retryW.webkit.messageHandlers[retryHandler].postMessage(finalPayload);
                 resolve(true);
                 return;
             }
 
             if (retryW.android?.[handlerName]) {
                 clearInterval(retryTimer);
-                retryW.android[handlerName](message);
                 console.log(`[useScanActions] Bridge ${handlerName} succeeded after ${retryCount} retries`);
+                retryW.android[handlerName](message);
                 resolve(true);
                 return;
             }

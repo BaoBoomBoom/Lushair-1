@@ -236,12 +236,15 @@ async function handleSubmit() {
         cancelText: t('common.cancel'),
         success: (res) => {
           if (res.confirm && existingCustomer?.id) {
-            // 跳转到客户检测记录页面
+            // 跳转到客户检测记录页面，带上 scanDevice 参数
             const params = new URLSearchParams({
               customerId: existingCustomer.id,
               userId: existingCustomer.userId,
               name: encodeURIComponent(existingCustomer.name || ''),
             });
+            if (scanDeviceType.value) {
+              params.set('scanDevice', scanDeviceType.value);
+            }
             uni.navigateTo({
               url: `/pages/merchant/customer-history?${params.toString()}`,
             });
