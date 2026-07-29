@@ -601,8 +601,6 @@ const formatDate = (dateString: string) => {
 
 const userStore = useUserStore();
 
-const DEV_DEFAULT_USER_ID = 'lusHair330e986a';
-
 const ensureUserId = () => {
     if (!userStore.userInfo.userId) {
         const localUserInfo = uni.getStorageSync('userInfo');
@@ -611,7 +609,13 @@ const ensureUserId = () => {
         if (resolved) {
             userStore.userInfo.userId = resolved;
         } else if (import.meta.env.DEV) {
-            userStore.userInfo.userId = DEV_DEFAULT_USER_ID;
+            // 开发环境：支持通过URL参数设置测试账号 ?devUserId=xxx
+            const urlParams = new URLSearchParams(window.location.search);
+            const devUserId = urlParams.get('devUserId');
+            if (devUserId) {
+                console.log('使用开发测试账号:', devUserId);
+                userStore.userInfo.userId = devUserId;
+            }
         }
     }
     return userStore.userInfo.userId;

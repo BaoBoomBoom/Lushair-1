@@ -81,14 +81,23 @@ const requestUserIdFromApp = () => {
         window.receiveUserIdFromApp(userIdFromAndroid);
       }
     } else if (env.isDevelopment()) {
-      userInfo.userId = 'lusHair32685064';
-      window.receiveUserIdFromApp('lusHair32685064');
+      // H5环境：支持通过URL参数设置开发测试账号 ?devUserId=xxx
+      const urlParams = new URLSearchParams(window.location.search);
+      const devUserId = urlParams.get('devUserId');
+      if (devUserId) {
+        userInfo.userId = devUserId;
+        window.receiveUserIdFromApp(devUserId);
+      }
     }
   } catch (error) {
     console.error('requestUserIdFromApp failed:', error);
     if (env.isDevelopment()) {
-      userInfo.userId = 'lusHair32685064';
-      window.receiveUserIdFromApp('lusHair32685064');
+      const urlParams = new URLSearchParams(window.location.search);
+      const devUserId = urlParams.get('devUserId');
+      if (devUserId) {
+        userInfo.userId = devUserId;
+        window.receiveUserIdFromApp(devUserId);
+      }
     }
   }
 };

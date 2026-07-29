@@ -676,20 +676,30 @@
           window.receiveUserIdFromApp(userIdFromAndroid);
         }
       } else {
-        // lusHair32685064 lusHair9cf6a4f9
-        console.log('未检测到原生环境，使用模拟userId');
-        const isDev = env.isDevelopment(); 
+        // H5环境：支持通过URL参数设置开发测试账号 ?devUserId=xxx
+        console.log('未检测到原生环境');
+        const isDev = env.isDevelopment();
         if (isDev) {
-          userInfo.userId = 'lusHair32685064';
-          window.receiveUserIdFromApp('lusHair32685064');
+          const urlParams = new URLSearchParams(window.location.search);
+          const devUserId = urlParams.get('devUserId');
+          if (devUserId) {
+            console.log('使用开发测试账号:', devUserId);
+            userInfo.userId = devUserId;
+            window.receiveUserIdFromApp(devUserId);
+          }
         }
       }
     } catch (error) {
       console.error('请求App userId时出错:', error);
-      const isDev = env.isDevelopment(); 
+      const isDev = env.isDevelopment();
       if (isDev) {
-        userInfo.userId = 'lusHair32685064';
-        window.receiveUserIdFromApp('lusHair32685064');
+        const urlParams = new URLSearchParams(window.location.search);
+        const devUserId = urlParams.get('devUserId');
+        if (devUserId) {
+          console.log('使用开发测试账号:', devUserId);
+          userInfo.userId = devUserId;
+          window.receiveUserIdFromApp(devUserId);
+        }
       }
     }
   };

@@ -108,12 +108,12 @@ function postNativeBridge(handlerName: string, payload: Record<string, unknown>)
 }
 
 /** 构建包含商家信息的 payload */
-function buildMerchantPayload() {
+function buildMerchantPayload(deviceType: 'lushairOne' | 'lushairPro' = 'lushairOne') {
     const merchantCustomer = getMerchantScanCustomer();
-    console.log('[buildMerchantPayload] merchantCustomer:', merchantCustomer);
+    console.log('[buildMerchantPayload] merchantCustomer:', merchantCustomer, 'deviceType:', deviceType);
     if (!merchantCustomer?.merchantId) {
         console.log('[buildMerchantPayload] No merchantId, returning basic payload');
-        return { data: 'advanced' };
+        return { data: deviceType === 'lushairPro' ? 'lushairPro' : 'advanced' };
     }
 
     // 计算年龄
@@ -133,7 +133,7 @@ function buildMerchantPayload() {
     const genderValue = merchantCustomer.gender ? genderMap[merchantCustomer.gender] ?? 0 : undefined;
 
     const payload = {
-        data: 'advanced',
+        data: deviceType === 'lushairPro' ? 'lushairPro' : 'advanced',
         merchantId: merchantCustomer.merchantId,
         customerId: merchantCustomer.customerId,
         userId: merchantCustomer.userId,
@@ -155,14 +155,14 @@ function syncNativeScanUserId() {
 export function runLushairOneScan(): Promise<boolean> {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairOne');
-    return postNativeBridge('advanced', buildMerchantPayload());
+    return postNativeBridge('advanced', buildMerchantPayload('lushairOne'));
 }
 
 /** Lushair Pro — Lushair Pro (iOS detectionType 302). */
 export function runLushairProScan(): Promise<boolean> {
     syncNativeScanUserId();
     uni.setStorageSync('lastTrichoScanType', 'lushairPro');
-    return postNativeBridge('lushairPro', buildMerchantPayload());
+    return postNativeBridge('lushairPro', buildMerchantPayload('lushairPro'));
 }
 
 export function runScanAction(type: ScanActionType): Promise<boolean> {
