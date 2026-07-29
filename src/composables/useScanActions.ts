@@ -166,7 +166,9 @@ function buildMerchantPayload(deviceType: 'lushairOne' | 'lushairPro' = 'lushair
 
 function syncNativeScanUserId() {
     const merchantCustomer = getMerchantScanCustomer();
-    if (merchantCustomer?.userId) {
+    // 商家模式(有merchantId)时，原生层已通过payload获取userId，不需要同步到KUSERIDKEY
+    // 只在普通用户模式下同步userId到App
+    if (merchantCustomer?.userId && !merchantCustomer.merchantId) {
         setUserIdToApp(merchantCustomer.userId);
     }
 }
