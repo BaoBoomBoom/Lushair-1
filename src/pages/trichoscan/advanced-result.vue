@@ -36,6 +36,7 @@ const recordId = ref(0);
 // reportId相关变量 reportId related variables
 const reportIdFromList = ref<string>(''); // 从列表传来的reportId reportId from list
 const aiReportIdFromList = ref<string>(''); // 从列表传来的aiReportId AI report ID from list
+const deviceModelFromList = ref<string>(''); // 从列表传来的deviceModel device model from list
 const currentReportId = ref<string>(''); // 当前页面展示报告的reportId Current page report's reportId
 const currentUserId = ref<string>(''); // 当前用户ID current user ID
 const fromSource = ref(''); // 来源标识 Source identifier
@@ -97,7 +98,17 @@ const overallScoreFromList = ref<number | null>(null); // 从列表传入的Over
 // 根据检测类型确定设备名称 Determine device name based on detection type
 // detectionType: 302 或 304 = Lushair Pro (三光谱), 其他 = Lushair One
 // detectionType: 302 or 304 = Lushair Pro (tri-spectral), others = Lushair One
+// 优先使用从列表传入的 deviceModel Priority: use deviceModel from list
 const deviceName = computed(() => {
+	// 优先使用从列表传入的 deviceModel
+	if (deviceModelFromList.value === 'lushairPro') {
+		return 'Lushair Pro';
+	}
+	if (deviceModelFromList.value) {
+		// 如果有明确的 deviceModel 且不是 lushairPro，说明是 Lushair One
+		return 'Lushair One';
+	}
+	// 其次使用 detectionType 判断
 	const detectionType = analysisData.value?.detectionType;
 	if (detectionType === 302 || detectionType === 304) {
 		return 'Lushair Pro';
@@ -2680,6 +2691,10 @@ onMounted(async () => {
     overallScoreFromList.value = parseFloat(options.overallScore);
     console.log('Overall score from list:', overallScoreFromList.value);
   }
+
+  // 获取从列表传入的deviceModel Get deviceModel passed from list
+  deviceModelFromList.value = options.deviceModel || '';
+  console.log('Device model from list:', deviceModelFromList.value);
 
   // 检查是否启用新AI分析模式 (options覆盖默认)
   if (options.useNewApi === 'true' || options.useNewApi === true) {

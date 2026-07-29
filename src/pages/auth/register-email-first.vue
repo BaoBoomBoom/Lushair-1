@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, computed } from 'vue';
+import { useStatusBar } from '@/composables/useStatusBar';
 import {
     isValidEmail,
     sendEmailCaptcha,
@@ -8,6 +9,7 @@ import {
 } from '@/composables/useAuthFlow';
 
 const { t } = useI18n();
+const { statusBarHeight } = useStatusBar();
 
 const email = ref('');
 const inviteCode = ref('');
@@ -50,7 +52,11 @@ const handleRegister = async () => {
     <page-meta page-style="height: 100%; overflow: hidden;" />
     <view class="register-page auth-flow-page">
         <view class="auth-content register-layout">
-            <view class="auth-back" @click="goBack">
+            <view
+                class="auth-back"
+                :style="{ paddingTop: statusBarHeight + 12 + 'px' }"
+                @click="goBack"
+            >
                 <image src="@/static/icons/arrow_back.svg" class="auth-back__icon" />
                 <text class="auth-back__text">{{ t('common.back') }}</text>
             </view>

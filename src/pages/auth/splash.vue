@@ -5,8 +5,10 @@ import { ref, onMounted } from 'vue';
 import lottie from 'lottie-web';
 import splashData from '@/static/icons/splash.json';
 import { navigateAuthPage } from '@/composables/useAuthFlow';
+import { useStatusBar } from '@/composables/useStatusBar';
 
 const { t } = useI18n();
+const { statusBarHeight } = useStatusBar();
 const pushType = ref('0');
 
 onLoad((options) => {
@@ -57,7 +59,11 @@ onMounted(() => {
   <page-meta page-style="height: 100%; overflow: hidden;" />
   <view class="splash-container auth-flow-page">
     <view class="auth-content splash-layout">
-      <view class="auth-back" @click="goBack">
+      <view
+        class="auth-back"
+        :style="{ paddingTop: statusBarHeight + 12 + 'px' }"
+        @click="goBack"
+      >
         <image src="@/static/icons/arrow_back.svg" class="auth-back__icon" />
         <text class="auth-back__text">{{ t('common.back') }}</text>
       </view>

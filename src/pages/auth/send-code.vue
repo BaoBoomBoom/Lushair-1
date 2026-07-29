@@ -171,7 +171,21 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>): 
     return userInfoResponse;
 };
 
-const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string) => {
+// Provision 用户 - 创建 Subscription 和 ApiKey
+const provisionUser = async (userId: string, clerkUserId?: string) => {
+    try {
+        await post('user/provision', {
+            userId,
+            clerkUserId,
+        }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
+        console.log('[Auth] User provisioned');
+    } catch (error) {
+        console.warn('[Auth] Provision failed (non-critical):', error);
+        // 失败不阻断登录流程
+    }
+};
+
+const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string, clerkUserId?: string) => {
     // 如果有 Clerk token，使用它注册到后端
     if (clerkToken) {
         try {
@@ -183,7 +197,10 @@ const persistSession = async (contactPayload: Record<string, string>, clerkToken
                 Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
                 uni.setStorageSync('userInfo', userStore.userInfo);
                 const userId = userInfoResponse?.userId || (userStore.userInfo as { userId?: string }).userId;
-                if (userId) setUserIdToApp(userId);
+                if (userId) {
+                    await provisionUser(userId, clerkUserId);
+                    setUserIdToApp(userId);
+                }
             } else {
                 throw new Error(registerResult.error || 'Registration failed');
             }
@@ -200,7 +217,10 @@ const persistSession = async (contactPayload: Record<string, string>, clerkToken
         Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
         uni.setStorageSync('userInfo', userStore.userInfo);
         const userId = userInfoResponse?.userId || (userStore.userInfo as { userId?: string }).userId;
-        if (userId) setUserIdToApp(userId);
+        if (userId) {
+            await provisionUser(userId, clerkUserId);
+            setUserIdToApp(userId);
+        }
     }
 
     uni.showToast({
@@ -230,7 +250,7 @@ const handlePhoneVerification = async (captcha: string) => {
     );
 
     // 3. 使用新后端完成登录流程（无论是否有 token）
-    await persistSession({ phone: phone.value }, clerkResult.token);
+    await persistSession({ phone: phone.value }, clerkResult.token, clerkResult.clerkUserId);
 };
 
 const handleEmailVerification = async (captcha: string) => {
@@ -247,7 +267,7 @@ const handleEmailVerification = async (captcha: string) => {
     );
 
     // 3. 使用新后端完成登录流程（无论是否有 token）
-    await persistSession({ email: email.value }, clerkResult.token);
+    await persistSession({ email: email.value }, clerkResult.token, clerkResult.clerkUserId);
 };
 
 const handleNext = async () => {

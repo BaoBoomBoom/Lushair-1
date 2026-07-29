@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { onLoad } from '@dcloudio/uni-app';
-import { get, ProjectBrand } from '@/utils/request';
+import { onLoad, onReachBottom } from '@dcloudio/uni-app';
+import { get, post, ProjectBrand } from '@/utils/request';
+import { decompressBase64Gzip } from '@/utils/decompress';
 import { useMerchantScanCustomer } from '@/composables/useMerchantScanCustomer';
 import { runLushairOneScan, runLushairProScan } from '@/composables/useScanActions';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
@@ -21,6 +22,7 @@ interface Report {
   generatedAt: string;
   coverImage?: string;
   device_model?: string;
+  aiReportId?: string | null;
 }
 
 interface PaginationResponse {
@@ -35,6 +37,7 @@ const customerId = ref('');
 const customerName = ref('');
 const reports = ref<Report[]>([]);
 const isLoading = ref(false);
+const isRefreshing = ref(false); // 下拉刷新状态
 
 // 检测设备类型：从URL参数获取（统一从scan/index.vue传递）
 const scanDeviceType = ref<'lushairOne' | 'lushairPro'>('lushairOne');
@@ -102,17 +105,62 @@ function formatDate(dateString: string): string {
   }
 }
 
-function viewReportDetail(report: Report) {
+// Fetch report detail from hair_reports_detail table
+async function fetchReportDetail(reportId: string): Promise<any> {
+  try {
+    const REPORT_DETAIL_PATH = `/report/detail/${reportId}`;
+    const response = await get(REPORT_DETAIL_PATH, {}, { brand: ProjectBrand.LUSHAIR_NEW });
+    return response;
+  } catch (error) {
+    console.error('Failed to fetch report detail:', error);
+    return null;
+  }
+}
+
+async function viewReportDetail(report: Report) {
   // 根据报告类型跳转到相应的详情页面
   if (report.reportType === 'selfie') {
-    // 自拍照结果页
+    // 自拍照结果页 - 参考 hair/index.vue
+    const reportIdParam = `&reportId=${encodeURIComponent(report.id)}`;
+    const aiReportIdParam = report.aiReportId ? `&aiReportId=${encodeURIComponent(report.aiReportId)}` : '';
+    const overallScoreParam = report.overallScore ? `&overallScore=${Math.round(report.overallScore)}` : '';
+
     uni.navigateTo({
-      url: `/pages/Selfie/results?reportId=${report.id}&customerId=${customerId.value}&from=customer`,
+      url: `/pages/Selfie/results?reportId=${encodeURIComponent(report.id)}&customerId=${customerId.value}&from=customer${aiReportIdParam}${overallScoreParam}`,
     });
   } else {
-    // 毛囊镜结果页
+    // 毛囊镜结果页 - 参考 hair/index.vue
+    const reportIdParam = `&reportId=${encodeURIComponent(report.id)}`;
+    const aiReportIdParam = report.aiReportId ? `&aiReportId=${encodeURIComponent(report.aiReportId)}` : '';
+    const overallScoreParam = report.overallScore ? `&overallScore=${Math.round(report.overallScore)}` : '';
+    const deviceModelParam = report.device_model ? `&deviceModel=${encodeURIComponent(report.device_model)}` : '';
+
+    let dataParam = '';
+    // 如果有 reportId，尝试从 hair_reports_detail 获取详情
+    if (report.id) {
+      uni.showLoading({
+        title: 'Loading...',
+        mask: true
+      });
+      try {
+        const detailResponse = await fetchReportDetail(report.id);
+        if (detailResponse && detailResponse.detail) {
+          const decompressed = await decompressBase64Gzip(detailResponse.detail);
+
+          // 检查 output 字段
+          if (decompressed?.output) {
+            dataParam = '&data=' + encodeURIComponent(JSON.stringify(decompressed.output));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch/report detail for navigation:', error);
+      } finally {
+        uni.hideLoading();
+      }
+    }
+
     uni.navigateTo({
-      url: `/pages/trichoscan/advanced-result?id=${report.id}&customerId=${customerId.value}&from=customer`,
+      url: `/pages/trichoscan/advanced-result?id=${report.id}&customerId=${customerId.value}&from=customer${reportIdParam}${aiReportIdParam}${dataParam}${overallScoreParam}${deviceModelParam}`,
     });
   }
 }
@@ -126,11 +174,39 @@ async function onNext() {
   }
 }
 
-function onReachBottom() {
+// 下拉刷新
+async function handleRefresh() {
+  isRefreshing.value = true;
+  try {
+    // 重置分页状态
+    pagination.value = {
+      page: 1,
+      pageSize: 20,
+      hasMore: true,
+      isLoadingMore: false,
+    };
+    await fetchReports(false);
+  } catch (error) {
+    console.error('Refresh failed:', error);
+  } finally {
+    isRefreshing.value = false;
+  }
+}
+
+// 刷新完成回调
+function handleRefreshRestore() {
+  isRefreshing.value = false;
+}
+
+// 上拉加载更多
+function handleReachBottom() {
   if (pagination.value.hasMore && !pagination.value.isLoadingMore) {
     fetchReports(true);
   }
 }
+
+// 注册生命周期钩子
+onReachBottom(handleReachBottom);
 
 function goBack() {
   if (typeof uni !== 'undefined') {
@@ -188,7 +264,16 @@ onMounted(() => {
       <text class="header-subtitle">{{ t('merchant.detectionHistory') }}</text>
     </view>
 
-    <scroll-view scroll-y class="report-scroll" @scrolltolower="onReachBottom">
+    <scroll-view
+      scroll-y
+      class="report-scroll"
+      @scrolltolower="handleReachBottom"
+      refresher-enabled="true"
+      :refresher-triggered="isRefreshing"
+      @refresherrefresh="handleRefresh"
+      @refresherrestore="handleRefreshRestore"
+      refresher-threshold="80"
+    >
       <view v-if="isLoading && reports.length === 0" class="loading-state">
         <text class="loading-text">{{ t('common.loading') }}</text>
       </view>
