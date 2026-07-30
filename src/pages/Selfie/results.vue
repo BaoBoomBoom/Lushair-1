@@ -483,6 +483,7 @@ const fetchExistingReport = async () => {
 
 onMounted(async () => {
     const options = readPageOptions();
+    // console.log('[DEBUG] Raw options:', options);
 
     // 修复：uni-app 页面参数直接存储在 options 中，不是 options.data 中
     position.value = decodeURIComponent(options.position || '');
@@ -508,6 +509,7 @@ onMounted(async () => {
         hairReportId: hairReportId.value,
         selfieId: selfieId.value
     });
+    console.log('[DEBUG] hairReportId.value:', hairReportId.value, 'selfieId.value:', selfieId.value);
 
     console.log('nuserId ===', userId.value);
     console.log('extInfo ===', extInfo.value);
