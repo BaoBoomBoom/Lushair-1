@@ -48,6 +48,7 @@ const { headerPaddingStyle, contentMarginStyle } = useStatusBar();
 
 const stageParam = ref('1');
 const positionParam = ref('前额');
+const patternParam = ref('0');
 const imageParam = ref('');
 const anglesParam = ref(''); // 存储原始图片 angles 数据
 
@@ -63,7 +64,7 @@ const startQuestionnaire = () => {
   }
 
   uni.navigateTo({
-    url: `/pages/questionnaire/question?id=1&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
+    url: `/pages/questionnaire/question?id=1&stage=${stageParam.value}&position=${positionParam.value}&pattern=${patternParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
   });
 };
 
@@ -119,6 +120,7 @@ onMounted(() => {
 
   if (options.stage) stageParam.value = options.stage;
   if (options.position) positionParam.value = options.position;
+  if (options.pattern) patternParam.value = options.pattern;
   if (options.image) imageParam.value = options.image;
   if (options.angles) anglesParam.value = options.angles; // 接收 angles 参数
 

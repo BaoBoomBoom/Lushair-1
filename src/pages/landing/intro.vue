@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { onLoad } from '@dcloudio/uni-app';
 import { resetDevLoginState } from '@/composables/useDevOnboarding';
+import { useUserStore } from '@/stores/userStore';
+import { useGlobalStore } from '@/stores/globalStore';
+import { get, ProjectBrand } from '@/utils/request';
 
 const { t } = useI18n();
+const userStore = useUserStore();
+const globalStore = useGlobalStore();
 
 const activeIndex = ref(0);
+let hasDevUserId = false;
 
 const onChange = (e: { detail: { current: number } }) => {
     activeIndex.value = e.detail.current;
@@ -27,8 +34,30 @@ const goToLogin = () => {
     });
 };
 
+onLoad(async (options) => {
+    if (import.meta.env.DEV && options) {
+        const devUserId = options.devUserId || options.userId;
+        if (devUserId) {
+            hasDevUserId = true;
+            try {
+                const contactPayload = { userId: devUserId };
+                const userInfoResponse = await get('user/profile', contactPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
+                Object.assign(userStore.userInfo, userInfoResponse);
+                uni.setStorageSync('userInfo', userStore.userInfo);
+                globalStore.setFlag('isFirstLaunch', false);
+                globalStore.setFlag('hasCompletedOnboarding', true);
+                uni.reLaunch({
+                    url: '/pages/index/home',
+                });
+            } catch (e) {
+                console.error('获取用户信息失败:', e);
+            }
+        }
+    }
+});
+
 onMounted(() => {
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && !hasDevUserId) {
         resetDevLoginState();
     }
 });

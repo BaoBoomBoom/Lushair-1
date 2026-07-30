@@ -77,6 +77,7 @@ const selectedOption = ref<number | null>(null);
 const answers = ref<Record<number, number>>({});
 const stageParam = ref('1');
 const positionParam = ref('前额');
+const patternParam = ref('0');
 const imageParam = ref('');
 const originalImageUrl = ref(''); // 原始图片 URL
 const anglesParam = ref(''); // 存储 angles 参数用于页面跳转
@@ -205,7 +206,7 @@ const submitSelfieData = async () => {
       const recordId = (response as any)?.id || (response as any)?.data?.id || '';
       const extInfo = JSON.stringify(data.extInfo);
       uni.redirectTo({
-        url: `/pages/Selfie/results?position=${encodeURIComponent(String(data.position))}&stage=${data.stage}&image=${encodeURIComponent(String(data.image))}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(String(data.userId))}${recordId ? `&id=${encodeURIComponent(recordId)}` : ''}`,
+        url: `/pages/Selfie/results?position=${encodeURIComponent(String(data.position))}&stage=${data.stage}&pattern=${patternParam.value}&image=${encodeURIComponent(String(data.image))}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(String(data.userId))}${recordId ? `&id=${encodeURIComponent(recordId)}` : ''}`,
       });
     } else {
       uni.showToast({ title: t('questionnaire.submitError'), icon: 'none' });
@@ -232,7 +233,7 @@ const goBack = () => {
   if (questionId.value > 1) {
     saveQuestionnaireResults();
     uni.redirectTo({
-      url: `/pages/questionnaire/question?id=${questionId.value - 1}&stage=${stageParam.value}&position=${positionParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
+      url: `/pages/questionnaire/question?id=${questionId.value - 1}&stage=${stageParam.value}&position=${positionParam.value}&pattern=${patternParam.value}&image=${encodeURIComponent(imageParam.value)}&angles=${anglesParam.value}`,
     });
   } else {
     uni.navigateBack();
@@ -256,6 +257,7 @@ onMounted(() => {
   if (options.id) questionId.value = parseInt(options.id, 10);
   if (options.stage) stageParam.value = options.stage;
   if (options.position) positionParam.value = options.position;
+  if (options.pattern) patternParam.value = options.pattern;
   if (options.image) imageParam.value = decodeURIComponent(options.image);
 
   // 接收 angles 参数，解析出原始图片 URL

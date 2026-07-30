@@ -7,6 +7,7 @@ export interface SelfieAnalysisResult {
     position: string;
     stage: number;
     imageUrl: string;
+    pattern: number;
 }
 
 // Position value mapping from new API (0: None, 1: Forehead, 2: Top-head, 3: Alopecia areata)
@@ -61,11 +62,13 @@ export async function analyzeSelfieImage(imageUrl: string): Promise<SelfieAnalys
         const positionValue = response.position?.value ?? 0;
         const position = POSITION_VALUE_MAP[positionValue] || 'Unknown';
         const stage = response.stage?.value ?? 0;
+        const pattern = response.pattern?.value ?? 0;
         const processedImageUrl = response.url || imageUrl;
 
         return {
             position,
             stage,
+            pattern,
             imageUrl: processedImageUrl,
         };
     }
@@ -79,6 +82,7 @@ export async function analyzeSelfieImage(imageUrl: string): Promise<SelfieAnalys
     return {
         position: oldResponse.POSITION,
         stage: oldResponse.STAGE,
+        pattern: 0,
         imageUrl,
     };
 }

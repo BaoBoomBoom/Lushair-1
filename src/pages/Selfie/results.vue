@@ -260,6 +260,7 @@ const calculateAgeFromDob = (dob: string): number => {
 // API Response Data
 const position = ref<string>('');
 const stage = ref<string>('');
+const pattern = ref<string>('');
 const imageUrl = ref<string>('');
 const oilProgress = ref(100);
 const keratinProgress = ref(100);
@@ -298,16 +299,13 @@ declare var window: Window & {
 };
 
 // 运行时检测是否在 iOS Bundle (GCDWebServer) 环境下
-const _isLocalBundle = typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || 
-   window.location.hostname === '127.0.0.1' || 
-   window.location.protocol === 'file:');
+const _isLocalBundle = typeof window !== 'undefined' && window.location.protocol === 'file:';
 
 // AI 服务器直连地址
 const AI_SERVER_BASE = 'http://43.156.213.63:5011';
 
-// API地址 - 使用代理路径与 advanced-result.vue 保持一致
-const API_URL = _isLocalBundle 
+// API地址 - 开发环境使用代理，生产环境直连
+const API_URL = _isLocalBundle
     ? AI_SERVER_BASE + '/api/v1/hair/analyze_selfie'
     : '/ai-api/api/v1/hair/analyze_selfie';
 
@@ -489,6 +487,7 @@ onMounted(async () => {
     // 修复：uni-app 页面参数直接存储在 options 中，不是 options.data 中
     position.value = decodeURIComponent(options.position || '');
     stage.value = options.stage || '1';
+    pattern.value = options.pattern || '0';
     imageUrl.value = decodeURIComponent(options.image || '');
     fromSource.value = options.from || '';
     extInfo.value = decodeURIComponent(options.extInfo || '');
@@ -637,7 +636,8 @@ const fetchAnalysis = async () => {
                 discomfort: parsedExtInfo.discomfort || 0,
                 overall: parsedExtInfo.overall || 0,
                 stage: parseInt(stage.value) || 1,
-                position: position.value
+                position: position.value,
+                pattern: parseInt(pattern.value) || 0
             }
         };
 

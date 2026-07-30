@@ -158,7 +158,7 @@ async function runPhoneAnalysis(imageUrl: string) {
             angleImages.value[angle.id] = { preview: '', url: '' };
         });
         uni.navigateTo({
-            url: `/pages/questionnaire/index?position=${encodeURIComponent(result.position)}&stage=${result.stage}&image=${encodeURIComponent(result.imageUrl)}&angles=${anglePayload}`,
+            url: `/pages/questionnaire/index?position=${encodeURIComponent(result.position)}&stage=${result.stage}&pattern=${result.pattern}&image=${encodeURIComponent(result.imageUrl)}&angles=${anglePayload}`,
         });
     } catch (error) {
         console.error('[scan] analysis failed', error);
@@ -169,11 +169,10 @@ async function runPhoneAnalysis(imageUrl: string) {
 }
 
 async function captureScan() {
-    // 商家直接跳转到客户列表，带上 scanDevice 参数
-    if (isMerchant.value) {
-        const scanDevice = selected.value === 'advanced' ? 'lushairPro' : selected.value === 'lushairOne' ? 'lushairOne' : '';
-        const url = scanDevice ? `/pages/merchant/customer-list?scanDevice=${scanDevice}` : '/pages/merchant/customer-list';
-        uni.navigateTo({ url });
+    // 商家使用 Lushair One/Pro 时跳转到客户列表，Selfie 按普通流程处理
+    if (isMerchant.value && (selected.value === 'lushairOne' || selected.value === 'advanced')) {
+        const scanDevice = selected.value === 'advanced' ? 'lushairPro' : 'lushairOne';
+        uni.navigateTo({ url: `/pages/merchant/customer-list?scanDevice=${scanDevice}` });
         return;
     }
 
