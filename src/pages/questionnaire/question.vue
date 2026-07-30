@@ -194,8 +194,8 @@ const submitSelfieData = async () => {
         silent: true,
         timeout: 15000,
       });
-      console.log('[Hair Scan] selfie-analyze response:', selfieAnalyzeResponse);
-      console.log('[Hair Scan] extracted reportId:', selfieAnalyzeResponse?.reportId || selfieAnalyzeResponse?.data?.reportId || selfieAnalyzeResponse?.data?.data?.reportId);
+      // console.log('[Hair Scan] selfie-analyze response:', selfieAnalyzeResponse);
+      // console.log('[Hair Scan] extracted reportId:', selfieAnalyzeResponse?.reportId || selfieAnalyzeResponse?.data?.reportId || selfieAnalyzeResponse?.data?.data?.reportId);
       console.log('[Hair Scan] Data saved to Vercel database successfully');
     } catch (overseasError) {
       console.error('[Hair Scan] Failed to save data to Vercel database:', overseasError);
@@ -209,7 +209,7 @@ const submitSelfieData = async () => {
       const recordId = (response as any)?.id || (response as any)?.data?.id || '';
       // 获取 selfie-analyze 接口返回的 reportId（hair_reports 表主键）
       const hairReportId = (selfieAnalyzeResponse as any)?.reportId || (selfieAnalyzeResponse as any)?.data?.reportId || (selfieAnalyzeResponse as any)?.data?.data?.reportId || '';
-      console.log('[Hair Scan] Final hairReportId:', hairReportId);
+      // console.log('[Hair Scan] Final hairReportId:', hairReportId);
       const extInfo = JSON.stringify(data.extInfo);
       uni.redirectTo({
         url: `/pages/Selfie/results?position=${encodeURIComponent(String(data.position))}&stage=${data.stage}&pattern=${patternParam.value}&image=${encodeURIComponent(String(data.image))}&extInfo=${encodeURIComponent(extInfo)}&userId=${encodeURIComponent(String(data.userId))}${recordId ? `&id=${encodeURIComponent(recordId)}` : ''}${hairReportId ? `&reportId=${encodeURIComponent(hairReportId)}` : ''}`,
