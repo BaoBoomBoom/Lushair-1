@@ -116,16 +116,28 @@ const handlePaste = (event: ClipboardEvent) => {
     }
 };
 
+// 辅助函数：检查 userId 是否符合 lusHair 格式（示例：lusHairb6f85ac0）
+const isValidLusHairUserId = (userId: string): boolean => {
+    if (!userId) return false;
+    // lusHair 格式：以 'lusHair' 开头，后接8位小写字母或数字（如 lusHairb6f85ac0，共14位）
+    return /^lusHair[a-z0-9]{8}$/.test(userId);
+};
+
 // 辅助函数：获取用户信息，支持新老后端兜底逻辑
 const getUserInfoWithFallback = async (contactPayload: Record<string, string>, timezone?: string): Promise<any> => {
     // 1. 先从新后端查询用户信息（通过 email/phone 查询参数，无需认证）
     let userInfoResponse = await get('user/profile', contactPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
 
-    // 判断是否需要从老后端查询：用户不存在（userId 为空）
-    if (!userInfoResponse || !userInfoResponse.userId) {
-        console.log('[UserSync] 新后端未找到用户，尝试从老后端查询...');
+    // 判断是否需要从老后端查询：
+    // - 用户不存在（userId 为空）或
+    // - userId 有值但格式不符合 lusHair 格式
+    const needsFallback = !userInfoResponse || !userInfoResponse.userId || !isValidLusHairUserId(userInfoResponse.userId);
 
-        // 2. 新后端没有，去老后端查询（用 try-catch 捕获 500 错误，表示用户不存在）
+    if (needsFallback) {
+        const reason = !userInfoResponse || !userInfoResponse.userId ? '新后端未找到用户' : 'userId 格式不符合 lusHair 格式';
+        console.log(`[UserSync] ${reason}，尝试从老后端查询...`, userInfoResponse?.userId);
+
+        // 2. 新后端没有或 userId 格式不对，去老后端查询（用 try-catch 捕获 500 错误，表示用户不存在）
         let legacyUserInfo: any = null;
         try {
             legacyUserInfo = await post('user/info', contactPayload, { brand: ProjectBrand.LUSHAIR, silent: true }) as any;
@@ -167,7 +179,7 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>, t
             }
         }
     } else {
-        console.log('[UserSync] 新后端找到用户:', userInfoResponse.userId);
+        console.log('[UserSync] 新后端找到用户，userId 格式正确:', userInfoResponse.userId);
     }
 
     return userInfoResponse;
