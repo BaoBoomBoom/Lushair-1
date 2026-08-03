@@ -8,9 +8,9 @@
  */
 export function getUserTimezone(): string {
     try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
     } catch {
         // 兜底：某些老版本 WebView 可能不支持 Intl API
-        return 'Asia/Shanghai';
+        return 'America/New_York';
     }
 }

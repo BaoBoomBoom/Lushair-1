@@ -125,6 +125,7 @@ const isValidLusHairUserId = (userId: string): boolean => {
 
 // 辅助函数：获取用户信息，支持新老后端兜底逻辑
 const getUserInfoWithFallback = async (contactPayload: Record<string, string>, timezone?: string): Promise<any> => {
+    console.log('[UserSync] 传入的 timezone:', timezone);
     // 1. 先从新后端查询用户信息（通过 email/phone 查询参数，无需认证）
     let userInfoResponse = await get('user/profile', contactPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
 
@@ -180,6 +181,16 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>, t
         }
     } else {
         console.log('[UserSync] 新后端找到用户，userId 格式正确:', userInfoResponse.userId);
+        // 检查用户 timezone 是否为空，为空则更新
+        if (!userInfoResponse.timezone && timezone) {
+            console.log('[UserSync] 用户 timezone 为空，更新为:', timezone);
+            try {
+                await post('user/updateTimezone', { userId: userInfoResponse.userId, timezone }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
+                userInfoResponse.timezone = timezone;
+            } catch (error) {
+                console.warn('[UserSync] 更新 timezone 失败:', error);
+            }
+        }
     }
 
     return userInfoResponse;
