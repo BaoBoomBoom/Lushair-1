@@ -14,7 +14,6 @@ import { getUserTimezone } from '@/utils/timezone';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
-const { userInfo } = userStore;
 
 import {
     useLatestScanReports,
@@ -31,7 +30,7 @@ const useNewChatApi = ref(true);
 
 const userInput = ref('');
 // 用户ID和聊天ID (实际应用中可能通过其他方式获取)
-const chatId = ref('chatId_' + userInfo.userId);
+const chatId = ref('chatId_' + userStore.userInfo.userId);
 
 // 新 API 模式相关
 const savedReportId = ref(''); // 当前使用的 reportId
@@ -81,8 +80,11 @@ const timezoneChecked = ref(false);
 const checkAndPromptTimezoneUpdate = async (): Promise<boolean> => {
     if (timezoneChecked.value) return true;
 
+    // 确保 userStore 存在
+    if (!userStore || !userStore.userInfo) return true;
+
     const currentTimezone = getUserTimezone();
-    const storedTimezone = userInfo.value.timezone;
+    const storedTimezone = userStore.userInfo.timezone;
 
     // 如果时区不一致，提示用户
     if (storedTimezone && storedTimezone !== currentTimezone) {
@@ -96,11 +98,11 @@ const checkAndPromptTimezoneUpdate = async (): Promise<boolean> => {
                     if (res.confirm) {
                         try {
                             await post('user/updateTimezone', {
-                                userId: userInfo.value.userId,
+                                userId: userStore.userInfo.userId,
                                 timezone: currentTimezone
                             }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
-                            userInfo.value.timezone = currentTimezone;
-                            uni.setStorageSync('userInfo', userInfo.value);
+                            userStore.userInfo.timezone = currentTimezone;
+                            uni.setStorageSync('userInfo', userStore.userInfo);
                             uni.showToast({ title: 'Timezone updated', icon: 'success' });
                         } catch (error) {
                             console.error('Failed to update timezone:', error);
@@ -118,14 +120,14 @@ const checkAndPromptTimezoneUpdate = async (): Promise<boolean> => {
     }
 
     // 如果用户没有存储时区，自动更新
-    if (!storedTimezone && currentTimezone) {
+    if (!storedTimezone && currentTimezone && userStore.userInfo?.userId) {
         try {
             await post('user/updateTimezone', {
-                userId: userInfo.value.userId,
+                userId: userStore.userInfo.userId,
                 timezone: currentTimezone
             }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
-            userInfo.value.timezone = currentTimezone;
-            uni.setStorageSync('userInfo', userInfo.value);
+            userStore.userInfo.timezone = currentTimezone;
+            uni.setStorageSync('userInfo', userStore.userInfo);
         } catch (error) {
             console.error('Failed to set initial timezone:', error);
         }
@@ -201,7 +203,7 @@ const getChatAiReportId = async (): Promise<string | null> => {
     console.log('[聊天页] 无缓存，获取最新报告...');
 
     const { scanContext } = useLatestScanReports();
-    await loadLatestScanReports(userInfo.userId);
+    await loadLatestScanReports(userStore.userInfo.userId);
 
     const trichoReport = scanContext.value.trichoscan;
     const selfieReport = scanContext.value.selfie;
@@ -309,7 +311,7 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
             }
 
             requestData = {
-                userId: userInfo.userId,
+                userId: userStore.userInfo.userId,
                 reportId: aiReportId,
                 content: buildAgentMessageContent(content),
                 stream: true,
@@ -339,7 +341,7 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                 uni.removeStorageSync('ai_chat_reportId');
 
                 requestData = {
-                    userId: userInfo.userId,
+                    userId: userStore.userInfo.userId,
                     reportId: currentAiReportId,
                     content: buildAgentMessageContent(content),
                     stream: true,
@@ -352,7 +354,7 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
             } else {
                 // 后续对话：使用 chatId
                 requestData = {
-                    userId: userInfo.userId,
+                    userId: userStore.userInfo.userId,
                     chatId: savedChatId.value,
                     content: content,
                     stream: true,
@@ -569,7 +571,7 @@ const getOldAiResponse = async (content: string, currentLanguage: string) => {
     try {
         const requestData = {
             multiRound: true,
-            userId: userInfo.userId,
+            userId: userStore.userInfo.userId,
             chatId: chatId.value,
             content: content,
             language: currentLanguage,
@@ -731,7 +733,7 @@ const careContextLoaded = ref(false);
 const refreshScanContext = async () => {
     const previousKey = scanContext.value.contextKey || savedContextKey.value;
     try {
-        await loadLatestScanReports(userInfo.userId);
+        await loadLatestScanReports(userStore.userInfo.userId);
     } finally {
         scanContextReady.value = true;
         uni.stopPullDownRefresh();
