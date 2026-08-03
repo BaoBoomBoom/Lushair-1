@@ -164,6 +164,7 @@ export async function registerWithClerkToken(
         gender?: number;
         name?: string;
         nickName?: string;
+        timezone?: string;
     }
 ): Promise<{
     success: boolean;

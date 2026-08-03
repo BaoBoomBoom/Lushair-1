@@ -13,6 +13,7 @@ import {
     setUserIdToApp,
     type AuthPushType,
 } from '@/composables/useAuthFlow';
+import { getUserTimezone } from '@/utils/timezone';
 import {
     createClerkUserAfterVerification,
     registerWithClerkToken,
@@ -116,10 +117,11 @@ const handlePaste = (event: ClipboardEvent) => {
 };
 
 // 辅助函数：获取用户信息，支持新老后端兜底逻辑
-const getUserInfoWithFallback = async (contactPayload: Record<string, string>): Promise<any> => {
+const getUserInfoWithFallback = async (contactPayload: Record<string, string>, timezone?: string): Promise<any> => {
     // 1. 先从新后端查询用户信息（通过 email/phone 查询参数，无需认证）
     let userInfoResponse = await get('user/profile', contactPayload, { brand: ProjectBrand.LUSHAIR_NEW }) as any;
 
+    // 判断是否需要从老后端查询：用户不存在（userId 为空）
     if (!userInfoResponse || !userInfoResponse.userId) {
         console.log('[UserSync] 新后端未找到用户，尝试从老后端查询...');
 
@@ -137,7 +139,7 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>): 
 
             // 3. 老后端查到了，同步到新后端
             // 将老后端的 type 赋值为 userType 同步到新后端
-            const syncData = { ...legacyUserInfo, userType: legacyUserInfo.type };
+            const syncData = { ...legacyUserInfo, userType: legacyUserInfo.type, timezone };
             await post('user/sync', syncData, { brand: ProjectBrand.LUSHAIR_NEW });
             userInfoResponse = legacyUserInfo;
         } else {
@@ -157,7 +159,7 @@ const getUserInfoWithFallback = async (contactPayload: Record<string, string>): 
                 };
 
                 // 将老后端的 type 赋值为 userType 同步到新后端
-                const syncData = { ...userData, userType: userData.type };
+                const syncData = { ...userData, userType: userData.type, timezone };
                 await post('user/sync', syncData, { brand: ProjectBrand.LUSHAIR_NEW });
                 userInfoResponse = registerResult;
             } else {
@@ -185,14 +187,14 @@ const provisionUser = async (userId: string, clerkUserId?: string) => {
     }
 };
 
-const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string, clerkUserId?: string) => {
+const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string, clerkUserId?: string, timezone?: string) => {
     // 如果有 Clerk token，使用它注册到后端
     if (clerkToken) {
         try {
-            const registerResult = await registerWithClerkToken(clerkToken, contactPayload);
+            const registerResult = await registerWithClerkToken(clerkToken, { ...contactPayload, timezone });
             if (registerResult.success) {
                 // 注册成功后，从新后端 Vercel 数据库获取完整用户信息（支持兜底逻辑）
-                const userInfoResponse = await getUserInfoWithFallback(contactPayload);
+                const userInfoResponse = await getUserInfoWithFallback(contactPayload, timezone);
                 // 合并用户信息
                 Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
                 uni.setStorageSync('userInfo', userStore.userInfo);
@@ -212,7 +214,7 @@ const persistSession = async (contactPayload: Record<string, string>, clerkToken
         }
     } else {
         // 无 Clerk token 时，直接从新后端获取用户信息（Clerk 用户已在后端创建，支持兜底逻辑）
-        const userInfoResponse = await getUserInfoWithFallback(contactPayload);
+        const userInfoResponse = await getUserInfoWithFallback(contactPayload, timezone);
         // 合并用户信息
         Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
         uni.setStorageSync('userInfo', userStore.userInfo);
@@ -250,7 +252,7 @@ const handlePhoneVerification = async (captcha: string) => {
     );
 
     // 3. 使用新后端完成登录流程（无论是否有 token）
-    await persistSession({ phone: phone.value }, clerkResult.token, clerkResult.clerkUserId);
+    await persistSession({ phone: phone.value }, clerkResult.token, clerkResult.clerkUserId, getUserTimezone());
 };
 
 const handleEmailVerification = async (captcha: string) => {
@@ -267,7 +269,7 @@ const handleEmailVerification = async (captcha: string) => {
     );
 
     // 3. 使用新后端完成登录流程（无论是否有 token）
-    await persistSession({ email: email.value }, clerkResult.token, clerkResult.clerkUserId);
+    await persistSession({ email: email.value }, clerkResult.token, clerkResult.clerkUserId, getUserTimezone());
 };
 
 const handleNext = async () => {
