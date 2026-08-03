@@ -9,7 +9,8 @@ import MarkdownRenderer from '../../components/MarkdownRenderer.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import { captureShareCard, shareCapturedImage } from '@/composables/useShareCardCapture';
 import { extractChatSharePayload } from '@/utils/chatShareExtract';
-import { get, ProjectBrand } from '@/utils/request';
+import { get, post, ProjectBrand } from '@/utils/request';
+import { getUserTimezone } from '@/utils/timezone';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
@@ -73,9 +74,73 @@ async function send(text: string) {
     await sendMessage();
 }
 
+// 标记是否已检查过时区（避免每次都提示）
+const timezoneChecked = ref(false);
+
+// 检查并提示用户更新时区
+const checkAndPromptTimezoneUpdate = async (): Promise<boolean> => {
+    if (timezoneChecked.value) return true;
+
+    const currentTimezone = getUserTimezone();
+    const storedTimezone = userInfo.value.timezone;
+
+    // 如果时区不一致，提示用户
+    if (storedTimezone && storedTimezone !== currentTimezone) {
+        return new Promise((resolve) => {
+            uni.showModal({
+                title: 'Timezone Update',
+                content: `Your timezone has changed to ${currentTimezone}. Would you like to update it?`,
+                confirmText: 'Update',
+                cancelText: 'Skip',
+                success: async (res) => {
+                    if (res.confirm) {
+                        try {
+                            await post('user/updateTimezone', {
+                                userId: userInfo.value.userId,
+                                timezone: currentTimezone
+                            }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
+                            userInfo.value.timezone = currentTimezone;
+                            uni.setStorageSync('userInfo', userInfo.value);
+                            uni.showToast({ title: 'Timezone updated', icon: 'success' });
+                        } catch (error) {
+                            console.error('Failed to update timezone:', error);
+                        }
+                    }
+                    timezoneChecked.value = true;
+                    resolve(true);
+                },
+                fail: () => {
+                    timezoneChecked.value = true;
+                    resolve(true);
+                }
+            });
+        });
+    }
+
+    // 如果用户没有存储时区，自动更新
+    if (!storedTimezone && currentTimezone) {
+        try {
+            await post('user/updateTimezone', {
+                userId: userInfo.value.userId,
+                timezone: currentTimezone
+            }, { brand: ProjectBrand.LUSHAIR_NEW, silent: true });
+            userInfo.value.timezone = currentTimezone;
+            uni.setStorageSync('userInfo', userInfo.value);
+        } catch (error) {
+            console.error('Failed to set initial timezone:', error);
+        }
+    }
+
+    timezoneChecked.value = true;
+    return true;
+};
+
 // 发送消息
 const sendMessage = async () => {
     if (!userInput.value.trim()) return;
+
+    // 检查时区
+    await checkAndPromptTimezoneUpdate();
 
     const currentTime = new Date();
     const timeString = formatTime(currentTime);
@@ -249,7 +314,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                 content: buildAgentMessageContent(content),
                 stream: true,
                 language: currentLanguage,
-                source_app: 'lushair'
+                source_app: 'lushair',
+                timezone: getUserTimezone()
             };
 
             savedReportId.value = aiReportId;
@@ -278,7 +344,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                     content: buildAgentMessageContent(content),
                     stream: true,
                     language: currentLanguage,
-                    source_app: 'lushair'
+                    source_app: 'lushair',
+                    timezone: getUserTimezone()
                 };
 
                 console.log('[聊天页] 重置后首次对话，使用 aiReportId:', currentAiReportId);
@@ -289,7 +356,8 @@ const getNewAiResponse = async (content: string, currentLanguage: string) => {
                     chatId: savedChatId.value,
                     content: content,
                     stream: true,
-                    source_app: 'lushair'
+                    source_app: 'lushair',
+                    timezone: getUserTimezone()
                 };
 
                 console.log('[聊天页] 后续对话，使用 chatId:', savedChatId.value);

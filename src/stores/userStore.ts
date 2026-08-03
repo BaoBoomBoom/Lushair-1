@@ -9,11 +9,12 @@ export interface UserInfo {
   type?: number // 0=consumer, 1=merchant (legacy)
   userType?: number // 0=consumer, 1=merchant (new backend)
   gender: number
-  age: number 
+  age: number
   dob: string // 生日日期
   phone: string
   email: string
   region: string
+  timezone?: string // 用户时区
   scalpHealth: string
   follicleHealth: string
   hairHealth: string
@@ -147,6 +148,7 @@ export const useUserStore = defineStore('user', () => {
       phone: '',
       email: '',
       region: '',
+      timezone: '',
       scalpHealth: '--',
       follicleHealth: '--',
       hairHealth: '--',
