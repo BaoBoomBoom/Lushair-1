@@ -309,6 +309,7 @@ const handleNext = async () => {
     }
     if (isLoading.value) return;
 
+    // 立即设置 loading，防止 watch 和 click 同时触发
     isLoading.value = true;
     try {
         if (type.value === 'phone') {
