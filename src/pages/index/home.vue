@@ -968,6 +968,9 @@ onPullDownRefresh(async () => {
 // 每次页面显示时调用
 // Called every time page shows
 onShow(() => {
+    // 保存当前页面为最后访问的 tab 页面
+    uni.setStorageSync('lastActiveTab', '/pages/index/home');
+
     loadPlan();
     loadLatestScoreOverview();
     if (userStore.userInfo.userId) {

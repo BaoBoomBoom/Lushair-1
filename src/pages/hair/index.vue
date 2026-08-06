@@ -14,6 +14,128 @@ import { captureShareCard, shareCapturedImage } from '@/composables/useShareCard
 const { t, locale } = useI18n();
 const userStore = useUserStore();
 
+// 商家客户相关 (type/userType: 0=consumer, 1=merchant)
+const isMerchant = computed(() =>
+    (userStore.userInfo.type === 1) || (userStore.userInfo.userType === 1)
+);
+const selectedCustomer = ref<{ customerId: string; userId: string; name: string; gender?: string; birthDate?: string } | null>(null);
+const customerList = ref<{ customerId: string; userId: string; name: string; phone?: string; gender?: string; birthDate?: string }[]>([]);
+const customerSearchKeyword = ref('');
+const customerPagination = ref({
+    page: 1,
+    pageSize: 20,
+    hasMore: true,
+    isLoadingMore: false,
+});
+const isLoadingCustomers = ref(false);
+// 保存来源 tab 页面 URL
+const fromTabUrl = ref<string>('/pages/scan/index');
+
+// 初始化时检查是否有已选择的客户
+const initSelectedCustomer = () => {
+    if (!isMerchant.value) return;
+    const stored = uni.getStorageSync('selectedHairCustomer');
+    if (stored) {
+        try {
+            selectedCustomer.value = JSON.parse(stored);
+        } catch {
+            selectedCustomer.value = null;
+        }
+    }
+};
+
+// 获取客户列表
+const fetchCustomerList = async (isLoadMore = false) => {
+    if (isLoadMore && (customerPagination.value.isLoadingMore || !customerPagination.value.hasMore)) return;
+
+    if (isLoadMore) {
+        customerPagination.value.isLoadingMore = true;
+    } else {
+        isLoadingCustomers.value = true;
+    }
+
+    try {
+        const page = isLoadMore ? customerPagination.value.page + 1 : 1;
+        const merchantId = userStore.userInfo.userId; // 商家的 userId 就是 merchantId
+        const response = await get('/customer', {
+            page,
+            pageSize: customerPagination.value.pageSize,
+            search: customerSearchKeyword.value || undefined,
+            merchantId,
+        }, { brand: ProjectBrand.LUSHAIR_NEW });
+
+        if (response && response.customers) {
+            if (isLoadMore) {
+                customerList.value = [...customerList.value, ...response.customers];
+                customerPagination.value.page = page;
+            } else {
+                customerList.value = response.customers;
+                customerPagination.value.page = 1;
+            }
+            customerPagination.value.hasMore = response.hasMore;
+        }
+    } catch (error) {
+        console.error('Fetch customer list error:', error);
+        uni.showToast({ title: t('merchant.failedToLoadCustomers') || 'Failed to load customers', icon: 'none' });
+    } finally {
+        isLoadingCustomers.value = false;
+        customerPagination.value.isLoadingMore = false;
+    }
+};
+
+// 选择客户
+const selectCustomer = (customer: typeof selectedCustomer.value) => {
+    if (!customer) return;
+    selectedCustomer.value = customer;
+    uni.setStorageSync('selectedHairCustomer', JSON.stringify(customer));
+    // 重新加载数据
+    reloadPageData();
+};
+
+// 切换客户（清除当前选择，显示选择器）
+const switchCustomer = () => {
+    // 在进入客户选择器前，保存上一个 tab（不是 hair）
+    const lastTab = uni.getStorageSync('lastActiveTab');
+    if (lastTab && lastTab !== '/pages/hair/index') {
+        fromTabUrl.value = lastTab;
+        console.log('[hair] switchCustomer: saved fromTabUrl', fromTabUrl.value);
+    }
+    selectedCustomer.value = null;
+    uni.removeStorageSync('selectedHairCustomer');
+    customerList.value = [];
+    customerSearchKeyword.value = '';
+    fetchCustomerList();
+};
+
+// 返回按钮处理
+const handleBack = () => {
+    console.log('[hair] handleBack called');
+    console.log('[hair] fromTabUrl:', fromTabUrl.value);
+    console.log('[hair] isMerchant:', isMerchant.value);
+    console.log('[hair] selectedCustomer:', selectedCustomer.value);
+
+    // 确保 fromTabUrl 有效
+    const targetUrl = fromTabUrl.value || '/pages/scan/index';
+    console.log('[hair] switching to:', targetUrl);
+
+    uni.switchTab({
+        url: targetUrl,
+        success: () => console.log('[hair] switchTab success'),
+        fail: (err: any) => console.error('[hair] switchTab fail:', err)
+    });
+};
+
+
+// 重新加载页面数据
+const reloadPageData = async () => {
+    if (!selectedCustomer.value?.userId && !userStore.userInfo.userId) return;
+    const userId = isMerchant.value ? selectedCustomer.value?.userId : userStore.userInfo.userId;
+    if (userId) {
+        const { detectionRecords, selfieResults } = await processHistoryData();
+        await fetchLatestScalpScore(detectionRecords, selfieResults);
+    }
+};
+
 // API数据接口定义
 interface DetectionRecord {
     age: number;
@@ -605,16 +727,21 @@ const fetchSelfieResults = async (userId: string, page = 1, pageSize = 10): Prom
 const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord[], selfieResults: SelfieResult[] }> => {
     isLoading.value = true;
     loadError.value = '';
-    
+
     try {
-        // 获取当前userId
-        let userId = userStore.userInfo.userId;
-        if (!userId) {
-            const localUserInfo = uni.getStorageSync('userInfo');
-            const storedUserId = uni.getStorageSync('userId');
-            userId = localUserInfo?.userId || storedUserId;
+        // 获取当前userId（商家版用客户userId，用户版用自己的userId）
+        let userId: string | undefined;
+        if (isMerchant.value) {
+            userId = selectedCustomer.value?.userId;
+        } else {
+            userId = userStore.userInfo.userId;
+            if (!userId) {
+                const localUserInfo = uni.getStorageSync('userInfo');
+                const storedUserId = uni.getStorageSync('userId');
+                userId = localUserInfo?.userId || storedUserId;
+            }
         }
-        
+
         if (!userId) {
             throw new Error('No userId available');
         }
@@ -763,8 +890,40 @@ const processHistoryData = async (): Promise<{ detectionRecords: DetectionRecord
 
 // 生命周期
 onMounted(async () => {
+    // 获取页面传递的参数
+    const pages = getCurrentPages();
+    const currentPage = pages[pages.length - 1];
+    const options = (currentPage as any).options || {};
+    console.log('[hair] pages.length:', pages.length);
+    console.log('[hair] currentPage:', (currentPage as any)?.route);
+    console.log('[hair] options:', options);
+
+    // 保存来源 tab 页面：优先使用参数，否则从本地存储获取
+    if (options.fromTab) {
+        fromTabUrl.value = decodeURIComponent(options.fromTab);
+        console.log('[hair] fromTab param:', fromTabUrl.value);
+    } else {
+        // 从本地存储获取最后访问的 tab 页面（排除 hair 页面本身）
+        const lastTab = uni.getStorageSync('lastActiveTab');
+        if (lastTab && lastTab !== '/pages/hair/index') {
+            fromTabUrl.value = lastTab;
+            console.log('[hair] lastActiveTab from storage:', fromTabUrl.value);
+        } else {
+            console.log('[hair] no valid lastActiveTab, using default scan tab');
+        }
+    }
+
     // 初始化用户信息
     userStore.initUserInfo();
+
+    // 商家版：初始化客户选择
+    if (isMerchant.value) {
+        initSelectedCustomer();
+        if (!selectedCustomer.value) {
+            // 未选择客户，加载客户列表
+            await fetchCustomerList();
+        }
+    }
 
     // 检查是否有userId，如果没有则尝试从本地存储获取
     let userId = userStore.userInfo.userId;
@@ -787,6 +946,14 @@ onMounted(async () => {
 
     // 更新登录记录和计算登录连续天数
     updateLoginRecord();
+
+    // 商家版未选择客户时，不加载数据
+    if (isMerchant.value && !selectedCustomer.value) {
+        console.log('Merchant mode: no customer selected, skipping data load');
+        return;
+    }
+
+    // 用户版或商家已选客户：加载数据
 
     if (userId) {
         // 优化：先获取历史数据，然后将数据传递给 fetchLatestScalpScore，避免重复请求
@@ -858,6 +1025,13 @@ onPullDownRefresh(async () => {
     try {
         // 重新初始化用户信息
         await userStore.initUserInfo();
+
+        // 商家版：重新检查客户选择
+        if (isMerchant.value && !selectedCustomer.value) {
+            uni.stopPullDownRefresh();
+            await fetchCustomerList();
+            return;
+        }
         
         let userId = userStore.userInfo.userId;
         if (!userId) {
@@ -903,6 +1077,13 @@ onReachBottom(async () => {
 
 // 页面显示时恢复滚动位置
 onShow(() => {
+    // 更新来源 tab 页面（每次进入 Hair 时获取最新的上一个页面）
+    const lastTab = uni.getStorageSync('lastActiveTab');
+    if (lastTab && lastTab !== '/pages/hair/index') {
+        fromTabUrl.value = lastTab;
+        console.log('[hair] onShow: updated fromTabUrl', fromTabUrl.value);
+    }
+
     if (savedScrollTop.value > 0) {
         nextTick(() => {
             // 查找 .shell-body 元素并恢复滚动位置
@@ -3090,12 +3271,78 @@ const shareProgress = async () => {
 </script>
 
 <template>
-    <MainTabLayout fixed-header>
+    <!-- 商家版未选客户：全屏客户选择器 -->
+    <view v-if="isMerchant && !selectedCustomer" class="customer-selector-fullscreen">
+        <view class="cs-header">
+            <view class="cs-header-nav">
+                <view class="cs-back-button" @tap="handleBack">
+                    <TablerIcon name="chevron-left" :size="22" color="#1a1228" />
+                </view>
+                <text class="cs-header-title">{{ t('merchant.customerList') }}</text>
+                <view style="width: 22px;"></view>
+            </view>
+            <view class="cs-search-bar">
+                <TablerIcon name="search" :size="18" color="#8a82a0" />
+                <input
+                    v-model="customerSearchKeyword"
+                    class="cs-search-input"
+                    type="text"
+                    :placeholder="t('merchant.searchPlaceholder')"
+                    @confirm="fetchCustomerList"
+                />
+            </view>
+        </view>
+        <scroll-view
+            class="cs-customer-list"
+            scroll-y
+            @scrolltolower="fetchCustomerList(true)"
+        >
+            <view v-if="isLoadingCustomers && customerList.length === 0" class="cs-loading">
+                <text class="cs-loading-text">{{ t('common.loading') }}</text>
+            </view>
+            <view v-else-if="customerList.length === 0" class="cs-empty">
+                <TablerIcon name="users" :size="48" color="#d8d2ea" />
+                <text class="cs-empty-text">{{ t('merchant.noCustomers') }}</text>
+                <text class="cs-empty-hint">{{ t('merchant.addCustomerFirst') }}</text>
+            </view>
+            <view v-else class="cs-list">
+                <view
+                    v-for="customer in customerList"
+                    :key="customer.customerId"
+                    class="cs-customer-item"
+                    @tap="selectCustomer(customer)"
+                >
+                    <view class="cs-customer-avatar">
+                        <text class="cs-avatar-text">{{ (customer.name || '?')[0].toUpperCase() }}</text>
+                    </view>
+                    <view class="cs-customer-info">
+                        <text class="cs-customer-name">{{ customer.name }}</text>
+                        <text v-if="customer.phone" class="cs-customer-phone">{{ customer.phone }}</text>
+                    </view>
+                    <TablerIcon name="chevron-right" :size="20" color="#8A82A0" />
+                </view>
+                <view v-if="customerPagination.isLoadingMore" class="cs-load-more">
+                    <text class="cs-load-more-text">{{ t('common.loadingMore') }}</text>
+                </view>
+                <view v-else-if="!customerPagination.hasMore && customerList.length > 0" class="cs-load-more">
+                    <text class="cs-load-more-text">{{ t('common.noMore') }}</text>
+                </view>
+            </view>
+        </scroll-view>
+    </view>
+
+    <!-- 已选客户 / 用户版：正常内容 -->
+    <MainTabLayout v-else fixed-header>
         <view class="tab-page-scroll">
         <view class="your-hair-container">
             <view class="hair-page-head">
                 <text class="shell-ptitle">{{ t('tabbar.hair') }}</text>
-                <view class="hair-share-btn" @tap="shareProgress">
+                <!-- 商家版显示切换客户按钮 -->
+                <view v-if="isMerchant" class="hair-switch-customer-btn" @tap="switchCustomer">
+                    <text class="switch-customer-text">{{ selectedCustomer?.name || t('merchant.customer') }}</text>
+                    <TablerIcon name="chevron-down" :size="16" color="#6B21C8" />
+                </view>
+                <view v-else class="hair-share-btn" @tap="shareProgress">
                     <image src="/static/icons/share.svg" class="hair-share-icon" mode="aspectFit" />
                 </view>
             </view>
@@ -3589,7 +3836,6 @@ const shareProgress = async () => {
                 </view>
             </view>
         </view>
-        </view>
 
         <view class="hair-share-card">
             <text class="hair-share-kicker">SCALP HEALTH REPORT</text>
@@ -3620,6 +3866,7 @@ const shareProgress = async () => {
             </view>
             <text class="hair-share-url">Lushair.ai</text>
         </view>
+        </view>
     </MainTabLayout>
 
     <!-- 图片预览组件 -->
@@ -3633,4 +3880,172 @@ const shareProgress = async () => {
 <style lang="scss" scoped>
 @import '@/styles/app-shell.scss';
 @import '@/styles/hair-page.scss';
+
+/* 客户选择器全屏样式 */
+.customer-selector-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #faf8ff;
+    display: flex;
+    flex-direction: column;
+    z-index: 9999;
+    padding-top: env(safe-area-inset-top);
+}
+
+.cs-header {
+    background-color: #ffffff;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+    border-bottom: 1px solid #e8e4f4;
+}
+
+.cs-header-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    margin-bottom: 12px;
+}
+
+.cs-back-button {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    cursor: pointer;
+}
+
+.cs-header-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a1228;
+}
+
+.cs-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f7f7f7;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.cs-search-input {
+    flex: 1;
+    font-size: 14px;
+    color: #1a1228;
+}
+
+.cs-search-input::placeholder {
+    color: #8a82a0;
+}
+
+.cs-customer-list {
+    flex: 1;
+}
+
+.cs-loading,
+.cs-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+}
+
+.cs-loading-text {
+    font-size: 14px;
+    color: #8a82a0;
+}
+
+.cs-empty-text {
+    font-size: 16px;
+    color: #1a1228;
+    margin-top: 16px;
+}
+
+.cs-empty-hint {
+    font-size: 13px;
+    color: #8a82a0;
+    margin-top: 4px;
+    text-align: center;
+}
+
+.cs-list {
+    padding: 8px 16px;
+}
+
+.cs-customer-item {
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    gap: 14px;
+    cursor: pointer;
+}
+
+.cs-customer-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6b21c8, #9333ea);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cs-avatar-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.cs-customer-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cs-customer-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1228;
+}
+
+.cs-customer-phone {
+    font-size: 13px;
+    color: #8a82a0;
+}
+
+.cs-load-more {
+    padding: 20px;
+    text-align: center;
+}
+
+.cs-load-more-text {
+    font-size: 13px;
+    color: #8a82a0;
+}
+
+/* 商家版切换客户按钮 */
+.hair-switch-customer-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background-color: #f3f0ff;
+    border-radius: 20px;
+}
+
+.switch-customer-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b21c8;
+}
 </style>

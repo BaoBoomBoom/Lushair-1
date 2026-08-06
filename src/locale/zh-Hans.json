@@ -1139,6 +1139,9 @@
         "rewardClaimed": "已领取"
     },
     "merchant": {
+        "selectCustomer": "选择客户",
+        "selectCustomerSubtitle": "选择客户以查看其分析和历史记录",
+        "failedToLoadCustomers": "加载客户失败",
         "customerList": "客户列表",
         "searchPlaceholder": "按姓名或手机号搜索",
         "noCustomers": "暂无客户",

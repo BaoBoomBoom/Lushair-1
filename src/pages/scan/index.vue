@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { onShow } from '@dcloudio/uni-app';
 import MainTabLayout from '@/components/layout/MainTabLayout.vue';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ScanAnalyzingOverlay from '@/components/scan/ScanAnalyzingOverlay.vue';
@@ -208,6 +209,11 @@ function clearAngle(angleId: SelfieAngleId) {
 function selectAngle(angleId: SelfieAngleId) {
     activeAngle.value = angleId;
 }
+
+// 页面显示时保存当前 tab
+onShow(() => {
+    uni.setStorageSync('lastActiveTab', '/pages/scan/index');
+});
 </script>
 
 <template>

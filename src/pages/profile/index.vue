@@ -183,6 +183,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import TablerIcon from '@/components/icons/TablerIcon.vue';
 import ShellUserIcon from '@/components/icons/ShellUserIcon.vue';
 import { useI18n } from 'vue-i18n';
@@ -393,6 +394,12 @@ const getProductTypeKey = (type: string) => {
   
   return typeMap[type] || type.toLowerCase();
 };
+
+// 页面显示时保存当前 tab
+onShow(() => {
+  uni.setStorageSync('lastActiveTab', '/pages/profile/index');
+});
+
 </script>
 
 <style>

@@ -1144,6 +1144,9 @@
         "rewardClaimed": "Claimed"
     },
     "merchant": {
+        "selectCustomer": "Select a Customer",
+        "selectCustomerSubtitle": "Choose a customer to view their analysis and history",
+        "failedToLoadCustomers": "Failed to load customers",
         "customerList": "Customers",
         "searchPlaceholder": "Search by name or phone",
         "noCustomers": "No customers yet",

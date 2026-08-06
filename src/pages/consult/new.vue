@@ -757,6 +757,9 @@ onMounted(() => {
 });
 
 onShow(async () => {
+    // 保存当前页面为最后访问的 tab 页面
+    uni.setStorageSync('lastActiveTab', '/pages/consult/new');
+
     careContextLoaded.value = !!uni.getStorageSync(AI_HOME_CARE_PROMPT_KEY);
     await refreshScanContext();
 

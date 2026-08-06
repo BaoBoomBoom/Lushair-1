@@ -91,6 +91,9 @@ onUnmounted(() => {
 });
 
 onShow(() => {
+    // 保存当前页面为最后访问的 tab 页面
+    uni.setStorageSync('lastActiveTab', '/pages/routine/index');
+
     loadPlan();
 });
 </script>

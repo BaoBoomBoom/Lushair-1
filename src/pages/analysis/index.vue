@@ -563,6 +563,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, defineEmits, nextTick } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../stores/userStore';
 import { post } from '@/utils/request';
 import { useI18n } from 'vue-i18n';
@@ -2043,6 +2044,11 @@ const viewChartDetails = (chartType: string) => {
   
   // ... rest of the function ...
 };
+
+// 页面显示时保存当前 tab
+onShow(() => {
+  uni.setStorageSync('lastActiveTab', '/pages/analysis/index');
+});
 
 </script>
 
