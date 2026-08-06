@@ -3275,11 +3275,12 @@ const shareProgress = async () => {
     <view v-if="isMerchant && !selectedCustomer" class="customer-selector-fullscreen">
         <view class="cs-header">
             <view class="cs-header-nav">
-                <view class="cs-back-button" @tap="handleBack">
+                <view v-if="customerList.length === 0" class="cs-back-button" @tap="handleBack">
                     <TablerIcon name="chevron-left" :size="22" color="#1a1228" />
                 </view>
+                <view v-else style="width: 44px;"></view>
                 <text class="cs-header-title">{{ t('merchant.customerList') }}</text>
-                <view style="width: 22px;"></view>
+                <view style="width: 44px;"></view>
             </view>
             <view class="cs-search-bar">
                 <TablerIcon name="search" :size="18" color="#8a82a0" />
