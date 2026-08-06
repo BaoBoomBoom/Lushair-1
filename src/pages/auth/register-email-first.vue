@@ -33,7 +33,7 @@ const handleRegister = async () => {
 
     isLoading.value = true;
     try {
-        await sendEmailCaptcha(email.value, true);
+        await sendEmailCaptcha(email.value);
         navigateToSendCode({
             pushType: '1',
             type: 'email',
