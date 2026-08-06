@@ -30,6 +30,7 @@ const phone = ref('');
 const countryCode = ref('');
 const inviteCode = ref('');
 const isLoading = ref(false);
+const isSubmitting = ref(false); // 请求锁，防止 watch 和 click 同时触发
 const shakeError = ref(false);
 const resendSeconds = ref(0);
 let resendTimer: ReturnType<typeof setInterval> | null = null;
@@ -301,15 +302,16 @@ const handleEmailVerification = async (captcha: string) => {
     await persistSession({ email: email.value.toLowerCase() }, clerkResult.token, clerkResult.clerkUserId, getUserTimezone());
 };
 
-const handleNext = async () => {
+const handleNext = async (skipSubmitCheck = false) => {
     const code = verificationCode.value.join('');
     if (code.length !== 4) {
         uni.showToast({ title: t('auth.sendCode.enterCompleteCode'), icon: 'none' });
         return;
     }
-    if (isLoading.value) return;
 
-    // 立即设置 loading，防止 watch 和 click 同时触发
+    // 防止重复调用（watch 触发时跳过检查）
+    if (!skipSubmitCheck && isSubmitting.value) return;
+
     isLoading.value = true;
     try {
         if (type.value === 'phone') {
@@ -323,6 +325,7 @@ const handleNext = async () => {
         triggerShake();
     } finally {
         isLoading.value = false;
+        isSubmitting.value = false;
     }
 };
 
@@ -347,13 +350,15 @@ const handleResend = async () => {
     }
 };
 
-const isCodeComplete = computed(() => verificationCode.value.every((d) => d !== '') && !isLoading.value);
+const isCodeComplete = computed(() => verificationCode.value.every((d) => d !== '') && !isSubmitting.value);
 
 watch(
     () => verificationCode.value.join(''),
     (code) => {
-        if (code.length === 4 && !isLoading.value) {
-            nextTick(() => handleNext());
+        if (code.length === 4 && !isSubmitting.value) {
+            // 立即设置锁，防止按钮点击同时触发
+            isSubmitting.value = true;
+            nextTick(() => handleNext(true)); // true = watch 触发，跳过检查
         }
     }
 );
