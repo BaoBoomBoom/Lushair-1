@@ -211,13 +211,19 @@ const provisionUser = async (userId: string, clerkUserId?: string) => {
 };
 
 const persistSession = async (contactPayload: Record<string, string>, clerkToken?: string, clerkUserId?: string, timezone?: string) => {
+    // 统一邮箱为小写
+    const normalizedPayload = { ...contactPayload };
+    if (normalizedPayload.email) {
+        normalizedPayload.email = normalizedPayload.email.toLowerCase();
+    }
+
     // 如果有 Clerk token，使用它注册到后端
     if (clerkToken) {
         try {
-            const registerResult = await registerWithClerkToken(clerkToken, { ...contactPayload, timezone });
+            const registerResult = await registerWithClerkToken(clerkToken, { ...normalizedPayload, timezone });
             if (registerResult.success) {
                 // 注册成功后，从新后端 Vercel 数据库获取完整用户信息（支持兜底逻辑）
-                const userInfoResponse = await getUserInfoWithFallback(contactPayload, timezone);
+                const userInfoResponse = await getUserInfoWithFallback(normalizedPayload, timezone);
                 // 合并用户信息
                 Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
                 uni.setStorageSync('userInfo', userStore.userInfo);
@@ -237,9 +243,9 @@ const persistSession = async (contactPayload: Record<string, string>, clerkToken
         }
     } else {
         // 无 Clerk token 时，直接从新后端获取用户信息（Clerk 用户已在后端创建，支持兜底逻辑）
-        const userInfoResponse = await getUserInfoWithFallback(contactPayload, timezone);
+        const userInfoResponse = await getUserInfoWithFallback(normalizedPayload, timezone);
         // 合并用户信息
-        Object.assign(userStore.userInfo, userInfoResponse, contactPayload);
+        Object.assign(userStore.userInfo, userInfoResponse, normalizedPayload);
         uni.setStorageSync('userInfo', userStore.userInfo);
         const userId = userInfoResponse?.userId || (userStore.userInfo as { userId?: string }).userId;
         if (userId) {
@@ -281,7 +287,7 @@ const handlePhoneVerification = async (captcha: string) => {
 const handleEmailVerification = async (captcha: string) => {
     // 1. 先验证验证码（使用新API）
     await post('login/verifyByEmail', {
-        email: email.value,
+        email: email.value.toLowerCase(), // 统一为小写
         captcha,
     }, { brand: ProjectBrand.LUSHAIR_NEW });
 
@@ -292,7 +298,7 @@ const handleEmailVerification = async (captcha: string) => {
     );
 
     // 3. 使用新后端完成登录流程（无论是否有 token）
-    await persistSession({ email: email.value }, clerkResult.token, clerkResult.clerkUserId, getUserTimezone());
+    await persistSession({ email: email.value.toLowerCase() }, clerkResult.token, clerkResult.clerkUserId, getUserTimezone());
 };
 
 const handleNext = async () => {
@@ -354,7 +360,9 @@ watch(
 onLoad((options) => {
     pushType.value = (options?.pushType === '1' ? '1' : '0') as AuthPushType;
     type.value = options?.type === 'phone' ? 'phone' : 'email';
-    email.value = decodeURIComponent(options?.email || '');
+    // 统一邮箱为小写
+    const rawEmail = decodeURIComponent(options?.email || '');
+    email.value = rawEmail ? rawEmail.toLowerCase() : '';
     phone.value = decodeURIComponent(options?.phone || '');
     countryCode.value = decodeURIComponent(options?.countryCode || '');
     inviteCode.value = decodeURIComponent(options?.inviteCode || '');

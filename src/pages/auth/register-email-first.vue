@@ -33,11 +33,12 @@ const handleRegister = async () => {
 
     isLoading.value = true;
     try {
-        await sendEmailCaptcha(email.value);
+        const normalizedEmail = email.value.trim().toLowerCase();
+        await sendEmailCaptcha(normalizedEmail);
         navigateToSendCode({
             pushType: '1',
             type: 'email',
-            email: email.value.trim(),
+            email: normalizedEmail,
             inviteCode: inviteCode.value || undefined,
         });
     } catch (error) {

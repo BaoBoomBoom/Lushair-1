@@ -32,11 +32,12 @@ const handleLogin = async () => {
 
     isLoading.value = true;
     try {
-        await sendEmailCaptcha(email.value);
+        const normalizedEmail = email.value.trim().toLowerCase();
+        await sendEmailCaptcha(normalizedEmail);
         navigateToSendCode({
             pushType: '0',
             type: 'email',
-            email: email.value.trim(),
+            email: normalizedEmail,
         });
     } catch (error: any) {
         const errorMsg = error?.data?.message || t('auth.login.sendCodeFailed');

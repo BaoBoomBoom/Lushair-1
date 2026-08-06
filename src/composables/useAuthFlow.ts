@@ -64,7 +64,7 @@ export function navigateAuthPage(path: string, pushType?: AuthPushType) {
 export async function sendEmailCaptcha(email: string, isDebug?: boolean) {
     const shouldDebug = isDebug ?? env.isDevelopment();
     const result = await post('login/sendEmailCaptcha', {
-        email: email.trim(),
+        email: email.trim().toLowerCase(), // 统一为小写
         isDebug: shouldDebug,
     }, { brand: ProjectBrand.LUSHAIR_NEW });
 
