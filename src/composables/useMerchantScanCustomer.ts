@@ -48,7 +48,8 @@ export function useMerchantScanCustomer() {
         activeCustomer.value = customer;
         if (customer) {
             uni.setStorageSync(MERCHANT_SCAN_CUSTOMER_KEY, JSON.stringify(customer));
-            setUserIdToApp(customer.userId);
+            // 商家模式下，客户userId通过payload传递给原生App，不需要设置到KUSERIDKEY
+            // 避免从App返回H5时，App的KUSERIDKEY被客户userId污染
         } else {
             uni.removeStorageSync(MERCHANT_SCAN_CUSTOMER_KEY);
             if (merchantId.value) {
