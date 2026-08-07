@@ -3319,6 +3319,7 @@ const shareProgress = async () => {
                     <view class="cs-customer-info">
                         <text class="cs-customer-name">{{ customer.name }}</text>
                         <text v-if="customer.phone" class="cs-customer-phone">{{ customer.phone }}</text>
+                        <text v-else-if="customer.email" class="cs-customer-phone">{{ customer.email }}</text>
                     </view>
                     <TablerIcon name="chevron-right" :size="20" color="#8A82A0" />
                 </view>
@@ -3893,13 +3894,13 @@ const shareProgress = async () => {
     display: flex;
     flex-direction: column;
     z-index: 9999;
-    padding-top: env(safe-area-inset-top);
 }
 
 .cs-header {
     background-color: #ffffff;
     padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
     border-bottom: 1px solid #e8e4f4;
+    padding-top: max(12px, env(safe-area-inset-top));
 }
 
 .cs-header-nav {
@@ -4011,17 +4012,24 @@ const shareProgress = async () => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
 }
 
 .cs-customer-name {
     font-size: 15px;
     font-weight: 500;
     color: #1a1228;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .cs-customer-phone {
     font-size: 13px;
     color: #8a82a0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .cs-load-more {
